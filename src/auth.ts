@@ -12,24 +12,19 @@ const BLOCKED_EMAILS = [
   "felipenonato87@gmail.com"
 ];
 
-const supabaseUrl = 
-  process.env.SUPABASE_URL || 
-  process.env.NEXT_PUBLIC_SUPABASE_URL || 
-  'https://placeholder.supabase.co';
+function getSupabaseAdmin() {
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = 
+    process.env.SUPABASE_SERVICE_ROLE_KEY || 
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-const supabaseKey = 
-  process.env.SUPABASE_SERVICE_ROLE_KEY || 
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
-  'placeholder-key';
+  if (!supabaseUrl || !supabaseKey) return null;
 
-const supabaseAdmin = createClient(
-  supabaseUrl,
-  supabaseKey,
-  {
+  return createClient(supabaseUrl, supabaseKey, {
     db: { schema: 'next_auth' }
-  }
-);
+  });
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "super_secret_session_key_decolashop_saas_2026",
@@ -70,14 +65,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         // Try checking in Supabase next_auth.users table
         try {
-          const { data: dbUser } = await supabaseAdmin
-            .from("users")
-            .select("plan, plan_expires_at, name")
-            .eq("email", email)
-            .single();
+          const supabaseAdmin = getSupabaseAdmin();
+          if (supabaseAdmin) {
+            const { data: dbUser } = await supabaseAdmin
+              .from("users")
+              .select("plan, plan_expires_at, name")
+              .eq("email", email)
+              .single();
 
-          if (dbUser?.plan) {
-            userPlan = dbUser.plan;
+            if (dbUser?.plan) {
+              userPlan = dbUser.plan;
+            }
           }
         } catch {
           // Continue with default plan if DB check is not reachable
@@ -115,13 +113,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // Refresh plan from Supabase occasionally
       if (token.email) {
         try {
-          const { data: dbUser } = await supabaseAdmin
-            .from("users")
-            .select("plan")
-            .eq("email", token.email)
-            .single();
-          if (dbUser?.plan) {
-            token.plan = dbUser.plan;
+          const supabaseAdmin = getSupabaseAdmin();
+          if (supabaseAdmin) {
+            const { data: dbUser } = await supabaseAdmin
+              .from("users")
+              .select("plan")
+              .eq("email", token.email)
+              .single();
+            if (dbUser?.plan) {
+              token.plan = dbUser.plan;
+            }
           }
         } catch {
           // ignore
