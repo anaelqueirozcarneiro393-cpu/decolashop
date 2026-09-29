@@ -12,10 +12,22 @@ const nextConfig: NextConfig = {
   },
   async rewrites() {
     return [
-      {
-        source: '/:path((?!api|_next|static|favicon.png|icon.png|manifest.json|robots.txt).*)',
-        destination: '/',
-      },
+      { source: '/dashboard', destination: '/' },
+      { source: '/financeiro', destination: '/' },
+      { source: '/catalogo', destination: '/' },
+      { source: '/divulgacao-ia', destination: '/' },
+      { source: '/anuncio', destination: '/' },
+      { source: '/video-ia', destination: '/' },
+      { source: '/conectar', destination: '/' },
+      { source: '/video-aula', destination: '/' },
+      { source: '/perfil', destination: '/' },
+      { source: '/reembolso', destination: '/' },
+      { source: '/minerador', destination: '/' },
+      { source: '/detalhe', destination: '/' },
+      { source: '/fornecedores', destination: '/' },
+      { source: '/calculadora', destination: '/' },
+      { source: '/meus-produtos', destination: '/' },
+      { source: '/configuracoes', destination: '/' },
     ];
   },
 };
