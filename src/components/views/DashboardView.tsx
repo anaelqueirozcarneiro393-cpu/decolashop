@@ -108,60 +108,6 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
       </div>
 
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Admin Quick Action Hero Header */}
-        {isAdmin && (
-          <div className="p-4 rounded-3xl bg-gradient-to-r from-[#22c55e]/15 via-[#10b981]/10 to-transparent border border-[#22c55e]/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 backdrop-blur-md shadow-lg shadow-[#22c55e]/5">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-[#22c55e]/20 border border-[#22c55e]/40 flex items-center justify-center text-[#22c55e] font-black flex-shrink-0">
-                <ShieldCheck size={22} />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-black uppercase tracking-wider text-[#22c55e]">
-                    Painel do Administrador
-                  </span>
-                  <span className="text-[10px] font-bold bg-[#22c55e]/15 text-[#4ade80] px-2 py-0.5 rounded-full border border-[#22c55e]/30">
-                    Dados Reais Conectados
-                  </span>
-                </div>
-                <p className="text-xs text-slate-300">
-                  Os valores refletem suas vendas reais. Para testar o fluxo de notificações sonoras e balanço, use os atalhos abaixo.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 flex-wrap">
-              <button
-                onClick={() => addSale()}
-                className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-black font-black text-xs transition-all shadow-md shadow-[#22c55e]/20 active:scale-95"
-              >
-                <Zap size={14} fill="currentColor" />
-                <span>+ Registrar Venda</span>
-              </button>
-
-              <button
-                onClick={toggleAutoSimulate}
-                className={`flex items-center gap-1.5 py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
-                  autoSimulate
-                    ? 'bg-[#22c55e]/20 border-[#22c55e] text-[#22c55e]'
-                    : 'bg-white/5 hover:bg-white/10 border-white/10 text-slate-300'
-                }`}
-              >
-                {autoSimulate ? <Pause size={13} /> : <Play size={13} />}
-                <span>{autoSimulate ? 'Pausar Auto' : 'Auto Vendas (10s)'}</span>
-              </button>
-
-              <button
-                onClick={resetData}
-                className="flex items-center gap-1.5 py-2 px-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-bold transition-all active:scale-95"
-                title="Limpa os dados para zero (R$ 0,00)"
-              >
-                <RotateCcw size={13} />
-                <span>Zerar Dados</span>
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* Card Vendas Totais (Topo) */}
         <div className="relative rounded-3xl p-8 md:p-10 bg-gradient-to-b from-[#111726]/95 via-[#0d121f]/95 to-[#0b101b] border border-[#22c55e]/30 shadow-2xl shadow-[#22c55e]/10 backdrop-blur-xl flex flex-col items-center text-center overflow-hidden group">
