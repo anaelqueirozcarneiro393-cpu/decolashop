@@ -22,6 +22,7 @@ import { ViewType } from '@/app/page';
 import { useSales } from '@/lib/salesContext';
 import { useSession } from 'next-auth/react';
 import { Product } from '@/lib/mockData';
+import SalesOverviewChart from '@/components/SalesOverviewChart';
 
 interface DashboardViewProps {
   onNavigate: (view: ViewType, product?: Product) => void;
@@ -56,8 +57,6 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
     hourlyData,
     availableProducts
   } = useSales();
-
-  const [period, setPeriod] = useState<'hoje' | '7d' | '30d' | 'tudo'>('hoje');
 
   // Use real products for the Top 5
   const topList = availableProducts.slice(0, 5).map((p, index) => {
@@ -176,132 +175,15 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
             </p>
           </div>
 
-          {/* Coluna 2: Visão Geral de Vendas (Hoje) - Gráfico Compacto no Mobile */}
-          <div className="lg:col-span-5 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-[#0d121f]/90 border border-white/10 hover:border-[#22c55e]/30 shadow-xl backdrop-blur-xl flex flex-col justify-between transition-all">
-            <div>
-              {/* Header com Filtros */}
-              <div className="flex items-center justify-between gap-2 mb-2 sm:mb-4">
-                <h3 className="text-xs sm:text-sm font-black text-white truncate">
-                  Visão Geral <span className="text-[#22c55e]">({period === 'hoje' ? 'Hoje' : period.toUpperCase()})</span>
-                </h3>
-
-                <div className="flex items-center gap-1">
-                  {[
-                    { id: 'hoje', label: 'Hoje' },
-                    { id: '7d', label: '7D' },
-                    { id: '30d', label: '30D' },
-                    { id: 'tudo', label: 'Tudo' },
-                  ].map((tab) => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setPeriod(tab.id as any)}
-                      className={`px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold transition-all ${
-                        period === tab.id
-                          ? 'border border-[#22c55e] text-[#22c55e] bg-[#22c55e]/15 font-black'
-                          : 'border border-white/10 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Legenda Hoje vs Ontem */}
-              <div className="flex items-center gap-3 text-[10px] sm:text-[11px] mb-2 sm:mb-3">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-[#22c55e] shadow-[0_0_6px_#22c55e]" />
-                  <span className="text-slate-300 font-bold">Hoje ({vendasTotais > 0 ? `R$ ${vendasTotais.toFixed(2)}` : 'R$ 0,00'})</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-slate-500" />
-                  <span className="text-slate-400 font-semibold">Ontem</span>
-                </div>
-              </div>
-
-              {/* Dynamic SVG Chart */}
-              <div className="relative w-full h-36 sm:h-44 md:h-52 pt-1">
-                <svg viewBox="0 0 500 200" className="w-full h-full overflow-visible">
-                  <defs>
-                    <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#22c55e" stopOpacity="0.35" />
-                      <stop offset="100%" stopColor="#22c55e" stopOpacity="0.0" />
-                    </linearGradient>
-                  </defs>
-
-                  {/* Horizontal Grid lines */}
-                  {[40, 80, 120, 160].map((y) => (
-                    <line key={y} x1="25" y1={y} x2="495" y2={y} stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
-                  ))}
-
-                  {/* Vertical Hour reference lines */}
-                  {hourlyData.map((h, i) => (
-                    <g key={h.hour}>
-                      <line x1={35 + i * 38} y1="30" x2={35 + i * 38} y2="180" stroke="rgba(255,255,255,0.03)" strokeDasharray="2 4" />
-                    </g>
-                  ))}
-
-                  {vendasTotais === 0 ? (
-                    <g>
-                      <line x1="30" y1="180" x2="495" y2="180" stroke="#22c55e" strokeWidth="2" strokeDasharray="4 4" opacity="0.6" />
-                      <text x="260" y="100" textAnchor="middle" fill="#64748b" fontSize="11" fontWeight="600">
-                        Nenhuma venda registrada ainda hoje.
-                      </text>
-                    </g>
-                  ) : (
-                    <>
-                      <path
-                        d="M 35 178 
-                           C 80 178, 120 170, 180 150 
-                           C 230 130, 280 100, 340 80 
-                           C 400 60, 440 45, 490 35
-                           L 490 180 L 35 180 Z"
-                        fill="url(#chartGradient)"
-                      />
-                      <path
-                        d="M 35 178 
-                           C 80 178, 120 170, 180 150 
-                           C 230 130, 280 100, 340 80 
-                           C 400 60, 440 45, 490 35"
-                        fill="none"
-                        stroke="#22c55e"
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                        className="drop-shadow-[0_0_10px_#22c55e]"
-                      />
-                      <circle cx="490" cy="35" r="4.5" fill="#4ade80" className="animate-pulse" />
-                    </>
-                  )}
-                </svg>
-
-                {/* Eixo X - Horas */}
-                <div className="flex justify-between items-center text-[8px] sm:text-[9px] text-slate-400 font-semibold pl-6 pr-1 mt-1">
-                  <span>00</span>
-                  <span>02</span>
-                  <span>04</span>
-                  <span>06</span>
-                  <span>08</span>
-                  <span>10</span>
-                  <span>12</span>
-                  <span>14</span>
-                  <span>16</span>
-                  <span>18</span>
-                  <span>20</span>
-                  <span>22</span>
-                  <span className="font-bold text-[#22c55e]">Hora</span>
-                </div>
-              </div>
-            </div>
-
-            <p className="text-[9px] text-slate-400 leading-snug mt-3 text-center">
-              Anúncios Shopee & TikTok convertem 65% mais.{' '}
-              <button 
-                onClick={() => onNavigate('divulgacao-ia')}
-                className="text-[#4ade80] hover:underline font-bold"
-              >
-                Crie anúncios aqui!
-              </button>
-            </p>
+          {/* Coluna 2: Visão Geral de Vendas - Gráfico Ultra Moderno & Interativo */}
+          <div className="lg:col-span-5 flex flex-col justify-between">
+            <SalesOverviewChart
+              vendasTotais={vendasTotais}
+              saldoDisponivel={saldoDisponivel}
+              pedidos={pedidos}
+              hourlyData={hourlyData}
+              onNavigate={onNavigate}
+            />
           </div>
 
           {/* Coluna 3: Top Produtos Reais do Catálogo (Compacto no Mobile) */}
