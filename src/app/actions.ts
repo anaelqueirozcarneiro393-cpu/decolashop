@@ -217,22 +217,28 @@ Output ONLY the English prompt. Example: "luxurious marble podium with studio li
  */
 function inferCategory(name: string): string {
   const n = (name || '').toLowerCase();
-  if (n.includes('microfone') || n.includes('intercomunicador') || n.includes('airbot') || n.includes('aspirador') || n.includes('gadget') || n.includes('projetor')) {
+  if (n.includes('microfone') || n.includes('fone') || n.includes('smartwatch') || n.includes('intercomunicador') || n.includes('airbot') || n.includes('aspirador') || n.includes('gadget') || n.includes('projetor') || n.includes('power bank') || n.includes('câmera') || n.includes('drone') || n.includes('impressora') || n.includes('caixa de som') || n.includes('carregador') || n.includes('cabo')) {
     return 'Eletrônicos';
   }
-  if (n.includes('cortador') || n.includes('batedor') || n.includes('panela') || n.includes('cozinha') || n.includes('legumes') || n.includes('vegetais')) {
+  if (n.includes('cortador') || n.includes('batedor') || n.includes('panela') || n.includes('cozinha') || n.includes('legumes') || n.includes('vegetais') || n.includes('seladora') || n.includes('triturador') || n.includes('spray') || n.includes('copo') || n.includes('tumbler') || n.includes('afiador') || n.includes('balança') || n.includes('bomba') || n.includes('air fryer')) {
     return 'Cozinha';
   }
-  if (n.includes('crocs') || n.includes('sandália') || n.includes('calça') || n.includes('bolsa') || n.includes('jogger') || n.includes('chunky') || n.includes('escova') || n.includes('beleza') || n.includes('moda')) {
+  if (n.includes('escova') || n.includes('massageador facial') || n.includes('cachos') || n.includes('cílios') || n.includes('cravos') || n.includes('depilador') || n.includes('pincéis') || n.includes('jade') || n.includes('sobrancelha') || n.includes('sérum') || n.includes('olheiras') || n.includes('pele') || n.includes('beleza')) {
     return 'Beleza';
   }
-  if (n.includes('sonny') || n.includes('popsocket') || n.includes('ghibli') || n.includes('gamer') || n.includes('setup') || n.includes('boneco')) {
+  if (n.includes('teclado') || n.includes('mousepad') || n.includes('monitor') || n.includes('screenbar') || n.includes('gamer') || n.includes('gamepad') || n.includes('fita de led') || n.includes('headset') || n.includes('pulso') || n.includes('hub')) {
     return 'Setup Gamer';
   }
-  if (n.includes('bandeira') || n.includes('brasil') || n.includes('copa') || n.includes('esporte')) {
-    return 'Esportes';
+  if (n.includes('garrafa') || n.includes('elástica') || n.includes('bands') || n.includes('corda') || n.includes('treino') || n.includes('fitness') || n.includes('muscular') || n.includes('yoga') || n.includes('hand grip') || n.includes('m8') || n.includes('esporte')) {
+    return 'Fitness';
   }
-  if (n.includes('dispenser') || n.includes('bambu') || n.includes('organizador') || n.includes('banheiro') || n.includes('casa')) {
+  if (n.includes('veicular') || n.includes('automotivo') || n.includes('pneus') || n.includes('capacete') || n.includes('aromatizador') || n.includes('dash cam')) {
+    return 'Automotivo';
+  }
+  if (n.includes('mochila') || n.includes('bolsa') || n.includes('calça') || n.includes('sandália') || n.includes('crocs') || n.includes('carteira') || n.includes('óculos') || n.includes('moda') || n.includes('chunky') || n.includes('jogger')) {
+    return 'Moda';
+  }
+  if (n.includes('lua') || n.includes('sonny') || n.includes('popsocket') || n.includes('difusor') || n.includes('umidificador') || n.includes('organizador') || n.includes('dispenser') || n.includes('bambu') || n.includes('luminária') || n.includes('mop') || n.includes('bandeira') || n.includes('decoração') || n.includes('casa')) {
     return 'Casa & Decoração';
   }
   return 'Eletrônicos';
@@ -243,10 +249,14 @@ function inferCategory(name: string): string {
  */
 function inferSupplier(category: string): string {
   if (category === 'Eletrônicos') return 'Innova Tech Global (SP)';
-  if (category === 'Cozinha' || category === 'Casa & Decoração') return 'HomeTech Brasil (PR)';
-  if (category === 'Beleza') return 'Lumina Fashion & Shoes (SC)';
-  if (category === 'Setup Gamer') return 'PopCulture Direct (SP)';
-  return 'SportsFull Brasil (SP)';
+  if (category === 'Cozinha') return 'ChefPro Utensílios (MG)';
+  if (category === 'Casa & Decoração') return 'HomeStyle Express (PR)';
+  if (category === 'Beleza') return 'Lumina Cosmetics & Care (SC)';
+  if (category === 'Setup Gamer') return 'CyberDesk Gamer (SP)';
+  if (category === 'Fitness') return 'FitLife Brasil (SP)';
+  if (category === 'Automotivo') return 'AutoTech Imports (SP)';
+  if (category === 'Moda') return 'ModaBrasil Prime (RS)';
+  return 'DecolaShop Distribuição Oficial (SP)';
 }
 
 /**
@@ -297,58 +307,70 @@ export async function getProductsFromSupabase(): Promise<{ success: boolean; dat
       .select('*')
       .order('hype_score', { ascending: false });
 
-    if (error || !data || data.length === 0) {
-      console.warn("Supabase returned empty or error, using mock fallback:", error?.message);
-      return { success: true, data: mockProducts };
+    let mappedData: any[] = [];
+
+    if (data && data.length > 0) {
+      // Normalize and enrich Supabase records
+      mappedData = data.map((item: any) => {
+        const numId = Number(item.ID) || 1;
+        const rawScore = Number(item.hype_score) || 8.5;
+        // If score is on 0-10 scale, convert to percentage scale (e.g. 9.8 -> 98)
+        const normalizedScore = rawScore <= 10 ? Math.round(rawScore * 10) : Math.round(rawScore);
+        
+        const numPrice = typeof item.price === 'number' 
+          ? item.price 
+          : parseFloat(String(item.price || item.preco_estimado || '99.90').replace(/[^0-9.]/g, '')) || 99.90;
+
+        const commissionNum = numPrice * 0.32;
+        const commissionStr = `R$ ${commissionNum.toFixed(2).replace('.', ',')}`;
+
+        const name = (item.name || item.nome_do_produto || item.title || 'Produto Vencedor').trim();
+        const imageUrl = (item.image_url || item.url_imagem || '').trim();
+        const category = item.categoria || inferCategory(name);
+        const supplier = item.fornecedor || inferSupplier(category);
+
+        // Calculate realistic sales velocity based on hype score
+        const baseSales = normalizedScore >= 95 ? 2450 : normalizedScore >= 90 ? 1720 : 890;
+        const variance = ((numId * 41) % 320) - 150;
+        const monthlySales = Math.max(210, baseSales + variance);
+
+        return {
+          ...item,
+          id: item.ID?.toString() || item.id || String(numId),
+          ID: numId,
+          name,
+          title: name,
+          price: numPrice,
+          image_url: imageUrl,
+          hype_score: normalizedScore,
+          score: normalizedScore,
+          category,
+          supplier,
+          commission: commissionStr,
+          status: normalizedScore >= 90 ? 'ALTA' : 'ESTÁVEL',
+          vendas_mes: monthlySales,
+          sales_count: monthlySales,
+          evidence: buildEvidence(name, normalizedScore),
+          url: item.url || `https://shopee.com.br/search?keyword=${encodeURIComponent(name)}`,
+        };
+      });
     }
-    
-    // Normalize and enrich Supabase records
-    const mappedData = data.map((item: any) => {
-      const numId = Number(item.ID) || 1;
-      const rawScore = Number(item.hype_score) || 8.5;
-      // If score is on 0-10 scale, convert to percentage scale (e.g. 9.8 -> 98)
-      const normalizedScore = rawScore <= 10 ? Math.round(rawScore * 10) : Math.round(rawScore);
-      
-      const numPrice = typeof item.price === 'number' 
-        ? item.price 
-        : parseFloat(String(item.price || item.preco_estimado || '99.90').replace(/[^0-9.]/g, '')) || 99.90;
 
-      const commissionNum = numPrice * 0.32;
-      const commissionStr = `R$ ${commissionNum.toFixed(2).replace('.', ',')}`;
+    // Merge with mockProducts to guarantee full catalog (80+ items) and avoid duplicate items
+    const existingNames = new Set(
+      mappedData.map(p => (p.name || p.title || '').toLowerCase().trim().slice(0, 25))
+    );
 
-      const name = (item.name || item.nome_do_produto || item.title || 'Produto Vencedor').trim();
-      const imageUrl = (item.image_url || item.url_imagem || '').trim();
-      const category = item.categoria || inferCategory(name);
-      const supplier = item.fornecedor || inferSupplier(category);
-
-      // Calculate realistic sales velocity based on hype score
-      const baseSales = normalizedScore >= 95 ? 2450 : normalizedScore >= 90 ? 1720 : 890;
-      const variance = ((numId * 41) % 320) - 150;
-      const monthlySales = Math.max(210, baseSales + variance);
-
-      return {
-        ...item,
-        id: item.ID?.toString() || item.id || String(numId),
-        ID: numId,
-        name,
-        title: name,
-        price: numPrice,
-        image_url: imageUrl,
-        hype_score: normalizedScore,
-        score: normalizedScore,
-        category,
-        supplier,
-        commission: commissionStr,
-        status: normalizedScore >= 90 ? 'ALTA' : 'ESTÁVEL',
-        vendas_mes: monthlySales,
-        sales_count: monthlySales,
-        evidence: buildEvidence(name, normalizedScore),
-        url: item.url || `https://shopee.com.br/search?keyword=${encodeURIComponent(name)}`,
-      };
-    });
+    for (const mockItem of mockProducts) {
+      const mockNameSnippet = (mockItem.name || mockItem.title || '').toLowerCase().trim().slice(0, 25);
+      if (!existingNames.has(mockNameSnippet)) {
+        mappedData.push(mockItem);
+        existingNames.add(mockNameSnippet);
+      }
+    }
 
     // Sort by hype_score descending (best sellers and hottest first)
-    mappedData.sort((a, b) => b.hype_score - a.hype_score);
+    mappedData.sort((a, b) => (Number(b.hype_score) || 0) - (Number(a.hype_score) || 0));
 
     return { success: true, data: mappedData };
   } catch (error: any) {

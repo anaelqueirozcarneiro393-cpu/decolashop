@@ -33,6 +33,9 @@ export async function GET() {
         price: numPrice,
         image: p.image_url || p.url_imagem,
         shopeeLink: p.url || p.shopeeLink || '#',
+        category: p.category || 'Geral',
+        hype_score: p.hype_score || 90,
+        commission: p.commission || `R$ ${(numPrice * 0.32).toFixed(2).replace('.', ',')}`,
         weight: (100 - (p.hype_score || 50)) / 100 // Generate a fake weight based on hype
       };
     });

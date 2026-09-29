@@ -137,9 +137,11 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
             title: item.name,
             price: item.price,
             image_url: item.image || item.image_url,
-            hype_score: 95,
+            hype_score: item.hype_score || 95,
+            score: item.hype_score || 95,
             url: item.shopeeLink || 'https://shopee.com.br',
-            category: 'Geral',
+            category: item.category || 'Geral',
+            commission: item.commission || `R$ ${(Number(item.price || 50) * 0.32).toFixed(2)}`,
           }));
           setAvailableProducts(mapped);
         }
