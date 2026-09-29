@@ -97,15 +97,15 @@ export default function AppContainer() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8f9fb] text-gray-900 selection:bg-[#ee4d2d]/20">
+    <div className="min-h-screen bg-[#080c14] text-slate-100 selection:bg-[#22c55e]/30">
       <Toaster 
         position="top-right"
         toastOptions={{
           style: {
-            background: '#ffffff',
-            color: '#111827',
-            border: '1px solid #e5e7eb',
-            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
+            background: '#111726',
+            color: '#f8fafc',
+            border: '1px solid rgba(34, 197, 94, 0.3)',
+            boxShadow: '0 10px 30px -5px rgba(0, 0, 0, 0.5), 0 0 20px rgba(34, 197, 94, 0.15)',
             fontWeight: 600,
             fontSize: '13px',
           },
@@ -145,7 +145,7 @@ export default function AppContainer() {
           setIsOpen={setIsSidebarOpen}
         />
         
-        <main className="flex-1 md:ml-64 min-h-screen bg-[#f8f9fb] text-gray-900 relative">
+        <main className="flex-1 md:ml-64 min-h-screen bg-[#080c14] text-slate-100 relative">
           <Header onMenuClick={() => setIsSidebarOpen(true)} session={session} />
           
           <div className="p-4 md:p-8 max-w-7xl mx-auto pb-24">

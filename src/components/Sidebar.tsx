@@ -32,8 +32,8 @@ const navItems = [
   { name: 'Dashboard', id: 'dashboard', icon: LayoutDashboard },
   { name: 'Financeiro', id: 'financeiro', icon: Wallet },
   { name: 'Catálogo', id: 'catalogo', icon: ShoppingBag },
-  { name: 'Divulgação com IA', id: 'divulgacao-ia', icon: Sparkles, badge: 'IA', badgeColor: 'bg-orange-100 text-[#ee4d2d] border-orange-200' },
-  { name: 'Gerar Vídeos com IA', id: 'video-ia', icon: Video, badge: 'PRO', badgeColor: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  { name: 'Divulgação com IA', id: 'divulgacao-ia', icon: Sparkles, badge: 'IA', badgeColor: 'bg-[#22c55e]/20 text-[#4ade80] border-[#22c55e]/30' },
+  { name: 'Gerar Vídeos com IA', id: 'video-ia', icon: Video, badge: 'PRO', badgeColor: 'bg-[#84cc16]/20 text-[#a3e635] border-[#84cc16]/30' },
   { name: 'Conexões e integrações', id: 'conectar', icon: Share2 },
   { name: 'Video aula', id: 'video-aula', icon: BookOpen },
   { name: 'Perfil', id: 'perfil', icon: User },
@@ -47,21 +47,21 @@ export default function Sidebar({ currentView, onNavigate, isOpen, setIsOpen }: 
 
   return (
     <aside className={cn(
-      "fixed left-0 top-0 z-40 h-screen w-64 bg-white/95 backdrop-blur-2xl border-r border-gray-100 shadow-sm transition-transform duration-300 ease-in-out flex flex-col",
+      "fixed left-0 top-0 z-40 h-screen w-64 bg-[#080c14]/95 backdrop-blur-2xl border-r border-[#22c55e]/15 transition-transform duration-300 ease-in-out flex flex-col",
       isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
     )}>
       <div className="flex flex-col h-full px-4 py-6 overflow-y-auto">
         {/* Brand Header */}
         <div className="flex items-center justify-between mb-8 px-2 flex-shrink-0">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => onNavigate('dashboard')}>
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#ee4d2d] to-[#ff5722] flex items-center justify-center shadow-lg shadow-orange-500/25 text-white">
-              <ShoppingBasket className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#22c55e] to-[#15803d] flex items-center justify-center shadow-lg shadow-[#22c55e]/30 text-black">
+              <Zap className="w-6 h-6 fill-current" />
             </div>
             <div>
-              <span className="text-xl font-black tracking-tight text-gray-900 block leading-tight">
-                Decola<span className="text-[#ee4d2d]">Shop</span>
+              <span className="text-xl font-black tracking-tight text-white block leading-tight">
+                Decola<span className="text-transparent bg-clip-text bg-gradient-to-r from-[#22c55e] to-[#4ade80]">Shop</span>
               </span>
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
                 NextShop SaaS
               </span>
             </div>
@@ -69,9 +69,9 @@ export default function Sidebar({ currentView, onNavigate, isOpen, setIsOpen }: 
           
           <button 
             onClick={() => setIsOpen?.(false)}
-            className="p-2 rounded-xl bg-gray-50 md:hidden hover:bg-gray-100 transition-colors"
+            className="p-2 rounded-lg bg-white/5 md:hidden hover:bg-white/10 transition-colors"
           >
-            <X size={18} className="text-gray-500" />
+            <X size={20} className="text-slate-400" />
           </button>
         </div>
 
@@ -84,15 +84,15 @@ export default function Sidebar({ currentView, onNavigate, isOpen, setIsOpen }: 
                 key={item.id}
                 onClick={() => onNavigate(item.id)}
                 className={cn(
-                  "flex items-center gap-3 px-3.5 py-2.5 w-full rounded-2xl transition-all duration-200 group text-left text-xs font-semibold",
+                  "flex items-center gap-3 px-3.5 py-2.5 w-full rounded-xl transition-all duration-200 group text-left text-xs font-semibold",
                   isActive 
-                    ? "bg-orange-50 text-[#ee4d2d] border border-orange-200/80 font-black shadow-sm" 
-                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    ? "bg-[#22c55e]/15 text-[#4ade80] border border-[#22c55e]/35 shadow-[0_0_15px_rgba(34,197,94,0.15)] font-black" 
+                    : "text-slate-400 hover:bg-white/5 hover:text-white"
                 )}
               >
                 <item.icon className={cn(
-                  "w-4 h-4 flex-shrink-0 transition-colors",
-                  isActive ? "text-[#ee4d2d]" : "text-gray-400 group-hover:text-gray-700"
+                  "w-4 h-4 flex-shrink-0",
+                  isActive ? "text-[#22c55e]" : "group-hover:text-white"
                 )} />
                 <span className="truncate flex-1">{item.name}</span>
                 {item.badge && (
@@ -109,11 +109,11 @@ export default function Sidebar({ currentView, onNavigate, isOpen, setIsOpen }: 
         </nav>
 
         {/* User Footer matching appnewshop */}
-        <div className="mt-auto pt-4 border-t border-gray-100 flex-shrink-0 space-y-2">
+        <div className="mt-auto pt-4 border-t border-white/10 flex-shrink-0 space-y-2">
           {/* User Email & Credits */}
-          <div className="px-3.5 py-2.5 rounded-2xl bg-gray-50 border border-gray-200/80">
-            <p className="text-xs font-bold text-gray-900 truncate">{userEmail}</p>
-            <div className="flex items-center gap-1.5 text-[10px] text-[#ee4d2d] font-black mt-0.5">
+          <div className="px-3 py-2 rounded-xl bg-[#0f1523] border border-white/10">
+            <p className="text-xs font-bold text-white truncate">{userEmail}</p>
+            <div className="flex items-center gap-1.5 text-[10px] text-[#22c55e] font-extrabold mt-0.5">
               <span>Admin Master</span>
               <span>•</span>
               <span>Créditos ∞</span>
@@ -124,18 +124,18 @@ export default function Sidebar({ currentView, onNavigate, isOpen, setIsOpen }: 
           <button
             onClick={() => onNavigate('reembolso')}
             className={cn(
-              "flex items-center gap-2.5 px-3.5 py-2 w-full rounded-xl text-xs font-semibold transition-all text-left",
-              currentView === 'reembolso' ? "bg-gray-100 text-gray-900 font-bold" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"
+              "flex items-center gap-2.5 px-3 py-2 w-full rounded-xl text-xs font-semibold transition-all text-left",
+              currentView === 'reembolso' ? "bg-white/10 text-white font-bold" : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
             )}
           >
-            <ShieldAlert size={14} className="text-[#ee4d2d]" />
+            <ShieldAlert size={14} className="text-[#4ade80]" />
             <span>Reembolso</span>
           </button>
 
           {/* Logout button */}
           <button 
             onClick={() => signOut()}
-            className="flex items-center gap-2.5 px-3.5 py-2 w-full rounded-xl text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors text-xs font-semibold text-left"
+            className="flex items-center gap-2.5 px-3 py-2 w-full rounded-xl text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-colors text-xs font-semibold text-left"
           >
             <LogOut size={14} />
             <span>Encerrar sessão</span>

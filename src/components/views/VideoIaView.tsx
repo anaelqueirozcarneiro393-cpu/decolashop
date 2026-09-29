@@ -5,10 +5,7 @@ import {
   Sparkles, 
   Play, 
   Pause, 
-  Volume2, 
-  VolumeX, 
   Maximize2, 
-  RotateCcw, 
   Download, 
   Link, 
   Check, 
@@ -16,14 +13,8 @@ import {
   Film, 
   Mic, 
   Music, 
-  Layers, 
   Cpu, 
-  ShieldCheck, 
-  Share2,
-  Edit3,
-  Sliders,
-  ChevronUp,
-  ChevronDown
+  ShieldCheck
 } from 'lucide-react';
 import SafeImage from '@/components/SafeImage';
 import { toast } from 'react-hot-toast';
@@ -35,7 +26,6 @@ interface VideoIaViewProps {
 
 export default function VideoIaView({ onNavigate }: VideoIaViewProps) {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
   const [activeAngle, setActiveAngle] = useState(1);
   const [selectedVoice, setSelectedVoice] = useState('julia');
   const [selectedMusic, setSelectedMusic] = useState('upbeat');
@@ -68,14 +58,14 @@ export default function VideoIaView({ onNavigate }: VideoIaViewProps) {
     <div className="space-y-6 max-w-7xl mx-auto pb-16 animate-in fade-in duration-300">
       {/* Header */}
       <div>
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#fff0eb] text-[#ee4d2d] border border-[#fcd8cf] text-xs font-bold mb-2">
-          <Film className="w-3.5 h-3.5" />
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#22c55e]/15 text-[#4ade80] border border-[#22c55e]/30 text-xs font-bold mb-2 shadow-[0_0_10px_rgba(34,197,94,0.15)]">
+          <Film className="w-3.5 h-3.5 text-[#22c55e]" />
           <span>CRIADOR INTELIGENTE</span>
         </div>
-        <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight">
+        <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight">
           Gerar Vídeos com IA
         </h1>
-        <p className="text-xs text-gray-500 font-medium mt-1">
+        <p className="text-xs text-slate-400 font-medium mt-1">
           Transforme instantaneamente qualquer produto em vídeos de alta conversão para o TikTok, Reels, Kwai e Shorts.
         </p>
       </div>
@@ -85,31 +75,31 @@ export default function VideoIaView({ onNavigate }: VideoIaViewProps) {
         {/* Left Column: Generation Controls & Settings (lg:col-span-7) */}
         <div className="lg:col-span-7 space-y-6">
           {/* Card: Kit Body Splash Obsession Active Video */}
-          <div className="bg-white rounded-3xl p-6 border border-orange-100 shadow-sm space-y-4">
+          <div className="bg-[#0d121f]/90 rounded-3xl p-6 border border-[#22c55e]/30 shadow-xl backdrop-blur-xl space-y-4">
             <div className="flex items-start justify-between flex-wrap gap-2">
               <div>
-                <h3 className="text-sm font-extrabold text-gray-900">
+                <h3 className="text-sm font-extrabold text-white">
                   Kit Body Splash Obsession
                 </h3>
-                <p className="text-[11px] text-gray-400 mt-0.5">
+                <p className="text-[11px] text-slate-400 mt-0.5">
                   Vídeo Oficial do Produto • Reprodução Sem Alteração
                 </p>
               </div>
 
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-black uppercase">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#22c55e]/20 border border-[#22c55e]/40 text-[#4ade80] text-[10px] font-black uppercase shadow-[0_0_10px_rgba(34,197,94,0.15)]">
                 <Check size={11} strokeWidth={3} />
                 <span>ARQUIVO ORIGINAL ATIVO</span>
               </span>
             </div>
 
-            <p className="text-xs text-gray-500 leading-relaxed">
+            <p className="text-xs text-slate-300 leading-relaxed">
               O vídeo original enviado para este produto está totalmente configurado e pronto para reprodução. Ele é exibido exatamente como no arquivo original, sem filtros artificiais, cortes ou sobreposições.
             </p>
 
             <div className="flex items-center gap-2 flex-wrap pt-1">
               <button
                 onClick={handleTogglePlay}
-                className="flex items-center gap-2 py-2.5 px-4 rounded-xl bg-[#ee4d2d] hover:bg-[#d73f20] text-white font-extrabold text-xs uppercase tracking-wider transition-all shadow-md shadow-orange-500/20 active:scale-95"
+                className="flex items-center gap-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-black font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-[#22c55e]/25 active:scale-95"
               >
                 <Play size={13} fill="currentColor" />
                 <span>{isPlaying ? 'PAUSAR VÍDEO' : 'ASSISTIR VÍDEO ORIGINAL'}</span>
@@ -117,7 +107,7 @@ export default function VideoIaView({ onNavigate }: VideoIaViewProps) {
 
               <button
                 onClick={() => toast.success('Exibindo em modo tela cheia limpa')}
-                className="flex items-center gap-1.5 py-2.5 px-3.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 font-bold text-xs transition-all"
+                className="flex items-center gap-1.5 py-2.5 px-3.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-slate-200 font-bold text-xs transition-all"
               >
                 <Maximize2 size={13} />
                 <span>Tela Cheia Limpa</span>
@@ -125,7 +115,7 @@ export default function VideoIaView({ onNavigate }: VideoIaViewProps) {
 
               <button
                 onClick={() => toast('Selecione um arquivo de vídeo do seu dispositivo')}
-                className="flex items-center gap-1.5 py-2.5 px-3.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 font-bold text-xs transition-all"
+                className="flex items-center gap-1.5 py-2.5 px-3.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-slate-200 font-bold text-xs transition-all"
               >
                 <span>↑ Substituir Arquivo de Vídeo</span>
               </button>
@@ -133,27 +123,27 @@ export default function VideoIaView({ onNavigate }: VideoIaViewProps) {
           </div>
 
           {/* Step 1: Escolha o Produto */}
-          <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm space-y-4">
+          <div className="bg-[#0d121f]/90 rounded-3xl p-6 border border-white/10 shadow-xl backdrop-blur-xl space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-[#ee4d2d] text-white font-black text-xs flex items-center justify-center">
+                <span className="w-5 h-5 rounded-full bg-[#22c55e] text-black font-black text-xs flex items-center justify-center">
                   1
                 </span>
-                <h3 className="text-sm font-extrabold text-gray-900">
+                <h3 className="text-sm font-extrabold text-white">
                   Escolha o Produto
                 </h3>
               </div>
 
-              <span className="text-[10px] font-black uppercase text-[#ee4d2d] bg-orange-50 px-2 py-0.5 rounded-full border border-orange-200">
+              <span className="text-[10px] font-black uppercase text-[#4ade80] bg-[#22c55e]/20 px-2 py-0.5 rounded-full border border-[#22c55e]/30">
                 SELECIONADO
               </span>
             </div>
 
             {/* Product selection preview */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="p-3 rounded-2xl border-2 border-[#ee4d2d] bg-orange-50/20 flex items-center justify-between gap-3">
+              <div className="p-3 rounded-2xl border-2 border-[#22c55e] bg-[#22c55e]/15 flex items-center justify-between gap-3 shadow-[0_0_15px_rgba(34,197,94,0.15)]">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-50 border border-gray-100 flex-shrink-0">
+                  <div className="w-10 h-10 rounded-xl overflow-hidden bg-black/40 border border-white/10 flex-shrink-0">
                     <img
                       src="https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?auto=format&fit=crop&q=80&w=200"
                       alt="Kit Body Splash"
@@ -161,22 +151,22 @@ export default function VideoIaView({ onNavigate }: VideoIaViewProps) {
                     />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs font-bold text-gray-900 truncate">
+                    <p className="text-xs font-bold text-white truncate">
                       Kit Body Splash Obsession
                     </p>
-                    <p className="text-xs font-black text-[#ee4d2d]">
+                    <p className="text-xs font-black text-[#4ade80]">
                       R$ 30,00
                     </p>
                   </div>
                 </div>
-                <div className="w-5 h-5 rounded-full bg-[#ee4d2d] text-white flex items-center justify-center flex-shrink-0">
+                <div className="w-5 h-5 rounded-full bg-[#22c55e] text-black flex items-center justify-center flex-shrink-0 font-bold">
                   <Check size={12} strokeWidth={3} />
                 </div>
               </div>
 
-              <div className="p-3 rounded-2xl border border-gray-200 bg-white flex items-center justify-between gap-3 opacity-60">
+              <div className="p-3 rounded-2xl border border-white/10 bg-black/20 flex items-center justify-between gap-3 opacity-60">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-50 border border-gray-100 flex-shrink-0">
+                  <div className="w-10 h-10 rounded-xl overflow-hidden bg-black/40 border border-white/10 flex-shrink-0">
                     <img
                       src="https://images.unsplash.com/photo-1518091043644-c1d4457512c6?auto=format&fit=crop&q=80&w=200"
                       alt="Jogo Camisas"
@@ -184,26 +174,26 @@ export default function VideoIaView({ onNavigate }: VideoIaViewProps) {
                     />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs font-bold text-gray-900 truncate">
+                    <p className="text-xs font-bold text-white truncate">
                       Jogo Camisas Futebol 53P
                     </p>
-                    <p className="text-xs font-black text-gray-600">
+                    <p className="text-xs font-black text-slate-400">
                       R$ 1.489,90
                     </p>
                   </div>
                 </div>
-                <div className="w-5 h-5 rounded-full border border-gray-300 flex-shrink-0" />
+                <div className="w-5 h-5 rounded-full border border-white/20 flex-shrink-0" />
               </div>
             </div>
           </div>
 
           {/* Step 2: Configurações de Geração */}
-          <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm space-y-6">
+          <div className="bg-[#0d121f]/90 rounded-3xl p-6 border border-white/10 shadow-xl backdrop-blur-xl space-y-6">
             <div className="flex items-center gap-2">
-              <span className="w-5 h-5 rounded-full bg-[#ee4d2d] text-white font-black text-xs flex items-center justify-center">
+              <span className="w-5 h-5 rounded-full bg-[#22c55e] text-black font-black text-xs flex items-center justify-center">
                 2
               </span>
-              <h3 className="text-sm font-extrabold text-gray-900">
+              <h3 className="text-sm font-extrabold text-white">
                 Configurações de Geração
               </h3>
             </div>
@@ -212,8 +202,8 @@ export default function VideoIaView({ onNavigate }: VideoIaViewProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Voz Narradora */}
               <div className="space-y-2">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-gray-700">
-                  <Mic size={14} className="text-[#ee4d2d]" />
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300">
+                  <Mic size={14} className="text-[#22c55e]" />
                   <span>Voz Narradora (IA)</span>
                 </div>
 
@@ -232,15 +222,15 @@ export default function VideoIaView({ onNavigate }: VideoIaViewProps) {
                       }}
                       className={`p-2.5 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
                         selectedVoice === v.id
-                          ? 'border-[#ee4d2d] bg-orange-50/40 font-bold'
-                          : 'border-gray-200/80 hover:border-gray-300'
+                          ? 'border-[#22c55e] bg-[#22c55e]/15 font-bold shadow-[0_0_10px_rgba(34,197,94,0.1)]'
+                          : 'border-white/10 bg-black/20 hover:border-white/20'
                       }`}
                     >
                       <div>
-                        <p className="text-xs text-gray-900 leading-tight">{v.name}</p>
-                        <p className="text-[10px] text-gray-400">{v.speed}</p>
+                        <p className="text-xs text-white leading-tight">{v.name}</p>
+                        <p className="text-[10px] text-slate-400">{v.speed}</p>
                       </div>
-                      <span className="text-[9px] font-black uppercase tracking-wider text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                      <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 bg-white/5 px-2 py-0.5 rounded border border-white/10">
                         {v.gender}
                       </span>
                     </div>
@@ -250,8 +240,8 @@ export default function VideoIaView({ onNavigate }: VideoIaViewProps) {
 
               {/* Música de Fundo */}
               <div className="space-y-2">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-gray-700">
-                  <Music size={14} className="text-[#ee4d2d]" />
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300">
+                  <Music size={14} className="text-[#22c55e]" />
                   <span>Música de Fundo (Viral)</span>
                 </div>
 
@@ -270,15 +260,15 @@ export default function VideoIaView({ onNavigate }: VideoIaViewProps) {
                       }}
                       className={`p-2.5 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
                         selectedMusic === m.id
-                          ? 'border-[#ee4d2d] bg-orange-50/40 font-bold'
-                          : 'border-gray-200/80 hover:border-gray-300'
+                          ? 'border-[#22c55e] bg-[#22c55e]/15 font-bold shadow-[0_0_10px_rgba(34,197,94,0.1)]'
+                          : 'border-white/10 bg-black/20 hover:border-white/20'
                       }`}
                     >
                       <div>
-                        <p className="text-xs text-gray-900 leading-tight">{m.name}</p>
-                        <p className="text-[10px] text-gray-400">{m.vol}</p>
+                        <p className="text-xs text-white leading-tight">{m.name}</p>
+                        <p className="text-[10px] text-slate-400">{m.vol}</p>
                       </div>
-                      <span className="text-[9px] font-black uppercase tracking-wider text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                      <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 bg-white/5 px-2 py-0.5 rounded border border-white/10">
                         {m.mood}
                       </span>
                     </div>
@@ -289,7 +279,7 @@ export default function VideoIaView({ onNavigate }: VideoIaViewProps) {
 
             {/* Modelo de Roteiro */}
             <div className="space-y-2">
-              <span className="text-xs font-bold text-gray-700">
+              <span className="text-xs font-bold text-slate-300">
                 Modelo de Roteiro / Roteirização IA
               </span>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -303,26 +293,26 @@ export default function VideoIaView({ onNavigate }: VideoIaViewProps) {
                     onClick={() => setSelectedScriptType(s.id)}
                     className={`p-3 rounded-2xl border cursor-pointer transition-all text-left ${
                       selectedScriptType === s.id
-                        ? 'border-[#ee4d2d] bg-orange-50/30 ring-1 ring-[#ee4d2d]/30'
-                        : 'border-gray-200/80 hover:border-gray-300'
+                        ? 'border-[#22c55e] bg-[#22c55e]/15 ring-1 ring-[#22c55e]/40 shadow-[0_0_15px_rgba(34,197,94,0.15)]'
+                        : 'border-white/10 bg-black/20 hover:border-white/20'
                     }`}
                   >
-                    <p className="text-xs font-black text-gray-900 mb-1 leading-tight">{s.title}</p>
-                    <p className="text-[10px] text-gray-400 leading-relaxed">{s.desc}</p>
+                    <p className="text-xs font-black text-white mb-1 leading-tight">{s.title}</p>
+                    <p className="text-[10px] text-slate-400 leading-relaxed">{s.desc}</p>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* Vídeo de Vendas / Criativo Próprio */}
-            <div className="p-3.5 rounded-2xl bg-orange-50/30 border border-orange-200/60 flex items-center justify-between gap-3">
+            <div className="p-3.5 rounded-2xl bg-[#22c55e]/10 border border-[#22c55e]/30 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5 min-w-0">
-                <Film size={16} className="text-[#ee4d2d] flex-shrink-0" />
+                <Film size={16} className="text-[#22c55e] flex-shrink-0" />
                 <div className="min-w-0">
-                  <p className="text-xs font-bold text-gray-900 truncate">
+                  <p className="text-xs font-bold text-white truncate">
                     kit-body-splash-obsession.mp4 (Arquivo Oficial)
                   </p>
-                  <p className="text-[10px] text-gray-400">
+                  <p className="text-[10px] text-slate-400">
                     Arquivo oficial sincronizado. Renderização automática sem alterações.
                   </p>
                 </div>
@@ -331,13 +321,13 @@ export default function VideoIaView({ onNavigate }: VideoIaViewProps) {
               <div className="flex items-center gap-2 flex-shrink-0">
                 <button
                   onClick={() => toast.success('Arquivo original restaurado')}
-                  className="text-[10px] font-bold text-[#ee4d2d] hover:underline"
+                  className="text-[10px] font-bold text-[#4ade80] hover:underline"
                 >
                   Restaurar Original
                 </button>
                 <button
                   onClick={() => toast('Substituição de arquivo pronta')}
-                  className="px-2.5 py-1 rounded-lg border border-orange-200 bg-white text-xs font-bold text-gray-700 hover:bg-gray-50"
+                  className="px-2.5 py-1 rounded-lg border border-white/10 bg-white/5 text-xs font-bold text-slate-200 hover:bg-white/10"
                 >
                   Substituir
                 </button>
@@ -346,29 +336,29 @@ export default function VideoIaView({ onNavigate }: VideoIaViewProps) {
           </div>
 
           {/* Motor de Vídeo Flow AI™ Card */}
-          <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm space-y-4">
+          <div className="bg-[#0d121f]/90 rounded-3xl p-6 border border-white/10 shadow-xl backdrop-blur-xl space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2">
-                <Cpu size={16} className="text-[#ee4d2d]" />
-                <h3 className="text-sm font-extrabold text-gray-900">
+                <Cpu size={16} className="text-[#22c55e]" />
+                <h3 className="text-sm font-extrabold text-white">
                   Motor de Vídeo Flow AI™
                 </h3>
-                <span className="text-[10px] font-black uppercase text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">
+                <span className="text-[10px] font-black uppercase text-[#4ade80] bg-[#22c55e]/20 px-2 py-0.5 rounded-full border border-[#22c55e]/30">
                   CLUSTER NEURAL ATIVO
                 </span>
               </div>
 
               <div className="flex items-center gap-2">
-                <button className="text-[11px] font-bold text-[#ee4d2d] hover:underline">
+                <button className="text-[11px] font-bold text-[#4ade80] hover:underline">
                   Conectar API Oficial
                 </button>
-                <span className="text-[10px] font-black uppercase bg-orange-500 text-white px-2 py-0.5 rounded-full">
+                <span className="text-[10px] font-black uppercase bg-[#22c55e] text-black px-2 py-0.5 rounded-full font-black">
                   ADMIN FLOW AI ENTERPRISE
                 </span>
               </div>
             </div>
 
-            <p className="text-xs text-gray-500 leading-relaxed">
+            <p className="text-xs text-slate-400 leading-relaxed">
               Renderização neural de 60 FPS com integração direta ao Flow AI Studio API.
             </p>
 
@@ -384,48 +374,48 @@ export default function VideoIaView({ onNavigate }: VideoIaViewProps) {
                   onClick={() => setSelectedModel(m.id)}
                   className={`p-3 rounded-2xl border cursor-pointer transition-all ${
                     selectedModel === m.id
-                      ? 'border-[#ee4d2d] bg-orange-50/30'
-                      : 'border-gray-200/80 hover:border-gray-300'
+                      ? 'border-[#22c55e] bg-[#22c55e]/15 shadow-[0_0_15px_rgba(34,197,94,0.15)]'
+                      : 'border-white/10 bg-black/20 hover:border-white/20'
                   }`}
                 >
                   <div className="flex items-center justify-between text-[9px] font-black uppercase mb-1">
-                    <span className="text-[#ee4d2d]">{m.tag}</span>
-                    <span className="text-gray-400">{m.fps}</span>
+                    <span className="text-[#4ade80]">{m.tag}</span>
+                    <span className="text-slate-400">{m.fps}</span>
                   </div>
-                  <p className="text-xs font-extrabold text-gray-900 leading-tight mb-1">{m.title}</p>
-                  <p className="text-[10px] text-gray-400 leading-relaxed">{m.desc}</p>
+                  <p className="text-xs font-extrabold text-white leading-tight mb-1">{m.title}</p>
+                  <p className="text-[10px] text-slate-400 leading-relaxed">{m.desc}</p>
                 </div>
               ))}
             </div>
 
-            <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t border-gray-100 flex-wrap gap-2">
+            <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-white/10 flex-wrap gap-2">
               <span className="font-semibold">
-                Taxa & Formato: <strong className="text-gray-900">1080x1920 Ultra HD (9:16) • 60 FPS Flow Sync</strong>
+                Taxa & Formato: <strong className="text-white">1080x1920 Ultra HD (9:16) • 60 FPS Flow Sync</strong>
               </span>
-              <span className="text-emerald-600 font-bold flex items-center gap-1">
+              <span className="text-[#4ade80] font-bold flex items-center gap-1">
                 <span>⚡</span> Cluster Flow AI dedicado pronto
               </span>
             </div>
           </div>
         </div>
 
-        {/* Right Column: Smartphone Video Player Mockup & Actions (lg:col-span-5) */}
+        {/* Right Column: Smartphone Video Player Mockup */}
         <div className="lg:col-span-5 space-y-6">
           {/* Top Admin Credit Status */}
-          <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm flex items-center justify-between gap-3">
+          <div className="bg-[#0d121f]/90 rounded-3xl p-4 border border-white/10 shadow-xl backdrop-blur-xl flex items-center justify-between gap-3">
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="text-xs font-bold text-gray-900">Créditos de IA</span>
-                <span className="text-[10px] font-black uppercase bg-orange-100 text-[#ee4d2d] px-1.5 py-0.5 rounded">
+                <span className="text-xs font-bold text-white">Créditos de IA</span>
+                <span className="text-[10px] font-black uppercase bg-[#22c55e]/20 text-[#4ade80] px-1.5 py-0.5 rounded border border-[#22c55e]/30">
                   ADMIN
                 </span>
               </div>
-              <p className="text-[10px] text-gray-400">Admin ∞ Ilimitado • Uso Vitalício ∞</p>
+              <p className="text-[10px] text-slate-400">Admin ∞ Ilimitado • Uso Vitalício ∞</p>
             </div>
 
             <button
               onClick={handleTogglePlay}
-              className="py-2 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wide flex items-center gap-1.5 shadow-md shadow-emerald-600/20 active:scale-95 transition-all"
+              className="py-2 px-3.5 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-black font-black text-xs uppercase tracking-wide flex items-center gap-1.5 shadow-lg shadow-[#22c55e]/20 active:scale-95 transition-all"
             >
               <Play size={12} fill="currentColor" />
               <span>REPRODUZIR VÍDEO DO KIT OBSESSION</span>
@@ -438,8 +428,8 @@ export default function VideoIaView({ onNavigate }: VideoIaViewProps) {
               onClick={() => setActiveViewMode('limpo')}
               className={`py-2 px-4 rounded-xl text-xs font-extrabold transition-all uppercase tracking-wider ${
                 activeViewMode === 'limpo'
-                  ? 'bg-[#ee4d2d] text-white shadow-md shadow-orange-500/20'
-                  : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                  ? 'bg-[#22c55e] text-black shadow-lg shadow-[#22c55e]/25'
+                  : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white'
               }`}
             >
               VÍDEO ORIGINAL LIMPO
@@ -449,20 +439,20 @@ export default function VideoIaView({ onNavigate }: VideoIaViewProps) {
               onClick={() => setActiveViewMode('social')}
               className={`py-2 px-4 rounded-xl text-xs font-extrabold transition-all uppercase tracking-wider ${
                 activeViewMode === 'social'
-                  ? 'bg-[#ee4d2d] text-white shadow-md shadow-orange-500/20'
-                  : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                  ? 'bg-[#22c55e] text-black shadow-lg shadow-[#22c55e]/25'
+                  : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white'
               }`}
             >
               MODO SOCIAL
             </button>
           </div>
 
-          <p className="text-[11px] text-gray-400 text-center flex items-center justify-center gap-1.5">
+          <p className="text-[11px] text-slate-400 text-center flex items-center justify-center gap-1.5">
             <span>🔉</span> Áudio em mudo - Toque para ativar som original
           </p>
 
-          {/* SMARTPHONE FRAME MOCKUP (Matching Screenshot) */}
-          <div className="relative mx-auto max-w-[320px] aspect-[9/18.5] bg-gray-950 rounded-[44px] p-3 border-4 border-gray-800 shadow-2xl flex flex-col justify-between overflow-hidden">
+          {/* SMARTPHONE FRAME MOCKUP */}
+          <div className="relative mx-auto max-w-[320px] aspect-[9/18.5] bg-gray-950 rounded-[44px] p-3 border-4 border-slate-700 shadow-2xl flex flex-col justify-between overflow-hidden">
             {/* Camera notch */}
             <div className="absolute top-4 left-1/2 -translate-x-1/2 w-28 h-5 bg-black rounded-full z-20 flex items-center justify-center">
               <div className="w-2.5 h-2.5 rounded-full bg-[#111] mr-3" />
@@ -471,7 +461,6 @@ export default function VideoIaView({ onNavigate }: VideoIaViewProps) {
 
             {/* Video Canvas Simulation */}
             <div className="relative w-full h-full rounded-[34px] overflow-hidden bg-gradient-to-b from-stone-800 via-stone-900 to-black flex flex-col justify-between p-4">
-              {/* Product Background Image / Simulated Frame */}
               <img
                 src="https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?auto=format&fit=crop&q=80&w=600"
                 alt="Kit Body Splash"
@@ -480,15 +469,14 @@ export default function VideoIaView({ onNavigate }: VideoIaViewProps) {
                 }`}
               />
 
-              {/* Video Overlay Dark Gradient */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/50 pointer-events-none" />
 
               {/* Top Overlays */}
               <div className="relative z-10 flex items-center justify-between text-[10px] text-white font-bold pt-6">
-                <span className="bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10">
+                <span className="bg-black/50 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10">
                   {angles.find((a) => a.id === activeAngle)?.title}
                 </span>
-                <span className="bg-emerald-500/80 px-2 py-0.5 rounded-md text-[9px] uppercase tracking-wider">
+                <span className="bg-[#22c55e]/90 text-black px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider">
                   1080P • 60 FPS
                 </span>
               </div>
@@ -496,7 +484,7 @@ export default function VideoIaView({ onNavigate }: VideoIaViewProps) {
               {/* Center Play Button Overlay */}
               <button
                 onClick={handleTogglePlay}
-                className="relative z-10 mx-auto w-14 h-14 rounded-full bg-black/60 hover:bg-black/80 border border-white/20 backdrop-blur-md flex items-center justify-center text-white transition-transform active:scale-90"
+                className="relative z-10 mx-auto w-14 h-14 rounded-full bg-black/60 hover:bg-black/80 border border-[#22c55e]/40 backdrop-blur-md flex items-center justify-center text-[#4ade80] transition-transform active:scale-90 shadow-[0_0_15px_rgba(34,197,94,0.3)]"
               >
                 {isPlaying ? <Pause size={22} /> : <Play size={22} className="ml-1" />}
               </button>
@@ -504,13 +492,13 @@ export default function VideoIaView({ onNavigate }: VideoIaViewProps) {
               {/* Bottom Product Info in Video */}
               <div className="relative z-10 space-y-2">
                 <div className="bg-black/60 backdrop-blur-md p-2 rounded-xl border border-white/10 text-white text-[10px]">
-                  <p className="font-extrabold">🛍️ Embalagem Completa & Design</p>
+                  <p className="font-extrabold text-[#4ade80]">🛍️ Embalagem Completa & Design</p>
                   <p className="text-gray-300 text-[9px]">Kit Body Splash Obsession WePink</p>
                 </div>
 
                 {/* Progress bar */}
                 <div className="w-full h-1 bg-white/20 rounded-full overflow-hidden">
-                  <div className={`h-full bg-[#ee4d2d] transition-all duration-300 ${isPlaying ? 'w-3/5' : 'w-1/4'}`} />
+                  <div className={`h-full bg-[#22c55e] transition-all duration-300 ${isPlaying ? 'w-3/5' : 'w-1/4'}`} />
                 </div>
               </div>
             </div>
@@ -518,7 +506,7 @@ export default function VideoIaView({ onNavigate }: VideoIaViewProps) {
 
           {/* Angles Selector */}
           <div className="space-y-1.5 text-center">
-            <span className="text-xs font-bold text-gray-700">Ângulos do Produto (5):</span>
+            <span className="text-xs font-bold text-slate-300">Ângulos do Produto (5):</span>
             <div className="flex items-center justify-center gap-1.5">
               {angles.map((a) => (
                 <button
@@ -529,8 +517,8 @@ export default function VideoIaView({ onNavigate }: VideoIaViewProps) {
                   }}
                   className={`w-9 h-8 rounded-lg text-xs font-black transition-all ${
                     activeAngle === a.id
-                      ? 'bg-[#ee4d2d] text-white shadow-sm'
-                      : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+                      ? 'bg-[#22c55e] text-black shadow-md shadow-[#22c55e]/25'
+                      : 'bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10'
                   }`}
                 >
                   {a.label}
@@ -542,43 +530,43 @@ export default function VideoIaView({ onNavigate }: VideoIaViewProps) {
           {/* Assistir em Tela Cheia CTA */}
           <button
             onClick={() => toast.success('Exibindo vídeo em tela cheia...')}
-            className="w-full py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 active:scale-95 transition-all"
+            className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-black font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-[#22c55e]/25 active:scale-95 transition-all"
           >
             <Maximize2 size={14} />
             <span>ASSISTIR EM TELA CHEIA</span>
           </button>
 
           {/* Legendas e Roteiro IA */}
-          <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-3">
+          <div className="bg-[#0d121f]/90 rounded-3xl p-5 border border-white/10 shadow-xl backdrop-blur-xl space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider">
+              <h3 className="text-xs font-black text-white uppercase tracking-wider">
                 Legendas e Roteiro IA
               </h3>
               <button
                 onClick={() => toast('Editor de legendas habilitado')}
-                className="text-[10px] font-bold text-[#ee4d2d] hover:underline"
+                className="text-[10px] font-bold text-[#4ade80] hover:underline"
               >
                 Editar Roteiro
               </button>
             </div>
 
             <div className="space-y-2 text-xs">
-              <div className="p-3 rounded-2xl bg-orange-50/50 border border-orange-200/60 text-gray-800 leading-relaxed flex items-start gap-2">
-                <span className="w-5 h-5 rounded-full bg-[#ee4d2d] text-white font-bold text-[10px] flex items-center justify-center flex-shrink-0 mt-0.5">
+              <div className="p-3 rounded-2xl bg-[#22c55e]/10 border border-[#22c55e]/30 text-slate-200 leading-relaxed flex items-start gap-2">
+                <span className="w-5 h-5 rounded-full bg-[#22c55e] text-black font-bold text-[10px] flex items-center justify-center flex-shrink-0 mt-0.5">
                   1
                 </span>
                 <p>Eu não acredito que estão vendendo essas duas fragrâncias da Virgínia por apenas R$ 30 aqui no TikTok Shop! 😱</p>
               </div>
 
-              <div className="p-3 rounded-2xl bg-gray-50 border border-gray-200/80 text-gray-700 leading-relaxed flex items-start gap-2">
-                <span className="w-5 h-5 rounded-full bg-gray-200 text-gray-700 font-bold text-[10px] flex items-center justify-center flex-shrink-0 mt-0.5">
+              <div className="p-3 rounded-2xl bg-black/30 border border-white/5 text-slate-300 leading-relaxed flex items-start gap-2">
+                <span className="w-5 h-5 rounded-full bg-white/10 text-slate-300 font-bold text-[10px] flex items-center justify-center flex-shrink-0 mt-0.5">
                   2
                 </span>
                 <p>Gente, VF Golden e Obsessed são os favoritos da WePink e são perfumes assim de mulherão!</p>
               </div>
 
-              <div className="p-3 rounded-2xl bg-gray-50 border border-gray-200/80 text-gray-700 leading-relaxed flex items-start gap-2">
-                <span className="w-5 h-5 rounded-full bg-gray-200 text-gray-700 font-bold text-[10px] flex items-center justify-center flex-shrink-0 mt-0.5">
+              <div className="p-3 rounded-2xl bg-black/30 border border-white/5 text-slate-300 leading-relaxed flex items-start gap-2">
+                <span className="w-5 h-5 rounded-full bg-white/10 text-slate-300 font-bold text-[10px] flex items-center justify-center flex-shrink-0 mt-0.5">
                   3
                 </span>
                 <p>Onde você passa vai deixar aquele rastro, aquela projeção e todo mundo vai querer saber qual é a sua fragrância.</p>
@@ -590,7 +578,7 @@ export default function VideoIaView({ onNavigate }: VideoIaViewProps) {
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={handleDownload}
-              className="py-3 px-4 rounded-2xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-800 font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm"
+              className="py-3 px-4 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 text-slate-200 font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm"
             >
               <Download size={14} />
               <span>BAIXAR MP4 HD</span>
@@ -598,7 +586,7 @@ export default function VideoIaView({ onNavigate }: VideoIaViewProps) {
 
             <button
               onClick={handleCopyLink}
-              className="py-3 px-4 rounded-2xl bg-[#ee4d2d] hover:bg-[#d73f20] text-white font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md shadow-orange-500/20"
+              className="py-3 px-4 rounded-2xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-black font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-[#22c55e]/25"
             >
               <Link size={14} />
               <span>COPIAR LINK</span>
@@ -608,21 +596,21 @@ export default function VideoIaView({ onNavigate }: VideoIaViewProps) {
       </div>
 
       {/* Bottom Distribution Info Card */}
-      <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-[#0d121f]/90 rounded-3xl p-6 border border-white/10 shadow-xl backdrop-blur-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <h3 className="text-sm font-extrabold text-gray-900">
+          <h3 className="text-sm font-extrabold text-white">
             Distribuição Inteligente Ativada
           </h3>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <p className="text-xs text-slate-400 mt-0.5">
             Nossos vídeos com IA são formatados nativamente com aspect ratio 9:16 vertical, prontos para impulsionar o algoritmo orgânico do TikTok, Shorts e Reels e converter telespectadores em compradores.
           </p>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
-          <span className="px-3 py-1.5 rounded-full border border-gray-200 bg-gray-50 text-xs font-semibold text-gray-600">
+          <span className="px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-xs font-semibold text-slate-300">
             ✓ Renderização 60FPS
           </span>
-          <span className="px-3 py-1.5 rounded-full border border-gray-200 bg-gray-50 text-xs font-semibold text-gray-600">
+          <span className="px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-xs font-semibold text-slate-300">
             ✓ Voz Neural Ativa
           </span>
         </div>
