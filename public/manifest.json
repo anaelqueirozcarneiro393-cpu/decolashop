@@ -1,0 +1,16 @@
+{
+  "name": "ApexFinder",
+  "short_name": "ApexFinder",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#111827",
+  "description": "ApexFinder - Mineração Assimétrica de Produtos Shopee.",
+  "icons": [
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
