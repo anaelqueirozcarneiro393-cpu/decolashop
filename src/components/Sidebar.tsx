@@ -3,15 +3,19 @@
 import React from 'react';
 import { 
   LayoutDashboard, 
-  Zap, 
-  Package, 
-  Calculator,
-  Truck,
-  Settings, 
-  TrendingUp,
-  Shield,
-  LogOut,
-  X
+  Wallet, 
+  ShoppingBag, 
+  Sparkles, 
+  Video, 
+  Share2, 
+  BookOpen, 
+  User, 
+  Calculator, 
+  Truck, 
+  ShieldAlert, 
+  LogOut, 
+  X,
+  Zap
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSession, signOut } from 'next-auth/react';
@@ -25,27 +29,29 @@ interface SidebarProps {
 
 const navItems = [
   { name: 'Dashboard', id: 'dashboard', icon: LayoutDashboard },
-  { name: 'Minerador Live', id: 'minerador', icon: Zap },
-  { name: 'Meus Produtos', id: 'meus-produtos', icon: Package },
+  { name: 'Financeiro', id: 'financeiro', icon: Wallet },
+  { name: 'Catálogo', id: 'catalogo', icon: ShoppingBag },
+  { name: 'Divulgação com IA', id: 'divulgacao-ia', icon: Sparkles, badge: 'IA', badgeColor: 'bg-primary/20 text-primary border-primary/30' },
+  { name: 'Gerar Vídeos com IA', id: 'video-ia', icon: Video, badge: 'PRO', badgeColor: 'bg-orange-500/20 text-orange-400 border-orange-500/30' },
+  { name: 'Conexões e integrações', id: 'conectar', icon: Share2 },
+  { name: 'Video aula', id: 'video-aula', icon: BookOpen },
+  { name: 'Perfil', id: 'perfil', icon: User },
   { name: 'Calculadora de Margem', id: 'calculadora', icon: Calculator },
-  { name: 'Fornecedores & VIP', id: 'fornecedores', icon: Truck },
-  { name: 'Configurações', id: 'configuracoes', icon: Settings },
+  { name: 'Fornecedores VIP', id: 'fornecedores', icon: Truck },
 ];
 
 export default function Sidebar({ currentView, onNavigate, isOpen, setIsOpen }: SidebarProps) {
-  const { data: session, status } = useSession();
-  
-  // @ts-ignore
-  const plan = session?.user?.plan || 'free';
-  const isPro = plan !== 'free';
+  const { data: session } = useSession();
+  const userEmail = session?.user?.email || 'nextshopsaas@gmail.com';
 
   return (
     <aside className={cn(
-      "fixed left-0 top-0 z-40 h-screen w-64 glass border-r border-border transition-transform duration-300 ease-in-out",
+      "fixed left-0 top-0 z-40 h-screen w-64 glass border-r border-border transition-transform duration-300 ease-in-out flex flex-col",
       isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
     )}>
-      <div className="flex flex-col h-full px-4 py-6">
-        <div className="flex items-center justify-between mb-8 px-2">
+      <div className="flex flex-col h-full px-4 py-6 overflow-y-auto">
+        {/* Brand Header */}
+        <div className="flex items-center justify-between mb-6 px-2 flex-shrink-0">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => onNavigate('dashboard')}>
             <div className="w-10 h-10 rounded-xl apex-gradient flex items-center justify-center shadow-lg shadow-primary/20">
               <Zap className="text-white w-6 h-6" fill="currentColor" />
@@ -55,7 +61,7 @@ export default function Sidebar({ currentView, onNavigate, isOpen, setIsOpen }: 
                 Decola<span className="apex-gradient-text">Shop</span>
               </span>
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block">
-                Apex Intelligence
+                NextShop SaaS
               </span>
             </div>
           </div>
@@ -68,73 +74,70 @@ export default function Sidebar({ currentView, onNavigate, isOpen, setIsOpen }: 
           </button>
         </div>
 
+        {/* Navigation List */}
         <nav className="flex-1 space-y-1">
           {navItems.map((item) => {
-            const isActive = currentView === item.id || (item.id === 'minerador' && (currentView === 'detalhe' || currentView === 'anuncio'));
+            const isActive = currentView === item.id;
             return (
               <button
                 key={item.id}
                 onClick={() => onNavigate(item.id)}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-3 w-full rounded-xl transition-all duration-200 group text-left text-sm",
+                  "flex items-center gap-3 px-3 py-2.5 w-full rounded-xl transition-all duration-200 group text-left text-xs font-semibold",
                   isActive 
-                    ? "bg-primary/10 text-primary border border-primary/20 shadow-[0_0_15px_rgba(16,185,129,0.1)] font-bold" 
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground font-medium"
+                    ? "bg-primary/10 text-primary border border-primary/20 shadow-[0_0_15px_rgba(16,185,129,0.1)] font-black" 
+                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                 )}
               >
                 <item.icon className={cn(
-                  "w-5 h-5 flex-shrink-0",
+                  "w-4 h-4 flex-shrink-0",
                   isActive ? "text-primary" : "group-hover:text-foreground"
                 )} />
-                <span className="truncate">{item.name}</span>
-                {item.id === 'minerador' && (
-                  <span className="ml-auto flex h-2 w-2 rounded-full bg-primary animate-pulse" />
+                <span className="truncate flex-1">{item.name}</span>
+                {item.badge && (
+                  <span className={cn(
+                    "text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md border",
+                    item.badgeColor
+                  )}>
+                    {item.badge}
+                  </span>
                 )}
               </button>
             );
           })}
         </nav>
 
-        <div className="mt-auto pt-4 border-t border-border">
-          {status === 'authenticated' && (
-            isPro ? (
-              <div className="px-3 py-3 mb-3 rounded-xl bg-gradient-to-br from-orange-600/20 to-orange-400/10 border border-orange-500/30 relative overflow-hidden group">
-                <div className="flex items-center gap-2 mb-1.5 relative z-10">
-                  <div className="p-1 rounded-md bg-orange-500/20 shadow-[0_0_10px_rgba(251,146,60,0.3)]">
-                    <Zap className="w-3.5 h-3.5 text-orange-400" />
-                  </div>
-                  <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest">
-                    MEMBRO VIP
-                  </span>
-                </div>
-                <p className="text-[11px] text-orange-200/80 leading-snug relative z-10">
-                  Minerador & IA Liberados
-                </p>
-              </div>
-            ) : (
-              <div 
-                onClick={() => onNavigate('configuracoes')}
-                className="px-3 py-3 mb-3 rounded-xl bg-secondary/50 border border-border cursor-pointer hover:border-primary/40 transition-colors"
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <Shield className="w-3.5 h-3.5 text-primary" />
-                  <span className="text-[10px] font-bold text-primary uppercase tracking-widest">
-                    PLANO FREE
-                  </span>
-                </div>
-                <p className="text-[11px] text-muted-foreground leading-snug">
-                  Clique para assinar o VIP
-                </p>
-              </div>
-            )
-          )}
-          
+        {/* User Footer matching appnewshop */}
+        <div className="mt-auto pt-4 border-t border-border flex-shrink-0 space-y-2">
+          {/* User Email & Credits */}
+          <div className="px-2 py-1.5 rounded-xl bg-white/5 border border-white/5">
+            <p className="text-xs font-bold text-white truncate">{userEmail}</p>
+            <div className="flex items-center gap-1.5 text-[10px] text-emerald-400 font-extrabold mt-0.5">
+              <span>Admin</span>
+              <span>•</span>
+              <span>Créditos ∞</span>
+            </div>
+          </div>
+
+          {/* Reembolso link */}
+          <button
+            onClick={() => onNavigate('reembolso')}
+            className={cn(
+              "flex items-center gap-2.5 px-3 py-2 w-full rounded-xl text-xs font-semibold transition-all text-left",
+              currentView === 'reembolso' ? "bg-white/10 text-white font-bold" : "text-muted-foreground hover:bg-white/5 hover:text-slate-200"
+            )}
+          >
+            <ShieldAlert size={14} className="text-orange-400" />
+            <span>Reembolso</span>
+          </button>
+
+          {/* Logout button */}
           <button 
             onClick={() => signOut()}
-            className="flex items-center gap-3 px-3 py-2.5 w-full rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors group text-sm"
+            className="flex items-center gap-2.5 px-3 py-2 w-full rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors text-xs font-semibold text-left"
           >
-            <LogOut className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            <span className="font-medium">Sair da Conta</span>
+            <LogOut size={14} />
+            <span>Encerrar sessão</span>
           </button>
         </div>
       </div>

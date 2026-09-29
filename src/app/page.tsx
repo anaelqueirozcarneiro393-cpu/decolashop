@@ -12,13 +12,36 @@ import AdGeneratorView from '@/components/views/AdGeneratorView';
 import MyProductsView from '@/components/views/MyProductsView';
 import ProfitCalculatorView from '@/components/views/ProfitCalculatorView';
 import SuppliersView from '@/components/views/SuppliersView';
+import FinanceiroView from '@/components/views/FinanceiroView';
+import CatalogoView from '@/components/views/CatalogoView';
+import VideoIaView from '@/components/views/VideoIaView';
+import ConectarView from '@/components/views/ConectarView';
+import VideoAulaView from '@/components/views/VideoAulaView';
+import PerfilView from '@/components/views/PerfilView';
+import ReembolsoView from '@/components/views/ReembolsoView';
 import SettingsView from '@/components/views/SettingsView';
 import { Product } from '@/lib/mockData';
 import { Toaster, toast } from 'react-hot-toast';
 
 import LoginView from '@/components/views/LoginView';
 
-export type ViewType = 'dashboard' | 'minerador' | 'detalhe' | 'anuncio' | 'meus-produtos' | 'calculadora' | 'fornecedores' | 'configuracoes';
+export type ViewType = 
+  | 'dashboard' 
+  | 'financeiro' 
+  | 'catalogo' 
+  | 'divulgacao-ia' 
+  | 'video-ia' 
+  | 'conectar' 
+  | 'video-aula' 
+  | 'perfil' 
+  | 'reembolso' 
+  | 'minerador' 
+  | 'detalhe' 
+  | 'anuncio' 
+  | 'meus-produtos' 
+  | 'calculadora' 
+  | 'fornecedores' 
+  | 'configuracoes';
 
 export default function AppContainer() {
   const { data: session, status } = useSession();
@@ -128,6 +151,48 @@ export default function AppContainer() {
                 savedCount={savedProducts.length}
               />
             )}
+
+            {currentView === 'financeiro' && (
+              <FinanceiroView />
+            )}
+
+            {currentView === 'catalogo' && (
+              <CatalogoView 
+                onNavigate={navigateToView}
+                onSave={handleSaveProduct}
+                savedProducts={savedProducts}
+              />
+            )}
+
+            {(currentView === 'divulgacao-ia' || currentView === 'anuncio') && (
+              <AdGeneratorView 
+                product={selectedProduct}
+                onNavigate={navigateToView}
+              />
+            )}
+
+            {currentView === 'video-ia' && (
+              <VideoIaView 
+                product={selectedProduct}
+                onNavigate={navigateToView}
+              />
+            )}
+
+            {currentView === 'conectar' && (
+              <ConectarView />
+            )}
+
+            {currentView === 'video-aula' && (
+              <VideoAulaView />
+            )}
+
+            {currentView === 'perfil' && (
+              <PerfilView />
+            )}
+
+            {currentView === 'reembolso' && (
+              <ReembolsoView onNavigate={navigateToView} />
+            )}
             
             {currentView === 'minerador' && (
               <MineradorLiveView 
@@ -146,16 +211,9 @@ export default function AppContainer() {
               />
             )}
             
-            {currentView === 'anuncio' && selectedProduct && (
-              <AdGeneratorView 
-                product={selectedProduct}
-                onNavigate={navigateToView}
-              />
-            )}
-            
             {currentView === 'meus-produtos' && (
               <MyProductsView 
-                onNavigate={navigateToView}
+                onNavigate={navigateToView} 
                 savedProducts={savedProducts}
                 onRemove={handleSaveProduct}
               />

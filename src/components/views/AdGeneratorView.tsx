@@ -8,11 +8,23 @@ import { cn } from '@/lib/utils';
 import { generateAdAction, generateAdImagePromptAction } from '@/app/actions';
 
 interface AdGeneratorViewProps {
-  product: Product;
+  product?: Product | null;
   onNavigate: (view: any, product?: any) => void;
 }
 
-export default function AdGeneratorView({ product, onNavigate }: AdGeneratorViewProps) {
+const defaultProductFallback: Product = {
+  id: 'top-1',
+  name: 'Mochila Notebook Impermeável',
+  title: 'Mochila Notebook Impermeável',
+  price: 'R$ 119,90',
+  image_url: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&q=80&w=800',
+  hype_score: 95,
+  category: 'Acessórios & Tech',
+  url: 'https://shopee.com.br',
+};
+
+export default function AdGeneratorView({ product: initialProduct, onNavigate }: AdGeneratorViewProps) {
+  const product = initialProduct || defaultProductFallback;
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [customCopy, setCustomCopy] = useState('');
