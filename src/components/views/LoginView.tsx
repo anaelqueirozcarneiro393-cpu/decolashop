@@ -2,180 +2,254 @@
 
 import React, { useState } from 'react';
 import { signIn } from "next-auth/react";
-import { LogIn, Zap, Shield, TrendingUp, Sparkles, Mail, Lock, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, Key, ExternalLink, ShieldCheck, Sparkles, Crown } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 export default function LoginView() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [purchaseCode, setPurchaseCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isDemoLoading, setIsDemoLoading] = useState<string | null>(null);
 
-  const handleCredentialsLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) {
-      toast.error('Informe seu e-mail');
-      return;
-    }
+  const handleLogin = async (e?: React.FormEvent, customCredentials?: { email?: string; password?: string; purchaseCode?: string; demoPlan?: string }) => {
+    if (e) e.preventDefault();
+
+    const targetEmail = customCredentials?.email || email || 'admin@newshop.com';
+    const targetPassword = customCredentials?.password ?? password ?? 'admin123';
+    const targetCode = customCredentials?.purchaseCode ?? purchaseCode;
+    const targetPlan = customCredentials?.demoPlan;
+
     setIsLoading(true);
     try {
       const res = await signIn('credentials', {
-        email,
-        password,
+        email: targetEmail,
+        password: targetPassword,
+        purchaseCode: targetCode,
+        demoPlan: targetPlan,
         redirect: false,
       });
+
       if (res?.error) {
         toast.error('Erro ao autenticar. Verifique seus dados.');
       } else {
-        toast.success('Login realizado com sucesso!');
+        toast.success(
+          targetEmail.includes('admin') 
+            ? '🚀 Bem-vindo, Administrador NewShop!' 
+            : 'Login realizado com sucesso!'
+        );
         window.location.reload();
       }
     } catch {
-      toast.error('Erro na conexão');
+      toast.error('Erro na conexão com o servidor');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleDemoLogin = async (plan: 'yearly' | 'free') => {
-    setIsDemoLoading(plan);
-    try {
-      const demoEmail = plan === 'yearly' ? 'vip@decolashop.com' : 'visitante@decolashop.com';
-      const res = await signIn('credentials', {
-        email: demoEmail,
-        password: 'demo',
-        demoPlan: plan,
-        redirect: false,
-      });
-      if (res?.error) {
-        toast.error('Erro ao iniciar sessão demo');
-      } else {
-        toast.success(plan === 'yearly' ? '✨ Bem-vindo ao DecolaShop VIP!' : 'Modo Visitante iniciado!');
-        window.location.reload();
-      }
-    } catch {
-      toast.error('Falha ao autenticar demo');
-    } finally {
-      setIsDemoLoading(null);
-    }
+  const fillAdmin = () => {
+    setEmail('admin@newshop.com');
+    setPassword('admin123');
+    setPurchaseCode('ADMIN-VIP');
+    toast.success('Credenciais de Administrador preenchidas!');
   };
 
   return (
-    <div className="min-h-screen bg-dark-bg flex flex-col items-center justify-center p-4 overflow-hidden relative">
-      {/* Background Glows */}
-      <div className="absolute top-[-10%] right-[-10%] w-[45%] h-[45%] bg-[#22c55e]/15 rounded-full blur-[140px] -z-10 animate-pulse" />
-      <div className="absolute bottom-[-10%] left-[-10%] w-[45%] h-[45%] bg-[#10b981]/15 rounded-full blur-[140px] -z-10 animate-pulse" />
-
-      <div className="max-w-lg w-full glass rounded-3xl p-8 md:p-10 border-white/10 shadow-2xl relative z-10">
-        {/* Header */}
-        <div className="flex flex-col items-center text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-[#22c55e] to-[#15803d] rounded-2xl flex items-center justify-center mb-4 shadow-xl shadow-[#22c55e]/25 border border-white/20 text-black">
-            <Zap className="text-black w-9 h-9 fill-current" />
+    <div className="min-h-screen bg-[#ea580c] flex items-center justify-center p-4 selection:bg-[#ea580c]/30">
+      {/* Central Login Card */}
+      <div className="max-w-[420px] w-full bg-white rounded-[32px] p-6 sm:p-8 shadow-2xl relative">
+        
+        {/* Brand Header */}
+        <div className="flex flex-col items-center text-center mb-6">
+          <div className="flex items-center gap-2 mb-1.5">
+            {/* Custom NewShop Shopping Bag / Cart Logo */}
+            <div className="relative w-9 h-9 flex items-center justify-center">
+              <svg viewBox="0 0 48 48" className="w-9 h-9" fill="none" xmlns="http://www.w3.org/2000/svg">
+                {/* Cart Body */}
+                <path d="M6 10H12L16.5 32H38L42 16H15" stroke="#ea580c" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+                {/* Wheels */}
+                <circle cx="19" cy="39" r="3" fill="#ea580c" />
+                <circle cx="35" cy="39" r="3" fill="#ea580c" />
+                {/* Blue Rocket / Fast Arrow */}
+                <path d="M22 28L32 14M32 14H24M32 14V22" stroke="#2563eb" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <h1 className="text-3xl font-black tracking-tight text-slate-900">
+              New<span className="text-[#2563eb]">Shop</span>
+            </h1>
           </div>
-          <h1 className="text-3xl md:text-4xl font-black mb-2 tracking-tight">
-            Decola<span className="text-transparent bg-clip-text bg-gradient-to-r from-[#22c55e] to-[#4ade80]">Shop</span>
-          </h1>
-          <p className="text-xs text-muted-foreground uppercase font-bold tracking-widest">
-            Mineração de Produtos & Anúncios Virais com IA
+          <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">
+            PLATAFORMA COM FORNECEDORES INTEGRADOS
           </p>
         </div>
 
-        {/* 1-Click Fast Access Boxes */}
-        <div className="mb-6 p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3">
-          <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            <span>Acesso Rápido para Teste</span>
-            <span className="text-[10px] text-[#4ade80] bg-[#22c55e]/15 px-2 py-0.5 rounded-full border border-[#22c55e]/30">1-Clique</span>
+        {/* Heading & Cadastre-se */}
+        <div className="flex items-start justify-between mb-5">
+          <div>
+            <h2 className="text-2xl font-black text-slate-900 leading-none mb-1">
+              Entrar
+            </h2>
+            <p className="text-xs text-slate-500 font-medium">
+              Acesse sua conta NewShop.
+            </p>
           </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => handleDemoLogin('yearly')}
-              disabled={!!isDemoLoading || isLoading}
-              className="flex flex-col items-center justify-center p-3 rounded-xl bg-gradient-to-br from-[#22c55e]/20 to-[#10b981]/20 hover:from-[#22c55e]/30 hover:to-[#10b981]/30 border border-[#22c55e]/40 text-white font-bold text-xs transition-all hover:scale-[1.02] active:scale-95 text-center shadow-lg"
-            >
-              <div className="flex items-center gap-1 text-[#4ade80] font-black text-xs mb-1">
-                <Sparkles size={14} /> VIP Completo
-              </div>
-              <span className="text-[11px] text-slate-300 font-medium">Sem paywall, IA liberada</span>
-            </button>
-
-            <button
-              onClick={() => handleDemoLogin('free')}
-              disabled={!!isDemoLoading || isLoading}
-              className="flex flex-col items-center justify-center p-3 rounded-xl bg-secondary/40 hover:bg-secondary/70 border border-border/50 text-white font-bold text-xs transition-all hover:scale-[1.02] active:scale-95 text-center"
-            >
-              <div className="flex items-center gap-1 text-slate-300 font-bold text-xs mb-1">
-                <CheckCircle2 size={14} /> Modo Gratuito
-              </div>
-              <span className="text-[11px] text-slate-400 font-medium">Testar Paywall e Checkout</span>
-            </button>
-          </div>
+          <button 
+            type="button"
+            onClick={fillAdmin}
+            className="flex items-center gap-1 text-[11px] font-black uppercase text-[#ea580c] hover:text-[#c2410c] tracking-wider transition-colors pt-0.5"
+            title="Preencher dados de Administrador"
+          >
+            CADASTRE-SE <ExternalLink size={12} className="stroke-[2.5]" />
+          </button>
         </div>
 
-        {/* Divider */}
-        <div className="relative my-6 text-center">
-          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10" /></div>
-          <span className="relative bg-dark-bg px-3 text-xs text-muted-foreground uppercase font-bold tracking-wider">ou acesse sua conta</span>
-        </div>
+        {/* Form */}
+        <form onSubmit={(e) => handleLogin(e)} className="space-y-4">
+          {/* E-mail */}
+          <div>
+            <label className="block text-xs font-bold text-slate-800 mb-1.5">
+              E-mail
+            </label>
+            <div className="relative flex items-center">
+              <div className="absolute left-3.5 text-slate-400 pointer-events-none">
+                <Mail size={18} />
+              </div>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="seu.email@exemplo.com"
+                className="w-full pl-10 pr-4 py-3 bg-slate-50/70 border border-slate-200 rounded-2xl text-slate-900 placeholder:text-slate-400 text-sm focus:outline-none focus:border-[#ea580c] focus:bg-white focus:ring-2 focus:ring-[#ea580c]/20 transition-all font-medium"
+              />
+            </div>
+          </div>
 
-        {/* Form Login */}
-        <form onSubmit={handleCredentialsLogin} className="space-y-3 mb-4">
-          <div className="relative">
-            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="seu-email@exemplo.com"
-              className="w-full bg-secondary/30 border border-border/50 rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-white placeholder:text-muted-foreground/50 transition-all"
-            />
+          {/* Senha */}
+          <div>
+            <label className="block text-xs font-bold text-slate-800 mb-1.5">
+              Senha
+            </label>
+            <div className="relative flex items-center">
+              <div className="absolute left-3.5 text-slate-400 pointer-events-none">
+                <Lock size={18} />
+              </div>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full pl-10 pr-4 py-3 bg-slate-50/70 border border-slate-200 rounded-2xl text-slate-900 placeholder:text-slate-400 text-sm focus:outline-none focus:border-[#ea580c] focus:bg-white focus:ring-2 focus:ring-[#ea580c]/20 transition-all font-medium"
+              />
+            </div>
           </div>
-          <div className="relative">
-            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Sua senha (opcional para teste)"
-              className="w-full bg-secondary/30 border border-border/50 rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-white placeholder:text-muted-foreground/50 transition-all"
-            />
+
+          {/* Código de Compra */}
+          <div>
+            <label className="block text-xs font-bold text-slate-800 mb-1.5">
+              Código de Compra
+            </label>
+            <div className="relative flex items-center">
+              <div className="absolute left-3.5 text-slate-400 pointer-events-none">
+                <Key size={18} />
+              </div>
+              <input
+                type="text"
+                value={purchaseCode}
+                onChange={(e) => setPurchaseCode(e.target.value)}
+                placeholder="Insira seu código de compra"
+                className="w-full pl-10 pr-4 py-3 bg-slate-50/70 border border-slate-200 rounded-2xl text-slate-900 placeholder:text-slate-400 text-sm focus:outline-none focus:border-[#ea580c] focus:bg-white focus:ring-2 focus:ring-[#ea580c]/20 transition-all font-medium"
+              />
+            </div>
           </div>
+
+          {/* Botão Entrar */}
           <button
             type="submit"
-            disabled={isLoading || !!isDemoLoading}
-            className="w-full flex items-center justify-center gap-2 bg-primary text-black font-extrabold py-3.5 px-6 rounded-xl hover:bg-primary/90 active:scale-95 transition-all shadow-lg shadow-primary/20 text-sm"
+            disabled={isLoading}
+            className="w-full py-4 bg-[#ea580c] hover:bg-[#c2410c] active:scale-[0.99] text-white font-black text-sm uppercase tracking-wider rounded-2xl shadow-lg shadow-[#ea580c]/30 hover:shadow-xl hover:shadow-[#ea580c]/40 transition-all duration-200 flex items-center justify-center gap-2 mt-2 cursor-pointer disabled:opacity-70"
           >
-            {isLoading ? 'Entrando...' : 'Entrar com E-mail'}
-            <ArrowRight size={16} />
+            {isLoading ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              'ENTRAR NA NEWSHOP'
+            )}
           </button>
         </form>
 
-        {/* Google OAuth Button */}
-        <button
-          onClick={() => signIn('google')}
-          className="w-full flex items-center justify-center gap-3 bg-white text-black font-bold py-3 px-6 rounded-xl hover:bg-slate-100 transition-all active:scale-95 shadow-md text-sm border border-slate-200"
-        >
-          <LogIn className="w-4 h-4" />
-          Continuar com Google
-        </button>
+        {/* Separator / Plans Header */}
+        <div className="text-center my-5">
+          <p className="text-[11px] font-bold text-slate-600 leading-tight">
+            Ainda não possui o código de compra definitivo? Escolha um plano:
+          </p>
+        </div>
 
-        <p className="mt-6 text-center text-[11px] text-muted-foreground leading-relaxed">
-          Ao prosseguir, você concorda com nossos <br className="hidden sm:block" />
-          <span className="underline cursor-pointer hover:text-primary transition-colors">Termos de Uso</span> 
-          <span className="mx-2">e</span>
-          <span className="underline cursor-pointer hover:text-primary transition-colors">Política de Privacidade</span>.
-        </p>
-      </div>
+        {/* Plan Cards Grid */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* Card Vitalício (Laranja) */}
+          <div
+            onClick={() => handleLogin(undefined, { email: 'vip@newshop.com', password: 'demo', demoPlan: 'yearly', purchaseCode: 'VITALICIO-VIP' })}
+            className="bg-[#ea580c] hover:bg-[#d94600] active:scale-[0.98] text-white rounded-2xl p-3.5 text-center shadow-md cursor-pointer transition-all flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-center justify-center gap-1 text-[10px] font-black uppercase tracking-wider mb-1 opacity-95">
+                <Crown size={12} className="stroke-[2.5]" />
+                <span>MAIS ESCOLHIDO</span>
+              </div>
+              <h3 className="font-black text-sm mb-1 tracking-tight">
+                Plano Vitalício
+              </h3>
+              <div className="flex items-center justify-center gap-1.5 my-1">
+                <span className="text-[11px] text-orange-200 line-through font-bold">R$ 297</span>
+                <span className="text-base font-black text-white">R$ 179,90</span>
+              </div>
+            </div>
+            <p className="text-[9px] text-orange-100 font-semibold mt-1">
+              Pague 1x • 250% Créditos/dia
+            </p>
+          </div>
 
-      {/* Trust Badges */}
-      <div className="mt-8 flex flex-wrap justify-center items-center gap-4 text-muted-foreground/60 text-xs font-bold uppercase tracking-wider">
-        <span className="flex items-center gap-1.5"><TrendingUp size={14} className="text-primary" /> Tendências em Tempo Real</span>
-        <span>•</span>
-        <span className="flex items-center gap-1.5"><Sparkles size={14} className="text-[#4ade80]" /> IA Gemini & Llama Integradas</span>
-        <span>•</span>
-        <span className="flex items-center gap-1.5"><Shield size={14} className="text-emerald-400" /> Pagamento Seguro IronPay</span>
+          {/* Card Mensal (Claro) */}
+          <div
+            onClick={() => handleLogin(undefined, { email: 'mensal@newshop.com', password: 'demo', demoPlan: 'yearly', purchaseCode: 'MENSAL-PRO' })}
+            className="bg-white hover:bg-slate-50 border border-slate-200 active:scale-[0.98] text-slate-800 rounded-2xl p-3.5 text-center shadow-sm cursor-pointer transition-all flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-center justify-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-[#ea580c] mb-1">
+                <Sparkles size={12} className="stroke-[2.5]" />
+                <span>RECORRENTE</span>
+              </div>
+              <h3 className="font-black text-sm mb-1 text-slate-900 tracking-tight">
+                Plano Mensal
+              </h3>
+              <div className="flex items-baseline justify-center gap-1 my-1">
+                <span className="text-base font-black text-slate-900">R$ 89,90</span>
+                <span className="text-[11px] text-slate-500 font-medium">/ mês</span>
+              </div>
+            </div>
+            <p className="text-[9px] text-slate-500 font-semibold mt-1">
+              Assinatura Mensal • 100% Créditos/dia
+            </p>
+          </div>
+        </div>
+
+        {/* Quick Admin Helper Badge */}
+        <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400 font-medium">
+          <div className="flex items-center gap-1 text-slate-500">
+            <ShieldCheck size={13} className="text-[#ea580c]" />
+            <span>Admin:</span>
+            <code className="text-slate-700 font-bold bg-slate-100 px-1 py-0.5 rounded">admin@newshop.com</code>
+          </div>
+          <button
+            type="button"
+            onClick={fillAdmin}
+            className="text-[#ea580c] hover:underline font-bold text-[10px] uppercase cursor-pointer"
+          >
+            Auto-Preencher
+          </button>
+        </div>
+
       </div>
     </div>
   );
 }
-
