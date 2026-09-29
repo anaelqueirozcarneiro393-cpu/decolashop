@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getProductsFromSupabase } from '@/app/actions';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   const headers = {
     'Access-Control-Allow-Origin': '*',
