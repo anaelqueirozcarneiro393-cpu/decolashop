@@ -13,26 +13,21 @@ import {
   ShieldCheck, 
   Sparkles, 
   TrendingUp, 
-  AlertCircle 
+  AlertCircle,
+  Zap,
+  RotateCcw
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useSales } from '@/lib/salesContext';
 
 export default function FinanceiroView() {
+  const { saldoDisponivel, vendasTotais, pedidos, recentSales, addSale, resetData } = useSales();
   const [pixType, setPixType] = useState('cpf');
   const [pixKey, setPixKey] = useState('123.456.789-00');
   const [isSaved, setIsSaved] = useState(true);
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
-  const [withdrawAmount, setWithdrawAmount] = useState('2290.35');
-
-  const transactions = [
-    { id: 'TX-9841', product: 'Mochila Notebook Impermeável', value: 'R$ 119,90', commission: '+ R$ 38,36', time: 'Hoje, 01:54', status: 'Aprovado' },
-    { id: 'TX-9840', product: 'Smartwatch Serie 8 Ultra', value: 'R$ 149,90', commission: '+ R$ 47,96', time: 'Hoje, 01:42', status: 'Aprovado' },
-    { id: 'TX-9839', product: 'Kit Álbum Copa do Mundo 2026', value: 'R$ 167,70', commission: '+ R$ 53,66', time: 'Hoje, 01:28', status: 'Aprovado' },
-    { id: 'TX-9838', product: 'Kit Painel Ripado Decoração', value: 'R$ 139,86', commission: '+ R$ 44,75', time: 'Hoje, 00:59', status: 'Aprovado' },
-    { id: 'TX-9837', product: 'Chinelo Slide Nuvem Confort', value: 'R$ 119,96', commission: '+ R$ 38,38', time: 'Hoje, 00:41', status: 'Aprovado' },
-    { id: 'TX-9836', product: 'Mochila Notebook Impermeável', value: 'R$ 119,90', commission: '+ R$ 38,36', time: 'Hoje, 00:15', status: 'Aprovado' },
-  ];
+  const [withdrawAmount, setWithdrawAmount] = useState(saldoDisponivel.toFixed(2));
 
   const handleSavePix = (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,65 +49,69 @@ export default function FinanceiroView() {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 text-slate-100">
       {/* Header */}
       <div>
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-bold mb-3 border border-emerald-500/20">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#22c55e]/15 text-[#4ade80] text-xs font-black mb-3 border border-[#22c55e]/30">
           <Wallet className="w-3.5 h-3.5" />
-          <span>Gestão de Comissões & Repasses</span>
+          <span>Gestão de Comissões & Repasses PIX</span>
         </div>
-        <h1 className="text-3xl font-black tracking-tight mb-2">
+        <h1 className="text-3xl font-black tracking-tight mb-2 text-white">
           Painel <span className="apex-gradient-text">Financeiro & Saques</span>
         </h1>
-        <p className="text-muted-foreground text-sm">
-          Acompanhe suas vendas com divulgação, cadastre sua chave PIX e solicite seus saques.
+        <p className="text-slate-400 text-sm">
+          Acompanhe suas vendas com divulgação, cadastre sua chave PIX e solicite seus saques instantâneos.
         </p>
       </div>
 
       {/* Financial Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="p-6 rounded-3xl bg-gradient-to-br from-emerald-950/40 via-dark-bg to-dark-bg border border-emerald-500/30 shadow-xl">
+        <div className="p-7 rounded-3xl bg-gradient-to-br from-[#111726]/90 via-[#0d121f] to-[#090d16] border border-[#22c55e]/40 shadow-2xl shadow-[#22c55e]/15 backdrop-blur-xl">
           <div className="flex items-center justify-between text-muted-foreground mb-3">
-            <span className="text-xs font-black uppercase tracking-wider text-emerald-400">Saldo Disponível</span>
-            <Wallet size={18} className="text-emerald-400" />
+            <span className="text-xs font-black uppercase tracking-wider text-[#22c55e]">Saldo Disponível</span>
+            <Wallet size={18} className="text-[#22c55e]" />
           </div>
-          <p className="text-4xl font-black text-white tracking-tight mb-3">R$ 2.290,35</p>
+          <p className="text-4xl font-black text-white tracking-tight mb-4">
+            R$ {saldoDisponivel.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
           <button
-            onClick={() => setShowWithdrawModal(true)}
-            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-primary text-black font-black text-xs hover:bg-primary/90 transition-all active:scale-95 shadow-lg shadow-primary/20"
+            onClick={() => { setWithdrawAmount(saldoDisponivel.toFixed(2)); setShowWithdrawModal(true); }}
+            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-black font-black text-xs transition-all active:scale-95 shadow-lg shadow-[#22c55e]/25"
           >
             <Send size={14} />
             <span>Solicitar Saque PIX</span>
           </button>
         </div>
 
-        <div className="p-6 rounded-3xl glass border border-border/50">
+        <div className="p-7 rounded-3xl bg-[#0d121f]/90 border border-white/10 shadow-xl backdrop-blur-xl">
           <div className="flex items-center justify-between text-muted-foreground mb-3">
-            <span className="text-xs font-bold uppercase tracking-wider">Vendas Totais Acumuladas</span>
-            <TrendingUp size={18} className="text-primary" />
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Vendas Totais Acumuladas</span>
+            <TrendingUp size={18} className="text-[#4ade80]" />
           </div>
-          <p className="text-4xl font-black text-white tracking-tight mb-2">R$ 2.290,35</p>
-          <p className="text-xs text-muted-foreground">56 pedidos convertidos pelas divulgações</p>
+          <p className="text-4xl font-black text-white tracking-tight mb-2">
+            R$ {vendasTotais.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
+          <p className="text-xs text-slate-400">{pedidos} pedidos convertidos pelas divulgações</p>
         </div>
 
-        <div className="p-6 rounded-3xl glass border border-border/50">
+        <div className="p-7 rounded-3xl bg-[#0d121f]/90 border border-white/10 shadow-xl backdrop-blur-xl">
           <div className="flex items-center justify-between text-muted-foreground mb-3">
-            <span className="text-xs font-bold uppercase tracking-wider">Total já Sacado</span>
-            <CheckCircle2 size={18} className="text-slate-400" />
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total já Sacado</span>
+            <CheckCircle2 size={18} className="text-[#22c55e]" />
           </div>
           <p className="text-4xl font-black text-slate-300 tracking-tight mb-2">R$ 4.850,00</p>
-          <p className="text-xs text-emerald-400 flex items-center gap-1 font-bold">
+          <p className="text-xs text-[#4ade80] flex items-center gap-1 font-bold">
             <ShieldCheck size={14} /> 100% dos pagamentos liquidados
           </p>
         </div>
       </div>
 
       {/* PIX Key Form */}
-      <div className="glass rounded-3xl p-6 md:p-8 border border-border/50">
+      <div className="rounded-3xl p-6 md:p-8 bg-[#0d121f]/90 border border-white/10 shadow-xl backdrop-blur-xl">
         <h3 className="text-lg font-black text-white mb-2 flex items-center gap-2">
-          <CreditCard className="text-primary" size={20} /> Dados de Recebimento PIX
+          <CreditCard className="text-[#22c55e]" size={20} /> Dados de Recebimento PIX
         </h3>
-        <p className="text-xs text-muted-foreground mb-6">
+        <p className="text-xs text-slate-400 mb-6">
           Sua chave PIX para envio automático dos seus saques de comissão.
         </p>
 
@@ -130,8 +129,8 @@ export default function FinanceiroView() {
                 onClick={() => setPixType(item.id)}
                 className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all text-center ${
                   pixType === item.id
-                    ? 'bg-primary/20 border-primary text-white font-black'
-                    : 'bg-secondary/30 border-border/50 text-muted-foreground hover:bg-secondary'
+                    ? 'bg-[#22c55e]/20 border-[#22c55e] text-[#4ade80] font-black'
+                    : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'
                 }`}
               >
                 {item.label}
@@ -145,44 +144,44 @@ export default function FinanceiroView() {
               value={pixKey}
               onChange={(e) => { setPixKey(e.target.value); setIsSaved(false); }}
               placeholder={pixType === 'cpf' ? '000.000.000-00' : 'Informe sua chave PIX'}
-              className="w-full bg-secondary/30 border border-border/50 rounded-xl py-3 px-4 text-sm font-semibold text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50"
+              className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-sm font-semibold text-white focus:outline-none focus:ring-2 focus:ring-[#22c55e]/30 focus:border-[#22c55e]"
             />
           </div>
 
           <button
             type="submit"
-            className="px-6 py-2.5 rounded-xl bg-secondary/80 hover:bg-secondary border border-border/60 text-xs font-bold text-white transition-all"
+            className="px-6 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 text-xs font-bold text-white transition-all"
           >
             {isSaved ? '✓ Chave Salva' : 'Salvar Chave PIX'}
           </button>
         </form>
       </div>
 
-      {/* Transaction History */}
-      <div className="glass rounded-3xl p-6 md:p-8 border border-border/50 space-y-6">
+      {/* Transaction History with Live Updates */}
+      <div className="rounded-3xl p-6 md:p-8 bg-[#0d121f]/90 border border-white/10 shadow-xl backdrop-blur-xl space-y-6">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-black text-white flex items-center gap-2">
-            <Clock className="text-primary" size={20} /> Histórico Recente de Conversões
+            <Clock className="text-[#22c55e]" size={20} /> Histórico Recente de Conversões
           </h3>
-          <span className="text-xs text-muted-foreground">Atualizado em tempo real</span>
+          <span className="text-xs text-[#4ade80] font-bold">Atualizado em tempo real</span>
         </div>
 
         <div className="divide-y divide-white/5">
-          {transactions.map((tx) => (
-            <div key={tx.id} className="py-3.5 flex items-center justify-between gap-4 text-xs">
+          {recentSales.map((tx) => (
+            <div key={tx.id} className="py-3.5 flex items-center justify-between gap-4 text-xs group">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold">
+                <div className="w-8 h-8 rounded-xl bg-[#22c55e]/15 text-[#4ade80] flex items-center justify-center font-bold">
                   <ArrowDownLeft size={16} />
                 </div>
                 <div>
-                  <p className="font-bold text-white">{tx.product}</p>
-                  <p className="text-[10px] text-muted-foreground">{tx.id} • {tx.time}</p>
+                  <p className="font-bold text-white group-hover:text-[#4ade80] transition-colors">{tx.product}</p>
+                  <p className="text-[10px] text-slate-400">{tx.id} • {tx.time}</p>
                 </div>
               </div>
 
               <div className="text-right">
-                <p className="font-black text-emerald-400 text-sm">{tx.commission}</p>
-                <p className="text-[10px] text-muted-foreground">Venda: {tx.value}</p>
+                <p className="font-black text-[#4ade80] text-sm">+ R$ {tx.commission.toFixed(2)}</p>
+                <p className="text-[10px] text-slate-400">Venda: R$ {tx.value.toFixed(2)}</p>
               </div>
             </div>
           ))}
@@ -191,15 +190,15 @@ export default function FinanceiroView() {
 
       {/* Withdraw Modal */}
       {showWithdrawModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="glass-darker max-w-md w-full p-6 md:p-8 rounded-3xl border border-primary/30 shadow-2xl space-y-6 animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#0d121f] max-w-md w-full p-6 md:p-8 rounded-3xl border border-[#22c55e]/40 shadow-2xl shadow-[#22c55e]/20 space-y-6 animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-black text-white flex items-center gap-2">
-                <Wallet className="text-primary" size={20} /> Solicitar Saque PIX
+                <Wallet className="text-[#22c55e]" size={20} /> Solicitar Saque PIX
               </h3>
               <button 
                 onClick={() => setShowWithdrawModal(false)}
-                className="text-muted-foreground hover:text-white text-sm"
+                className="text-slate-400 hover:text-white text-sm"
               >
                 ✕
               </button>
@@ -207,16 +206,16 @@ export default function FinanceiroView() {
 
             <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2">
               <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Saldo Disponível:</span>
-                <span className="font-black text-emerald-400">R$ 2.290,35</span>
+                <span className="text-slate-400">Saldo Disponível:</span>
+                <span className="font-black text-[#4ade80]">R$ {saldoDisponivel.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Chave PIX de Destino:</span>
+                <span className="text-slate-400">Chave PIX de Destino:</span>
                 <span className="font-bold text-white">{pixKey}</span>
               </div>
               <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Taxa de Saque:</span>
-                <span className="font-bold text-emerald-400">R$ 0,00 (Grátis)</span>
+                <span className="text-slate-400">Taxa de Saque:</span>
+                <span className="font-bold text-[#4ade80]">R$ 0,00 (Grátis)</span>
               </div>
             </div>
 
@@ -228,21 +227,21 @@ export default function FinanceiroView() {
                 type="number"
                 value={withdrawAmount}
                 onChange={(e) => setWithdrawAmount(e.target.value)}
-                className="w-full bg-secondary/30 border border-border/50 rounded-xl py-3 px-4 text-base font-black text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50"
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-base font-black text-white focus:outline-none focus:ring-2 focus:ring-[#22c55e]/30 focus:border-[#22c55e]"
               />
             </div>
 
             <div className="flex gap-3">
               <button
                 onClick={() => setShowWithdrawModal(false)}
-                className="flex-1 py-3 rounded-xl bg-secondary/50 text-slate-300 font-bold text-xs hover:bg-secondary transition-all"
+                className="flex-1 py-3 rounded-xl bg-white/5 text-slate-300 font-bold text-xs hover:bg-white/10 transition-all"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleWithdraw}
                 disabled={isWithdrawing}
-                className="flex-1 py-3 rounded-xl bg-primary text-black font-black text-xs hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2"
+                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] text-black font-black text-xs hover:from-[#4ade80] hover:to-[#22c55e] transition-all shadow-lg shadow-[#22c55e]/25 flex items-center justify-center gap-2"
               >
                 {isWithdrawing ? 'Processando...' : 'Confirmar Saque'}
               </button>

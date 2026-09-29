@@ -20,6 +20,7 @@ import VideoAulaView from '@/components/views/VideoAulaView';
 import PerfilView from '@/components/views/PerfilView';
 import ReembolsoView from '@/components/views/ReembolsoView';
 import SettingsView from '@/components/views/SettingsView';
+import AdminQuickActions from '@/components/AdminQuickActions';
 import { Product } from '@/lib/mockData';
 import { Toaster, toast } from 'react-hot-toast';
 
@@ -141,16 +142,16 @@ export default function AppContainer() {
           setIsOpen={setIsSidebarOpen}
         />
         
-        <main className={`flex-1 md:ml-64 min-h-screen ${currentView === 'dashboard' ? 'bg-[#f5f6fa]' : 'bg-dark-bg'}`}>
+        <main className="flex-1 md:ml-64 min-h-screen bg-[#090d16] text-slate-100 relative">
           <Header onMenuClick={() => setIsSidebarOpen(true)} session={session} />
           
-          {currentView === 'dashboard' ? (
-            <DashboardView 
-              onNavigate={navigateToView} 
-              savedCount={savedProducts.length}
-            />
-          ) : (
-            <div className="p-4 md:p-8 max-w-7xl mx-auto pb-24">
+          <div className="p-4 md:p-8 max-w-7xl mx-auto pb-24">
+            {currentView === 'dashboard' && (
+              <DashboardView 
+                onNavigate={navigateToView} 
+                savedCount={savedProducts.length}
+              />
+            )}
 
             {currentView === 'financeiro' && (
               <FinanceiroView />
@@ -231,7 +232,8 @@ export default function AppContainer() {
               <SettingsView />
             )}
           </div>
-          )}
+
+          <AdminQuickActions />
         </main>
       </div>
     </div>
