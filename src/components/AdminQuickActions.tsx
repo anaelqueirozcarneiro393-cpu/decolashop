@@ -12,10 +12,10 @@ import {
   Database, 
   Sparkles, 
   Coins, 
-  Volume2, 
-  VolumeX, 
-  Eye, 
-  SlidersHorizontal 
+  SlidersHorizontal,
+  Clock,
+  CheckCircle2,
+  Package
 } from 'lucide-react';
 import { useSales } from '@/lib/salesContext';
 import { useSession } from 'next-auth/react';
@@ -30,13 +30,25 @@ export default function AdminQuickActions() {
     autoSimulate, 
     saldoDisponivel, 
     vendasTotais, 
-    pedidos 
+    pedidos,
+    intervalMode,
+    setIntervalMode,
+    minSeconds,
+    setMinSeconds,
+    maxSeconds,
+    setMaxSeconds,
+    fixedSeconds,
+    setFixedSeconds,
+    selectedProductId,
+    setSelectedProductId,
+    availableProducts,
+    setSaldoDisponivelDirect
   } = useSales();
 
   // Oculto por padrão
   const [isOpen, setIsOpen] = useState(false);
   const [customSaldo, setCustomSaldo] = useState('');
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [searchProduct, setSearchProduct] = useState('');
 
   // Verificação estrita de Administrador
   // @ts-ignore
@@ -76,7 +88,6 @@ export default function AdminQuickActions() {
         });
       }
 
-      // Atalhos secundários quando o painel ou atalhos globais estiverem ativos:
       if (e.altKey && (e.key === 'v' || e.key === 'V')) {
         e.preventDefault();
         addSale();
@@ -91,10 +102,7 @@ export default function AdminQuickActions() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isAdmin, addSale, resetData]);
 
-  // Se não for admin, não renderiza absolutamente NADA no DOM
   if (!isAdmin) return null;
-
-  // Se estiver oculto, renderiza apenas o listener (sem visual no DOM)
   if (!isOpen) return null;
 
   const handleResetOnboarding = () => {
@@ -107,11 +115,7 @@ export default function AdminQuickActions() {
     e.preventDefault();
     const val = parseFloat(customSaldo.replace(',', '.'));
     if (!isNaN(val) && val >= 0) {
-      // Define a venda simulada para coincidir com o valor desejado
-      const diff = val - saldoDisponivel;
-      if (diff > 0) {
-        addSale(diff);
-      }
+      setSaldoDisponivelDirect(val);
       setCustomSaldo('');
       toast.success(`Saldo ajustado para R$ ${val.toFixed(2)}`);
     } else {
@@ -119,162 +123,313 @@ export default function AdminQuickActions() {
     }
   };
 
+  const filteredProducts = availableProducts.filter(p => 
+    p.name.toLowerCase().includes(searchProduct.toLowerCase())
+  );
+
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg bg-[#0d131f] border border-[#22c55e]/40 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-[#22c55e]/15 text-white animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200 overflow-y-auto">
+      <div className="relative w-full max-w-xl bg-[#0d131f] border border-[#22c55e]/40 rounded-3xl p-5 sm:p-7 shadow-2xl shadow-[#22c55e]/15 text-white animate-in zoom-in-95 duration-200 max-h-[92vh] overflow-y-auto">
         
         {/* Header */}
-        <div className="flex items-start justify-between pb-5 border-b border-white/10 mb-6">
+        <div className="flex items-start justify-between pb-4 border-b border-white/10 mb-5 sticky top-0 bg-[#0d131f] z-10 pt-1">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#22c55e] to-[#15803d] flex items-center justify-center text-[#080c14] shadow-lg shadow-[#22c55e]/25">
-              <ShieldCheck className="w-6 h-6 stroke-[2.5]" />
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#22c55e] to-[#15803d] flex items-center justify-center text-[#080c14] shadow-lg shadow-[#22c55e]/25 flex-shrink-0">
+              <ShieldCheck className="w-5 h-5 stroke-[2.5]" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-black text-white">Painel do Administrador</h3>
-                <span className="text-[10px] font-black uppercase tracking-wider text-[#080c14] bg-[#22c55e] px-2 py-0.5 rounded-full">
+                <h3 className="text-base sm:text-lg font-black text-white">Gerador de Vendas & Admin</h3>
+                <span className="text-[9px] font-black uppercase tracking-wider text-[#080c14] bg-[#22c55e] px-1.5 py-0.5 rounded-full">
                   Exclusivo
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Visível apenas para <code className="text-[#4ade80] font-semibold">{userEmail}</code>
+              <p className="text-[11px] text-slate-400">
+                Logado como: <code className="text-[#4ade80] font-semibold">{userEmail}</code>
               </p>
             </div>
           </div>
 
           <button 
             onClick={() => setIsOpen(false)}
-            className="p-2 text-slate-400 hover:text-white rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
+            className="p-1.5 text-slate-400 hover:text-white rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
             title="Fechar [Esc ou Alt + A]"
           >
             <X size={18} />
           </button>
         </div>
 
-        {/* Atalho Informativo */}
-        <div className="mb-5 p-3 rounded-2xl bg-[#22c55e]/10 border border-[#22c55e]/25 flex items-center justify-between text-xs">
-          <span className="text-slate-300 font-medium">Atalho para abrir/fechar:</span>
-          <div className="flex items-center gap-1.5 font-mono text-[11px] font-bold">
-            <span className="bg-[#111726] border border-white/10 px-2 py-0.5 rounded text-[#4ade80]">Alt + A</span>
-            <span className="text-slate-500">ou</span>
-            <span className="bg-[#111726] border border-white/10 px-2 py-0.5 rounded text-[#4ade80]">Ctrl + Shift + A</span>
+        {/* 1. SELEÇÃO DO PRODUTO (COM FOTOS REAIS) */}
+        <div className="mb-5">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+              <Package size={14} className="text-[#22c55e]" /> Escolha o Produto da Venda (Com Fotos)
+            </h4>
+            <span className="text-[10px] text-slate-400">
+              {availableProducts.length} produtos disponíveis
+            </span>
           </div>
-        </div>
 
-        {/* Métricas em Tempo Real */}
-        <div className="mb-6">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5">
-            <Coins size={14} className="text-[#22c55e]" /> Faturamento em Tempo Real
-          </h4>
-          <div className="grid grid-cols-3 gap-2.5 p-3.5 rounded-2xl bg-[#111726] border border-white/10 text-center">
-            <div>
-              <span className="text-[10px] text-slate-400 font-semibold block uppercase">Vendas Totais</span>
-              <span className="text-sm font-black text-[#4ade80]">R$ {vendasTotais.toFixed(2)}</span>
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-400 font-semibold block uppercase">Saldo Saque</span>
-              <span className="text-sm font-black text-[#22c55e]">R$ {saldoDisponivel.toFixed(2)}</span>
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-400 font-semibold block uppercase">Pedidos</span>
-              <span className="text-sm font-black text-white">{pedidos} un</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Ações de Vendas */}
-        <div className="space-y-3 mb-6">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-            <Zap size={14} className="text-[#22c55e]" /> Simulador de Vendas & Testes
-          </h4>
-          
-          <div className="grid grid-cols-2 gap-2.5">
+          {/* Opção Todos (Aleatório) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
             <button
-              onClick={() => addSale()}
-              className="py-3 px-3 rounded-2xl bg-[#22c55e] hover:bg-[#16a34a] active:scale-95 text-[#080c14] font-black text-xs uppercase tracking-wider shadow-lg shadow-[#22c55e]/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              type="button"
+              onClick={() => setSelectedProductId('all')}
+              className={`p-2.5 rounded-xl border text-left flex items-center gap-2.5 transition-all cursor-pointer ${
+                selectedProductId === 'all'
+                  ? 'bg-[#22c55e]/20 border-[#22c55e] text-white shadow-md shadow-[#22c55e]/15'
+                  : 'bg-[#111726] border-white/10 text-slate-400 hover:border-white/20'
+              }`}
             >
-              <Zap size={14} fill="currentColor" />
-              <span>+ Gerar Venda [Alt+V]</span>
+              <div className="w-9 h-9 rounded-lg bg-[#22c55e]/20 flex items-center justify-center text-lg flex-shrink-0">
+                🎲
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="text-xs font-black block text-white truncate">Qualquer Produto (Aleatório)</span>
+                <span className="text-[10px] text-slate-400">Gira todo o catálogo do site</span>
+              </div>
+              {selectedProductId === 'all' && <CheckCircle2 size={16} className="text-[#22c55e]" />}
             </button>
 
+            {/* Quick Trigger Button */}
             <button
+              type="button"
+              onClick={() => addSale()}
+              className="py-2.5 px-3 rounded-xl bg-[#22c55e] hover:bg-[#16a34a] active:scale-95 text-[#080c14] font-black text-xs uppercase tracking-wider shadow-lg shadow-[#22c55e]/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <Zap size={14} fill="currentColor" />
+              <span>+ Gerar 1 Venda Agora</span>
+            </button>
+          </div>
+
+          {/* Carrossel / Grade de Produtos Reais com Fotos */}
+          <div className="border border-white/10 rounded-2xl p-2 bg-[#111726]/60 max-h-48 overflow-y-auto space-y-1.5 pr-1">
+            {availableProducts.map((p) => {
+              const isSelected = selectedProductId === p.id;
+              const formattedPrice = typeof p.price === 'number' ? `R$ ${p.price.toFixed(2)}` : p.price;
+              return (
+                <div
+                  key={p.id}
+                  onClick={() => setSelectedProductId(p.id)}
+                  className={`p-2 rounded-xl border flex items-center justify-between gap-2.5 cursor-pointer transition-all ${
+                    isSelected 
+                      ? 'bg-[#22c55e]/15 border-[#22c55e] text-white' 
+                      : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05] text-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <img 
+                      src={p.image_url} 
+                      alt={p.name} 
+                      className="w-10 h-10 rounded-lg object-cover flex-shrink-0 bg-slate-900 border border-white/10"
+                      onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                    />
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-white truncate max-w-[240px] sm:max-w-[320px]">
+                        {p.name}
+                      </p>
+                      <span className="text-[10px] text-[#4ade80] font-black">
+                        {formattedPrice}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addSale(p);
+                      }}
+                      className="text-[10px] font-black uppercase tracking-wider bg-[#22c55e]/20 hover:bg-[#22c55e] hover:text-[#080c14] text-[#4ade80] px-2 py-1 rounded-lg border border-[#22c55e]/30 transition-all"
+                    >
+                      Vender
+                    </button>
+                    {isSelected && <CheckCircle2 size={16} className="text-[#22c55e]" />}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 2. CONFIGURAÇÃO DE INTERVALO DE VENDAS */}
+        <div className="mb-5 p-3.5 rounded-2xl bg-[#111726] border border-white/10">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+              <Clock size={14} className="text-[#22c55e]" /> Intervalo entre cada Venda
+            </h4>
+            <div className="flex bg-[#0d131f] p-0.5 rounded-xl border border-white/10">
+              <button
+                type="button"
+                onClick={() => setIntervalMode('range')}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                  intervalMode === 'range' ? 'bg-[#22c55e] text-[#080c14]' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Aleatório (Range)
+              </button>
+              <button
+                type="button"
+                onClick={() => setIntervalMode('fixed')}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                  intervalMode === 'fixed' ? 'bg-[#22c55e] text-[#080c14]' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Fixo
+              </button>
+            </div>
+          </div>
+
+          {/* Configuração de Range ou Fixo */}
+          {intervalMode === 'range' ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-slate-400 text-xs">Vender aleatoriamente entre</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={60}
+                  value={minSeconds}
+                  onChange={(e) => setMinSeconds(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-14 px-2 py-1.5 bg-[#0d131f] border border-white/15 rounded-lg text-center font-black text-white text-xs focus:border-[#22c55e]"
+                />
+                <span className="text-slate-400 text-xs">e</span>
+                <input
+                  type="number"
+                  min={minSeconds}
+                  max={120}
+                  value={maxSeconds}
+                  onChange={(e) => setMaxSeconds(Math.max(minSeconds, parseInt(e.target.value) || 7))}
+                  className="w-14 px-2 py-1.5 bg-[#0d131f] border border-white/15 rounded-lg text-center font-black text-white text-xs focus:border-[#22c55e]"
+                />
+                <span className="text-slate-400 text-xs">segundos</span>
+              </div>
+              <p className="text-[10px] text-slate-400 italic">
+                Ex: a cada ciclo o sistema escolhe um segundo diferente entre {minSeconds}s e {maxSeconds}s.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-slate-400 text-xs">Vender a cada intervalo fixo de</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={120}
+                  value={fixedSeconds}
+                  onChange={(e) => setFixedSeconds(Math.max(1, parseInt(e.target.value) || 5))}
+                  className="w-16 px-2 py-1.5 bg-[#0d131f] border border-white/15 rounded-lg text-center font-black text-white text-xs focus:border-[#22c55e]"
+                />
+                <span className="text-slate-400 text-xs">segundos</span>
+              </div>
+              <p className="text-[10px] text-slate-400 italic">
+                Vendas contínuas com ritmo constante de {fixedSeconds} segundos.
+              </p>
+            </div>
+          )}
+
+          {/* Botão Start/Pause Auto-Vendas */}
+          <div className="pt-3 mt-3 border-t border-white/10 flex items-center justify-between">
+            <div className="text-xs">
+              <span className="text-slate-400 block text-[10px] uppercase font-bold">Status do Gerador:</span>
+              <span className={`font-black flex items-center gap-1.5 ${autoSimulate ? 'text-[#4ade80]' : 'text-slate-400'}`}>
+                <span className={`w-2 h-2 rounded-full ${autoSimulate ? 'bg-[#22c55e] animate-ping' : 'bg-slate-600'}`} />
+                {autoSimulate ? 'Ativo e Rodando' : 'Pausado'}
+              </span>
+            </div>
+
+            <button
+              type="button"
               onClick={toggleAutoSimulate}
-              className={`py-3 px-3 rounded-2xl border font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 ${
+              className={`py-2.5 px-4 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-lg ${
                 autoSimulate 
-                  ? 'bg-[#22c55e]/20 border-[#22c55e] text-[#22c55e]' 
-                  : 'bg-white/5 hover:bg-white/10 border-white/10 text-slate-200'
+                  ? 'bg-amber-500/20 border border-amber-500/50 text-amber-300 hover:bg-amber-500/30' 
+                  : 'bg-[#22c55e] hover:bg-[#16a34a] text-[#080c14] shadow-[#22c55e]/25'
               }`}
             >
               {autoSimulate ? <Pause size={14} /> : <Play size={14} />}
-              <span>{autoSimulate ? 'Pausar Auto' : 'Auto Vendas (10s)'}</span>
+              <span>{autoSimulate ? 'Pausar Auto-Vendas' : 'Iniciar Auto-Vendas'}</span>
             </button>
           </div>
+        </div>
 
-          {/* Ajustar saldo específico */}
-          <form onSubmit={handleSetSaldo} className="flex gap-2 pt-1">
+        {/* 3. MÉTRICAS E AJUSTE DE SALDO */}
+        <div className="mb-5 p-3.5 rounded-2xl bg-[#111726] border border-white/10">
+          <div className="grid grid-cols-3 gap-2 text-center mb-3">
+            <div className="p-2 rounded-xl bg-black/40 border border-white/5">
+              <span className="text-[9px] text-slate-400 uppercase font-bold block">Vendas Totais</span>
+              <span className="text-xs sm:text-sm font-black text-[#4ade80]">R$ {vendasTotais.toFixed(2)}</span>
+            </div>
+            <div className="p-2 rounded-xl bg-black/40 border border-white/5">
+              <span className="text-[9px] text-slate-400 uppercase font-bold block">Saldo Saque</span>
+              <span className="text-xs sm:text-sm font-black text-[#22c55e]">R$ {saldoDisponivel.toFixed(2)}</span>
+            </div>
+            <div className="p-2 rounded-xl bg-black/40 border border-white/5">
+              <span className="text-[9px] text-slate-400 uppercase font-bold block">Pedidos</span>
+              <span className="text-xs sm:text-sm font-black text-white">{pedidos} un</span>
+            </div>
+          </div>
+
+          <form onSubmit={handleSetSaldo} className="flex gap-2">
             <input
               type="text"
               value={customSaldo}
               onChange={(e) => setCustomSaldo(e.target.value)}
-              placeholder="Definir saldo (ex: 2500,00)"
-              className="flex-1 px-3.5 py-2.5 bg-[#111726] border border-white/10 rounded-xl text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-[#22c55e]"
+              placeholder="Definir saldo manual (ex: 3500,00)"
+              className="flex-1 px-3 py-2 bg-[#0d131f] border border-white/10 rounded-xl text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-[#22c55e]"
             />
             <button
               type="submit"
-              className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl border border-white/10 transition-colors cursor-pointer"
+              className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl border border-white/10 transition-colors cursor-pointer"
             >
-              Aplicar
+              Definir
             </button>
             <button
               type="button"
               onClick={resetData}
-              className="px-3.5 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-xl text-xs font-bold transition-colors cursor-pointer"
-              title="Zerar faturamento para R$ 0,00 [Alt + R]"
+              className="px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
+              title="Zerar dados para R$ 0,00"
             >
-              <RotateCcw size={14} />
+              <RotateCcw size={13} />
+              <span>Zerar</span>
             </button>
           </form>
         </div>
 
-        {/* Configurações da Plataforma */}
-        <div className="space-y-2.5 pt-4 border-t border-white/10">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-            <Settings size={14} className="text-[#22c55e]" /> Configurações do Sistema
-          </h4>
+        {/* 4. CONFIGURAÇÕES DO SISTEMA & SUPABASE */}
+        <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+          <button
+            type="button"
+            onClick={handleResetOnboarding}
+            className="p-2.5 rounded-xl bg-[#111726] hover:bg-white/5 border border-white/10 text-left transition-colors flex items-center gap-2 cursor-pointer"
+          >
+            <Sparkles size={15} className="text-[#22c55e] shrink-0" />
+            <div className="min-w-0">
+              <span className="font-bold text-white block text-xs truncate">Reabrir Pop-up</span>
+              <span className="text-[9px] text-slate-400">Decola Shop Boas-vindas</span>
+            </div>
+          </button>
 
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <button
-              type="button"
-              onClick={handleResetOnboarding}
-              className="p-3 rounded-xl bg-[#111726] hover:bg-white/5 border border-white/10 text-left transition-colors flex items-center gap-2 cursor-pointer"
-            >
-              <Sparkles size={16} className="text-[#22c55e] shrink-0" />
-              <div>
-                <span className="font-bold text-white block">Pop-up Inicial</span>
-                <span className="text-[10px] text-slate-400">Reativar onboarding</span>
-              </div>
-            </button>
-
-            <div className="p-3 rounded-xl bg-[#111726] border border-white/10 text-left flex items-center gap-2">
-              <Database size={16} className="text-[#22c55e] shrink-0" />
-              <div>
-                <span className="font-bold text-white block">Supabase</span>
-                <span className="text-[10px] text-[#4ade80]">🟢 15 produtos ativos</span>
-              </div>
+          <div className="p-2.5 rounded-xl bg-[#111726] border border-white/10 text-left flex items-center gap-2">
+            <Database size={15} className="text-[#22c55e] shrink-0" />
+            <div className="min-w-0">
+              <span className="font-bold text-white block text-xs truncate">Supabase Conectado</span>
+              <span className="text-[9px] text-[#4ade80]">🟢 15 produtos ativos</span>
             </div>
           </div>
         </div>
 
-        {/* Rodapé de Fechar */}
-        <div className="mt-6 pt-4 border-t border-white/10 flex items-center justify-between">
-          <span className="text-[11px] text-slate-400">
-            Pressione <kbd className="text-[#22c55e] font-mono font-bold">Esc</kbd> ou <kbd className="text-[#22c55e] font-mono font-bold">Alt + A</kbd> para fechar
+        {/* Footer */}
+        <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-[11px] text-slate-400">
+          <span>
+            Atalho: <kbd className="text-[#22c55e] font-mono font-bold">Alt + A</kbd> ou <kbd className="text-[#22c55e] font-mono font-bold">Ctrl + Shift + A</kbd>
           </span>
           <button
             onClick={() => setIsOpen(false)}
-            className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer"
+            className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer"
           >
-            Ocultar Painel
+            Fechar
           </button>
         </div>
 

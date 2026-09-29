@@ -176,7 +176,7 @@ export default function AppContainer() {
         <main className="flex-1 md:ml-64 min-h-screen bg-[#080c14] text-slate-100 relative">
           <Header onMenuClick={() => setIsSidebarOpen(true)} session={session} />
           
-          <div className="p-4 md:p-8 max-w-7xl mx-auto pb-24">
+          <div className="p-2.5 sm:p-4 md:p-8 max-w-7xl mx-auto pb-16 sm:pb-24">
             {currentView === 'dashboard' && (
               <DashboardView 
                 onNavigate={navigateToView} 

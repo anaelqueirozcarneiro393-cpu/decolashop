@@ -8,152 +8,231 @@ export interface Product {
   image_url: string;
   hype_score: number;
   url: string;
+  category?: string;
+  status?: ProductStatus;
+  commission?: string;
+  vendas_mes?: number;
   description?: string;
-  
-  // Legacy fields (optional for backward compatibility)
   title?: string;
   score?: number;
-  status?: ProductStatus;
-  category?: string;
-  savedAt?: string;
-  commission?: string;
-  evidence?: {
-    google: {
-      growth: string;
-      interest: number;
-      label: string;
-    };
-    youtube: {
-      videos: number;
-      views: string;
-      growth: string;
-      topVideos: { title: string; views: string }[];
-    };
-    communities: {
-      groups: number;
-      engagement: string;
-      examples: string[];
-    };
-  };
 }
 
 export const mockProducts: Product[] = [
   {
     id: '1',
-    name: 'Mini Projetor Portátil 4K Cinema Pro',
-    title: 'Mini Projetor Portátil 4K Cinema Pro',
-    price: 'R$ 299,00',
-    image_url: 'https://images.unsplash.com/photo-1535016120720-40c646bebbdc?auto=format&fit=crop&q=80&w=800',
-    hype_score: 95,
-    score: 95,
+    name: 'Smartwatch W9 Pro Ultra Series 9 Tela Infinita',
+    title: 'Smartwatch W9 Pro Ultra Series 9 Tela Infinita',
+    price: 'R$ 149,90',
+    image_url: 'https://images.unsplash.com/photo-1579586337278-3befd40fd17a?auto=format&fit=crop&q=80&w=800',
+    hype_score: 98,
+    score: 98,
     url: 'https://shopee.com.br',
     status: 'ALTA',
     category: 'Eletrônicos',
-    commission: 'R$ 45,00',
-    evidence: {
-      google: {
-        growth: '+250%',
-        interest: 92,
-        label: 'SUBINDO'
-      },
-      youtube: {
-        videos: 50,
-        views: '500.000+',
-        growth: '8% ao dia',
-        topVideos: [
-          { title: 'Mini Projetor 4K IMPRESSIONANTE', views: '50k' },
-          { title: 'Você PRECISA disso no seu quarto', views: '30k' },
-          { title: 'Unboxing Projetor Cinema em Casa', views: '25k' }
-        ]
-      },
-      communities: {
-        groups: 12,
-        engagement: 'ALTO',
-        examples: [
-          'Shopee Sellers: "Alguém vende isso?"',
-          'Afiliados BR: "Produto viral agora"',
-          'Discord Empreendedores: "Oportunidade"'
-        ]
-      }
-    }
+    commission: 'R$ 47,90',
+    vendas_mes: 4890,
   },
   {
     id: '2',
-    name: 'Escova Alisadora 3 em 1 Ionizada',
-    title: 'Escova Alisadora 3 em 1 Ionizada',
-    price: 'R$ 147,00',
+    name: 'Fone Bluetooth TWS Gamer Lenovo GM2 Pro Baixa Latência',
+    title: 'Fone Bluetooth TWS Gamer Lenovo GM2 Pro Baixa Latência',
+    price: 'R$ 79,90',
+    image_url: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&q=80&w=800',
+    hype_score: 96,
+    score: 96,
+    url: 'https://shopee.com.br',
+    status: 'ALTA',
+    category: 'Eletrônicos',
+    commission: 'R$ 28,00',
+    vendas_mes: 3840,
+  },
+  {
+    id: '3',
+    name: 'Mini Seladora Térmica Portátil Recarregável a Vácuo',
+    title: 'Mini Seladora Térmica Portátil Recarregável a Vácuo',
+    price: 'R$ 49,90',
+    image_url: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&q=80&w=800',
+    hype_score: 94,
+    score: 94,
+    url: 'https://shopee.com.br',
+    status: 'ALTA',
+    category: 'Cozinha',
+    commission: 'R$ 19,50',
+    vendas_mes: 2950,
+  },
+  {
+    id: '4',
+    name: 'Garrafa Térmica Motivacional 2 Litros Degradê com Canudo',
+    title: 'Garrafa Térmica Motivacional 2 Litros Degradê com Canudo',
+    price: 'R$ 59,90',
+    image_url: 'https://images.unsplash.com/photo-1602143407151-7111542de6e8?auto=format&fit=crop&q=80&w=800',
+    hype_score: 92,
+    score: 92,
+    url: 'https://shopee.com.br',
+    status: 'ALTA',
+    category: 'Fitness',
+    commission: 'R$ 22,00',
+    vendas_mes: 2410,
+  },
+  {
+    id: '5',
+    name: 'Câmera Lâmpada de Segurança 360 Wifi Espiã com Visão Noturna',
+    title: 'Câmera Lâmpada de Segurança 360 Wifi Espiã com Visão Noturna',
+    price: 'R$ 89,90',
+    image_url: 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&q=80&w=800',
+    hype_score: 91,
+    score: 91,
+    url: 'https://shopee.com.br',
+    status: 'ALTA',
+    category: 'Segurança',
+    commission: 'R$ 31,40',
+    vendas_mes: 2180,
+  },
+  {
+    id: '6',
+    name: 'Mochila Notebook Impermeável Executiva com Entrada USB',
+    title: 'Mochila Notebook Impermeável Executiva com Entrada USB',
+    price: 'R$ 119,90',
+    image_url: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&q=80&w=800',
+    hype_score: 89,
+    score: 89,
+    url: 'https://shopee.com.br',
+    status: 'ALTA',
+    category: 'Acessórios',
+    commission: 'R$ 38,00',
+    vendas_mes: 1940,
+  },
+  {
+    id: '7',
+    name: 'Escova Secadora e Alisadora Rotativa 3 em 1 Ionizada',
+    title: 'Escova Secadora e Alisadora Rotativa 3 em 1 Ionizada',
+    price: 'R$ 139,90',
     image_url: 'https://images.unsplash.com/photo-1522338242992-e1a54906a8da?auto=format&fit=crop&q=80&w=800',
+    hype_score: 88,
+    score: 88,
+    url: 'https://shopee.com.br',
+    status: 'ALTA',
+    category: 'Beleza',
+    commission: 'R$ 44,70',
+    vendas_mes: 1720,
+  },
+  {
+    id: '8',
+    name: 'Suporte Celular Veicular Indução Automático MagSafe',
+    title: 'Suporte Celular Veicular Indução Automático MagSafe',
+    price: 'R$ 89,90',
+    image_url: 'https://images.unsplash.com/photo-1586105251261-72a756497a11?auto=format&fit=crop&q=80&w=800',
     hype_score: 87,
     score: 87,
     url: 'https://shopee.com.br',
     status: 'ALTA',
-    category: 'Beleza',
-    commission: 'R$ 32,00',
-    evidence: {
-      google: {
-        growth: '+180%',
-        interest: 85,
-        label: 'SUBINDO'
-      },
-      youtube: {
-        videos: 35,
-        views: '300.000+',
-        growth: '5% ao dia',
-        topVideos: [
-          { title: 'Testei a escova viral da Shopee', views: '40k' },
-          { title: 'Melhor compra de beleza do ano', views: '22k' }
-        ]
-      },
-      communities: {
-        groups: 8,
-        engagement: 'MÉDIO',
-        examples: [
-          'Dicas de Beleza: "Funciona mesmo?"',
-          'Achadinhos Shopee: "Estoque voando"'
-        ]
-      }
-    }
+    category: 'Automotivo',
+    commission: 'R$ 29,90',
+    vendas_mes: 1560,
   },
   {
-    id: '3',
-    name: 'Lâmpada de Monitor Barra LED RGB',
-    title: 'Lâmpada de Monitor Barra LED RGB',
-    price: 'R$ 89,00',
-    image_url: 'https://images.unsplash.com/photo-1547082299-de196ea013d6?auto=format&fit=crop&q=80&w=800',
-    hype_score: 72,
-    score: 72,
+    id: '9',
+    name: 'Cortador de Legumes Multifuncional 12 em 1 Mandoline Pro',
+    title: 'Cortador de Legumes Multifuncional 12 em 1 Mandoline Pro',
+    price: 'R$ 87,90',
+    image_url: 'https://m.media-amazon.com/images/I/61Ec2TdhRWL._AC_UF1000,1000_QL80_.jpg',
+    hype_score: 86,
+    score: 86,
     url: 'https://shopee.com.br',
     status: 'ESTÁVEL',
-    category: 'Setup Gamer',
-    commission: 'R$ 18,00',
-    evidence: {
-      google: {
-        growth: '+45%',
-        interest: 60,
-        label: 'ESTÁVEL'
-      },
-      youtube: {
-        videos: 20,
-        views: '120.000+',
-        growth: '2% ao dia',
-        topVideos: [
-          { title: 'Setup minimalista com Screenbar', views: '15k' }
-        ]
-      },
-      communities: {
-        groups: 5,
-        engagement: 'BAIXO',
-        examples: [
-          'Setup BR: "Qual a melhor marca?"'
-        ]
-      }
-    }
+    category: 'Cozinha',
+    commission: 'R$ 26,30',
+    vendas_mes: 1480,
+  },
+  {
+    id: '10',
+    name: 'Lâmpada Lua Cheia 3D Touch 16 Cores RGB com Suporte de Madeira',
+    title: 'Lâmpada Lua Cheia 3D Touch 16 Cores RGB com Suporte de Madeira',
+    price: 'R$ 69,90',
+    image_url: 'https://images.unsplash.com/photo-1532767153582-b1a0e5145009?auto=format&fit=crop&q=80&w=800',
+    hype_score: 85,
+    score: 85,
+    url: 'https://shopee.com.br',
+    status: 'ESTÁVEL',
+    category: 'Decoração',
+    commission: 'R$ 23,00',
+    vendas_mes: 1390,
+  },
+  {
+    id: '11',
+    name: 'Aspirador de Pó Sem Fio Automotivo e Doméstico Alta Sucção',
+    title: 'Aspirador de Pó Sem Fio Automotivo e Doméstico Alta Sucção',
+    price: 'R$ 99,90',
+    image_url: 'https://images.unsplash.com/photo-1558317374-067fb5f30001?auto=format&fit=crop&q=80&w=800',
+    hype_score: 84,
+    score: 84,
+    url: 'https://shopee.com.br',
+    status: 'ESTÁVEL',
+    category: 'Casa',
+    commission: 'R$ 33,00',
+    vendas_mes: 1250,
+  },
+  {
+    id: '12',
+    name: 'Dispenser Automático de Pasta de Dente com Esterilizador UV',
+    title: 'Dispenser Automático de Pasta de Dente com Esterilizador UV',
+    price: 'R$ 79,90',
+    image_url: 'https://res.cloudinary.com/dwtefghdi/image/upload/v1779676433/t9y5gf21oqbr2j0ipglf.jpg',
+    hype_score: 83,
+    score: 83,
+    url: 'https://shopee.com.br',
+    status: 'ESTÁVEL',
+    category: 'Banheiro',
+    commission: 'R$ 25,50',
+    vendas_mes: 1120,
+  },
+  {
+    id: '13',
+    name: 'Bolsa Feminina Transversal Joey de Luxo Alça em Corrente',
+    title: 'Bolsa Feminina Transversal Joey de Luxo Alça em Corrente',
+    price: 'R$ 189,90',
+    image_url: 'https://res.cloudinary.com/dwtefghdi/image/upload/v1779628861/nwueymcgocc18bhfftl8.webp',
+    hype_score: 82,
+    score: 82,
+    url: 'https://shopee.com.br',
+    status: 'ALTA',
+    category: 'Moda',
+    commission: 'R$ 60,00',
+    vendas_mes: 1040,
+  },
+  {
+    id: '14',
+    name: 'Intercomunicador Bluetooth V2 para Capacete de Moto Prova Dágua',
+    title: 'Intercomunicador Bluetooth V2 para Capacete de Moto Prova Dágua',
+    price: 'R$ 289,90',
+    image_url: 'https://res.cloudinary.com/dwtefghdi/image/upload/v1779676505/jsfylaae9w4lcbftcewj.jpg',
+    hype_score: 81,
+    score: 81,
+    url: 'https://shopee.com.br',
+    status: 'ALTA',
+    category: 'Motos',
+    commission: 'R$ 89,00',
+    vendas_mes: 980,
+  },
+  {
+    id: '15',
+    name: 'Organizador de Canto em Bambu e Inox Multiuso',
+    title: 'Organizador de Canto em Bambu e Inox Multiuso',
+    price: 'R$ 189,90',
+    image_url: 'https://res.cloudinary.com/dwtefghdi/image/upload/v1779761533/m5fdmmwgaptszvqpd9r8.jpg',
+    hype_score: 80,
+    score: 80,
+    url: 'https://shopee.com.br',
+    status: 'ESTÁVEL',
+    category: 'Casa',
+    commission: 'R$ 55,00',
+    vendas_mes: 870,
   }
 ];
 
 export const tips = [
-  "Produtos que estão em trend por 3+ dias têm chance maior de estabilizar. Olhe para o Score >80.",
-  "O YouTube é o melhor termômetro para produtos de 'impulso'. Se tem muitos unboxings, a demanda é real.",
-  "Google Trends em alta significa que as pessoas já estão na fase de 'decisão de compra'.",
-  "Sempre teste 2 variações de anúncio: uma focada em Urgência e outra em Prova Social."
+  "Produtos com Hype Score > 85 têm conversão 3.4x maior nos primeiros 7 dias.",
+  "Anúncios gerados no TikTok Shop convertem mais quando postados em horários de pico (12h às 14h e 19h às 22h).",
+  "Use o gerador de roteiros IA para testar 3 variações de gancho no primeiro segundo do vídeo.",
+  "Produtos com despacho nacional de 24h diminuem devoluções em até 92%."
 ];
