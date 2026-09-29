@@ -1,250 +1,261 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Truck, ExternalLink, MessageCircle, ShieldCheck, Star, Users, MapPin, Zap, Lock } from 'lucide-react';
-import { useSession } from 'next-auth/react';
-import PaywallOverlay from './PaywallOverlay';
-import { cn } from '@/lib/utils';
+import { 
+  Truck, 
+  Search, 
+  MapPin, 
+  CheckCircle2, 
+  ArrowRight, 
+  ShieldCheck, 
+  Zap, 
+  ChevronLeft, 
+  ChevronRight,
+  Sparkles,
+  ShoppingBag
+} from 'lucide-react';
+import SafeImage from '@/components/SafeImage';
+import { toast } from 'react-hot-toast';
 
-interface Supplier {
-  id: string;
-  name: string;
-  category: string;
-  location: string;
-  type: 'Dropshipping Nacional' | 'Fábrica Direta (Brás/SP)' | 'Importação Direta' | 'Atacado Nacional';
-  rating: number;
-  minOrder: string;
-  avgShippingDays: string;
-  description: string;
-  link: string;
-  badge?: string;
+interface SuppliersViewProps {
+  onNavigate?: (view: any, product?: any) => void;
 }
 
-const SUPPLIERS: Supplier[] = [
-  {
-    id: '1',
-    name: 'Dropi / AliExpress Local',
-    category: 'Eletrônicos & Casa',
-    location: 'Brasil & China com estoque local',
-    type: 'Dropshipping Nacional',
-    rating: 4.9,
-    minOrder: '1 unidade',
-    avgShippingDays: '2 a 5 dias úteis',
-    description: 'Integração direta com Shopify e Nuvemshop. Estoque com rastreio Correios válido no Brasil.',
-    link: 'https://dropi.com.br',
-    badge: 'TOP RECOMENDADO',
-  },
-  {
-    id: '2',
-    name: 'Mega Polo & Circuito das Compras SP',
-    category: 'Moda, Acessórios & Calçados',
-    location: 'Brás & Pari, São Paulo - SP',
-    type: 'Fábrica Direta (Brás/SP)',
-    rating: 4.8,
-    minOrder: '6 a 12 peças',
-    avgShippingDays: 'Pronta entrega',
-    description: 'Catálogo de confeccionistas diretos do Brás com preços de fábrica para revenda no Mercado Livre e Shopee.',
-    link: 'https://circuitodascompras.com.br',
-    badge: 'PREÇO DE FÁBRICA',
-  },
-  {
-    id: '3',
-    name: 'Wiio Brasil Logistics',
-    category: 'Gadgets & Utilidades',
-    location: 'Shenzhen / São Paulo HUB',
-    type: 'Dropshipping Nacional',
-    rating: 4.7,
-    minOrder: '1 unidade',
-    avgShippingDays: '7 a 12 dias',
-    description: 'Agente privado de sourcing com controle de qualidade e personalização de embalagem sob demanda.',
-    link: 'https://wiio.io',
-  },
-  {
-    id: '4',
-    name: 'EstoqueBR Central de Distribuição',
-    category: 'Cosméticos & Saúde',
-    location: 'Curitiba - PR & Barueri - SP',
-    type: 'Atacado Nacional',
-    rating: 4.9,
-    minOrder: 'R$ 300,00',
-    avgShippingDays: '1 a 3 dias úteis',
-    description: 'Fornecedor homologado Anvisa de cosméticos, perfumes e suplementos com alta margem de lucro.',
-    link: 'https://estoquebr.com.br',
-    badge: 'HOMOLOGADO ANVISA',
-  },
-  {
-    id: '5',
-    name: 'AliExpress Direct Choice (BR Warehouses)',
-    category: 'Tech, Gamer & Home',
-    location: 'Galpões em Cajamar & Louveira - SP',
-    type: 'Importação Direta',
-    rating: 4.8,
-    minOrder: '1 unidade',
-    avgShippingDays: '3 a 7 dias',
-    description: 'Produtos de alta rotação já nacionalizados sem taxa de importação adicional e entrega ultra-rápida.',
-    link: 'https://aliexpress.com',
-  },
-];
+export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
+  const [filter, setFilter] = useState('Todos (8)');
+  const [search, setSearch] = useState('');
+  const [activated, setActivated] = useState<string[]>(['sportsfull']);
 
-const COMMUNITIES = [
-  {
-    title: 'Comunidade WhatsApp: Alertas de Mineração VIP',
-    members: '1.240 sellers ativos',
-    description: 'Receba alertas diários de produtos com pico súbito de buscas no Google e TikTok Shop.',
-    link: 'https://chat.whatsapp.com/invite',
-    type: 'WhatsApp VIP',
-  },
-  {
-    title: 'Canal Telegram: Fornecedores & Lotes Promocionais',
-    members: '3.890 membros',
-    description: 'Avisos de saldos de estoque e parcerias com galpões de atacado em São Paulo.',
-    link: 'https://t.me/decolashop_vip',
-    type: 'Telegram Alertas',
-  },
-  {
-    title: 'Networking & Mastermind Shopee Brasil',
-    members: 'Top 100 lojistas',
-    description: 'Troca de estratégias de tráfego pago, criativos de anúncios e validação rápida.',
-    link: 'https://discord.gg',
-    type: 'Discord Mastermind',
-  },
-];
+  const toggleActivate = (id: string, name: string) => {
+    if (activated.includes(id)) {
+      setActivated(activated.filter(i => i !== id));
+      toast.success(`${name} desativado`);
+    } else {
+      setActivated([...activated, id]);
+      toast.success(`🎉 ${name} ativado com sucesso! Produtos sincronizados.`);
+    }
+  };
 
-export default function SuppliersView() {
-  const { data: session } = useSession();
-  // @ts-ignore
-  const plan = session?.user?.plan || 'free';
-  const isFree = plan === 'free';
-  const [filterType, setFilterType] = useState('Todos');
-
-  const filteredSuppliers = filterType === 'Todos'
-    ? SUPPLIERS
-    : SUPPLIERS.filter(s => s.type.toLowerCase().includes(filterType.toLowerCase()));
+  const suppliers = [
+    {
+      id: 'sportsfull',
+      name: 'SportsFull - SP',
+      address: 'Rua Doutor Luís da Fonseca Galvão, 231',
+      category: 'ESPORTES',
+      categoryColor: 'bg-red-50 text-red-600 border-red-200',
+      verified: true,
+      productsCount: '+2.850 produtos',
+      description: 'Fardamentos personalizados, camisas de futebol oficiais e bolas para treino e competição',
+      mainImage: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=300',
+      highlights: [
+        { name: 'Jogo de Camisas De J...', image: 'https://images.unsplash.com/photo-1522778119026-d647f0596c20?auto=format&fit=crop&q=80&w=100' },
+        { name: 'Jogo De Camisas + ca...', image: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&q=80&w=100' },
+        { name: 'Camiseta Oversized', image: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&q=80&w=100' },
+      ],
+    },
+    {
+      id: 'innova',
+      name: 'Innova Partners - SP',
+      address: 'Rua Barão Ladislau, 670 - Brás, São Paulo - SP',
+      category: 'ELETRÔNICOS',
+      categoryColor: 'bg-orange-50 text-orange-600 border-orange-200',
+      verified: true,
+      productsCount: '+3.840 produtos',
+      description: 'Eletrônicos e eletrodomésticos de ponta',
+      mainImage: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&q=80&w=300',
+      highlights: [
+        { name: 'Fone Bluetooth TWS...', image: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&q=80&w=100' },
+        { name: 'SmartWatch W9 Pro', image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&q=80&w=100' },
+        { name: 'Mouse Gamer RGB 72...', image: 'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?auto=format&fit=crop&q=80&w=100' },
+      ],
+    },
+  ];
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 relative">
-      {/* Header */}
-      <div>
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/10 text-orange-400 text-xs font-bold mb-3 border border-orange-500/20">
-          <Truck className="w-3.5 h-3.5" />
-          <span>Diretório Exclusivo DecolaShop</span>
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-500 font-sans text-slate-800 pb-16">
+      {/* Hero Header Card */}
+      <div className="bg-gradient-to-br from-white via-orange-50/20 to-orange-100/30 rounded-3xl p-8 md:p-12 border border-orange-100 shadow-sm relative overflow-hidden flex flex-col items-center text-center">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-50 text-[#ee4d2d] text-[11px] font-black uppercase tracking-wider mb-3 border border-orange-200">
+          <span>PLATAFORMA COM FORNECEDORES INTEGRADOS</span>
         </div>
-        <h1 className="text-3xl font-black tracking-tight mb-2">
-          Fornecedores Verificados & <span className="apex-gradient-text">Comunidades VIP</span>
+
+        <h1 className="text-3xl md:text-5xl font-black text-gray-900 tracking-tight max-w-3xl leading-tight">
+          Conecte-se aos <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#ee4d2d] to-orange-500">Melhores Fornecedores</span> do Brasil
         </h1>
-        <p className="text-muted-foreground text-sm max-w-2xl">
-          Conecte-se com fabricantes do Brasil e do exterior, agentes de dropshipping nacional e grupos de inteligência.
+
+        <p className="text-xs text-gray-500 mt-3 max-w-2xl leading-relaxed">
+          Catálogos oficiais auditados com estoque a pronta entrega, despacho em até 24h e integração direta para criar anúncios de alta conversão.
         </p>
+
+        {/* 4 Stats Pills */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-8 w-full max-w-3xl">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-3 border border-gray-100 text-left">
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Despacho</span>
+            <span className="text-xs font-black text-gray-900">Em até 24 horas</span>
+          </div>
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-3 border border-gray-100 text-left">
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Margens</span>
+            <span className="text-xs font-black text-gray-900">Até 150% lucro</span>
+          </div>
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-3 border border-gray-100 text-left">
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Qualidade</span>
+            <span className="text-xs font-black text-gray-900">100% Auditados</span>
+          </div>
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-3 border border-gray-100 text-left">
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">Canais</span>
+            <span className="text-xs font-black text-gray-900">Shopee & ML</span>
+          </div>
+        </div>
       </div>
 
-      <div className="relative">
-        {isFree && <PaywallOverlay />}
-
-        <div className={cn("space-y-8", isFree && "blur-[7px] pointer-events-none opacity-60 select-none")}>
-          {/* Filters */}
-          <div className="flex gap-2 flex-wrap">
-            {['Todos', 'Dropshipping', 'Brás', 'Atacado', 'Importação'].map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setFilterType(cat)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
-                  filterType === cat
-                    ? 'bg-primary text-black border-primary font-black shadow-lg shadow-primary/20'
-                    : 'bg-secondary/30 text-muted-foreground border-border/50 hover:bg-secondary'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-
-          {/* Suppliers Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {filteredSuppliers.map((supplier) => (
-              <div key={supplier.id} className="glass rounded-3xl p-6 border-border/50 flex flex-col justify-between hover:border-primary/40 transition-all group">
-                <div>
-                  <div className="flex items-start justify-between gap-4 mb-3">
-                    <div>
-                      <span className="text-[10px] font-black uppercase tracking-wider text-primary bg-primary/10 px-2.5 py-1 rounded-full border border-primary/20">
-                        {supplier.type}
-                      </span>
-                      <h3 className="text-lg font-black text-white mt-2 group-hover:text-primary transition-colors">
-                        {supplier.name}
-                      </h3>
-                      <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1">
-                        <MapPin size={12} className="text-slate-400" /> {supplier.location}
-                      </p>
-                    </div>
-
-                    {supplier.badge && (
-                      <span className="text-[9px] font-black uppercase tracking-wider bg-orange-500/20 text-orange-400 border border-orange-500/30 px-2 py-1 rounded-lg">
-                        {supplier.badge}
-                      </span>
-                    )}
-                  </div>
-
-                  <p className="text-xs text-slate-300 leading-relaxed mb-4">
-                    {supplier.description}
-                  </p>
-
-                  <div className="grid grid-cols-2 gap-2 text-xs p-3 rounded-xl bg-white/5 border border-white/5 mb-4">
-                    <div>
-                      <span className="text-muted-foreground block text-[10px] uppercase font-bold">Pedido Mínimo:</span>
-                      <span className="font-extrabold text-white">{supplier.minOrder}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-[10px] uppercase font-bold">Prazo Médio Envio:</span>
-                      <span className="font-extrabold text-emerald-400">{supplier.avgShippingDays}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <a
-                  href={supplier.link}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-secondary/50 hover:bg-primary hover:text-black text-white font-bold text-xs transition-all border border-border/50 group-hover:border-primary"
-                >
-                  <span>Acessar Fornecedor</span>
-                  <ExternalLink size={14} />
-                </a>
-              </div>
-            ))}
-          </div>
-
-          {/* VIP Communities Section */}
-          <div className="pt-6">
-            <h2 className="text-xl font-black mb-4 flex items-center gap-2 text-white">
-              <Users className="text-primary" size={22} /> Comunidades & Grupos Oficiais
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {COMMUNITIES.map((comm, idx) => (
-                <div key={idx} className="glass-darker p-5 rounded-2xl border border-border/50 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[10px] font-black uppercase text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20">
-                        {comm.type}
-                      </span>
-                      <span className="text-[11px] text-muted-foreground font-semibold">{comm.members}</span>
-                    </div>
-                    <h4 className="font-bold text-sm text-white mb-2">{comm.title}</h4>
-                    <p className="text-xs text-muted-foreground mb-4">{comm.description}</p>
-                  </div>
-
-                  <a
-                    href={comm.link}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-primary/10 hover:bg-primary text-primary hover:text-black font-extrabold text-xs transition-all border border-primary/20"
-                  >
-                    <MessageCircle size={14} />
-                    <span>Entrar no Grupo</span>
-                  </a>
-                </div>
-              ))}
-            </div>
-          </div>
+      {/* Filter and Categories Bar */}
+      <div className="flex flex-col md:flex-row items-center gap-3">
+        <div className="relative w-full md:w-64 flex-shrink-0">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar fornecedor por..."
+            className="w-full bg-white border border-gray-200 rounded-2xl py-2.5 pl-10 pr-4 text-xs font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#ee4d2d]/20 focus:border-[#ee4d2d]"
+          />
         </div>
+
+        <div className="flex items-center gap-1.5 overflow-x-auto w-full pb-1 scrollbar-none">
+          {[
+            'Todos (8)',
+            'Meus Ativos',
+            'Esportes',
+            'Eletrônicos',
+            'Cosméticos',
+            'Casa & Jardim',
+            'Brinquedos',
+            'Sazonais',
+            'Utilidades',
+            'Cozinha',
+          ].map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setFilter(cat)}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
+                filter === cat
+                  ? 'bg-[#ee4d2d] text-white shadow-sm'
+                  : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Section Title */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-base font-black text-gray-900">
+          Fornecedores Disponíveis (8)
+        </h2>
+        <span className="text-[11px] text-gray-400 font-medium">
+          Estoque sincronizado em tempo real
+        </span>
+      </div>
+
+      {/* Suppliers Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {suppliers.map((sup) => {
+          const isAct = activated.includes(sup.id);
+          return (
+            <div 
+              key={sup.id}
+              className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm flex flex-col justify-between hover:border-orange-200 transition-all"
+            >
+              <div>
+                <div className="flex items-start gap-4 mb-4">
+                  {/* Square Product Image */}
+                  <div className="w-16 h-16 rounded-2xl overflow-hidden bg-gray-100 border border-gray-200/80 flex-shrink-0">
+                    <SafeImage src={sup.mainImage} alt={sup.name} className="w-full h-full object-cover" />
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${sup.categoryColor}`}>
+                        {sup.category}
+                      </span>
+                      <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        Verificado
+                      </span>
+                      <span className="text-[9px] font-bold text-gray-400">
+                        {sup.productsCount}
+                      </span>
+                    </div>
+
+                    <h3 className="text-base font-black text-gray-900 truncate">{sup.name}</h3>
+                    <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-0.5">
+                      <MapPin size={11} /> {sup.address}
+                    </p>
+                  </div>
+                </div>
+
+                <p className="text-xs text-gray-600 leading-relaxed mb-4">
+                  {sup.description}
+                </p>
+
+                {/* Highlights Carousel Strip */}
+                <div className="space-y-1.5 mb-6">
+                  <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">
+                    DESTAQUES EM ALTA ROTAÇÃO:
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button className="text-gray-400 hover:text-gray-700">
+                      <ChevronLeft size={16} />
+                    </button>
+                    <div className="flex items-center gap-2 flex-1 overflow-hidden">
+                      {sup.highlights.map((h, i) => (
+                        <div key={i} className="flex items-center gap-2 p-1.5 pr-3 rounded-xl bg-gray-50 border border-gray-100 flex-1 min-w-0">
+                          <div className="w-7 h-7 rounded-lg overflow-hidden bg-white flex-shrink-0">
+                            <SafeImage src={h.image} alt={h.name} className="w-full h-full object-cover" />
+                          </div>
+                          <span className="text-[10px] font-bold text-gray-700 truncate">{h.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <button className="text-gray-400 hover:text-gray-700">
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Actions */}
+              <div className="grid grid-cols-2 gap-3 pt-4 border-t border-gray-100">
+                <button
+                  onClick={() => toggleActivate(sup.id, sup.name)}
+                  className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1.5 ${
+                    isAct
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-300 font-black'
+                      : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+                  }`}
+                >
+                  {isAct ? (
+                    <>
+                      <CheckCircle2 size={13} className="text-emerald-600" />
+                      <span>FORNECEDOR ATIVADO</span>
+                    </>
+                  ) : (
+                    <span>+ ATIVAR FORNECEDOR</span>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => onNavigate && onNavigate('catalogo')}
+                  className="py-2.5 px-3 rounded-xl bg-[#ee4d2d] hover:bg-[#d94121] text-white font-bold text-xs flex items-center justify-center gap-1 transition-all shadow-md shadow-orange-500/20 active:scale-95"
+                >
+                  <span>Acessar Catálogo ({sup.productsCount})</span>
+                  <ArrowRight size={13} />
+                </button>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
