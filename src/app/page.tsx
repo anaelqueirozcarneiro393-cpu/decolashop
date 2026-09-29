@@ -141,16 +141,16 @@ export default function AppContainer() {
           setIsOpen={setIsSidebarOpen}
         />
         
-        <main className="flex-1 md:ml-64 min-h-screen">
+        <main className={`flex-1 md:ml-64 min-h-screen ${currentView === 'dashboard' ? 'bg-[#f5f6fa]' : 'bg-dark-bg'}`}>
           <Header onMenuClick={() => setIsSidebarOpen(true)} session={session} />
           
-          <div className="p-4 md:p-8 max-w-7xl mx-auto pb-24">
-            {currentView === 'dashboard' && (
-              <DashboardView 
-                onNavigate={navigateToView} 
-                savedCount={savedProducts.length}
-              />
-            )}
+          {currentView === 'dashboard' ? (
+            <DashboardView 
+              onNavigate={navigateToView} 
+              savedCount={savedProducts.length}
+            />
+          ) : (
+            <div className="p-4 md:p-8 max-w-7xl mx-auto pb-24">
 
             {currentView === 'financeiro' && (
               <FinanceiroView />
@@ -231,6 +231,7 @@ export default function AppContainer() {
               <SettingsView />
             )}
           </div>
+          )}
         </main>
       </div>
     </div>
