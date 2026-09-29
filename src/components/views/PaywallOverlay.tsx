@@ -1,55 +1,51 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Lock, CreditCard, Zap, Check } from 'lucide-react';
-import { useSession } from 'next-auth/react';
+import { Lock, Sparkles, Check, CreditCard } from 'lucide-react';
 
 export default function PaywallOverlay() {
-  const { data: session } = useSession();
   const [mounted, setMounted] = useState(false);
-  
+
   useEffect(() => {
     setMounted(true);
   }, []);
-  
-  // @ts-ignore
-  const plan = session?.user?.plan || 'free';
 
-  if (plan !== 'free') return null;
+  const features = [
+    'Acesso Ilimitado ao Minerador Live',
+    'Filtros Avançados por Margem e Volume',
+    'Gerador de Cópias e Anúncios com IA',
+    'Visualização de Fornecedores Verificados',
+    'Suporte VIP via WhatsApp'
+  ];
 
   return (
     <>
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-[4px] rounded-2xl z-40" />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-[6px] rounded-2xl z-40" />
       
       {mounted && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-          <div className="relative w-full max-w-3xl bg-slate-900 border border-slate-700/50 rounded-2xl p-8 shadow-2xl flex flex-col md:flex-row gap-8 pointer-events-auto ml-0 md:ml-64 mt-20 md:mt-0">
+          <div className="relative w-full max-w-3xl bg-[#0d121f] border border-[#22c55e]/30 rounded-3xl p-8 shadow-2xl shadow-[#22c55e]/10 flex flex-col md:flex-row gap-8 pointer-events-auto ml-0 md:ml-64 mt-20 md:mt-0 backdrop-blur-xl">
             
             <div className="flex-1 space-y-6">
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/10 text-orange-400 text-sm font-medium mb-4">
-                <Lock className="w-4 h-4" />
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#22c55e]/15 text-[#4ade80] border border-[#22c55e]/30 text-xs font-bold mb-4 shadow-[0_0_10px_rgba(34,197,94,0.15)]">
+                <Lock className="w-3.5 h-3.5 text-[#22c55e]" />
                 <span>Conteúdo Exclusivo</span>
               </div>
-              <h2 className="text-3xl font-bold text-white mb-2">Já tem um plano?</h2>
-              <p className="text-slate-400 leading-relaxed">
+              <h2 className="text-3xl font-black text-white mb-2">Já tem um plano?</h2>
+              <p className="text-slate-400 text-xs leading-relaxed">
                 Descubra os produtos mais lucrativos da internet antes de todo mundo. Desbloqueie o Minerador Live e o Gerador de Anúncios IA.
               </p>
             </div>
 
             <div className="space-y-3">
-              {[
-                "Acesso ilimitado ao Minerador Live",
-                "Gerador de Anúncios IA de Alta Conversão",
-                "Análise de Mercado e Validação",
-                "Suporte Prioritário"
-              ].map((feature, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                    <Check className="w-3 h-3 text-emerald-400" />
+              {features.map((feature, idx) => (
+                <div key={idx} className="flex items-center gap-3">
+                  <div className="w-5 h-5 rounded-full bg-[#22c55e]/20 border border-[#22c55e]/40 flex items-center justify-center flex-shrink-0">
+                    <Check className="w-3 h-3 text-[#4ade80]" />
                   </div>
-                  <span className="text-slate-300 text-sm">{feature}</span>
+                  <span className="text-slate-300 text-xs font-medium">{feature}</span>
                 </div>
               ))}
             </div>
@@ -62,12 +58,12 @@ export default function PaywallOverlay() {
               rel="noreferrer"
               className="block w-full"
             >
-              <div className="w-full bg-slate-800 border border-slate-700 hover:border-orange-500/50 transition-all rounded-xl p-5 cursor-pointer group">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-lg font-semibold text-white group-hover:text-orange-400 transition-colors">Plano Mensal</h3>
-                  <span className="text-xl font-bold text-white">R$ 147<span className="text-sm text-slate-400 font-normal">/mês</span></span>
+              <div className="w-full bg-black/40 border border-white/10 hover:border-[#22c55e]/40 transition-all rounded-2xl p-5 cursor-pointer group">
+                <div className="flex justify-between items-center mb-1">
+                  <h3 className="text-base font-bold text-white group-hover:text-[#4ade80] transition-colors">Plano Mensal</h3>
+                  <span className="text-lg font-black text-white">R$ 147<span className="text-xs text-slate-400 font-normal">/mês</span></span>
                 </div>
-                <p className="text-slate-400 text-sm">Acesso completo por 30 dias.</p>
+                <p className="text-slate-400 text-xs">Acesso completo por 30 dias.</p>
               </div>
             </a>
 
@@ -77,30 +73,30 @@ export default function PaywallOverlay() {
               rel="noreferrer"
               className="block w-full"
             >
-              <div className="w-full bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 transition-all rounded-xl p-5 cursor-pointer shadow-lg shadow-orange-500/20 relative overflow-hidden group">
-                <div className="absolute top-0 right-0 bg-white/20 px-3 py-1 rounded-bl-xl text-xs font-bold text-white backdrop-blur-sm">
+              <div className="w-full bg-gradient-to-r from-[#22c55e] via-[#4ade80] to-[#16a34a] hover:brightness-110 transition-all rounded-2xl p-5 cursor-pointer shadow-lg shadow-[#22c55e]/25 relative overflow-hidden group text-black">
+                <div className="absolute top-0 right-0 bg-black/30 px-3 py-1 rounded-bl-xl text-[10px] font-black uppercase text-white backdrop-blur-sm">
                   MAIS POPULAR
                 </div>
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-lg font-semibold text-white">Plano Anual</h3>
+                <div className="flex justify-between items-center mb-1">
+                  <h3 className="text-base font-black text-black">Plano Anual</h3>
                   <div className="text-right">
-                    <span className="block text-xs text-orange-200 line-through">R$ 1.764</span>
-                    <span className="text-xl font-bold text-white">R$ 249<span className="text-sm text-orange-100 font-normal">/ano</span></span>
+                    <span className="block text-[11px] text-black/60 line-through">R$ 1.764</span>
+                    <span className="text-xl font-black text-black">R$ 249<span className="text-xs text-black/80 font-bold">/ano</span></span>
                   </div>
                 </div>
-                <p className="text-orange-100 text-sm">Economize R$ 1.515 no ano.</p>
+                <p className="text-black/80 text-xs font-semibold">Economize R$ 1.515 no ano.</p>
               </div>
             </a>
 
-            <p className="text-center text-xs text-slate-500 mt-4 flex items-center justify-center gap-2">
-              <CreditCard className="w-4 h-4" /> Pagamento 100% Seguro via IronPay
+            <p className="text-center text-[10px] text-slate-500 mt-4 flex items-center justify-center gap-1.5">
+              <CreditCard className="w-3.5 h-3.5 text-[#22c55e]" /> Pagamento 100% Seguro via IronPay
             </p>
           </div>
 
         </div>
-        </div>,
-        document.body
-      )}
-    </>
+      </div>,
+      document.body
+    )}
+  </>
   );
 }

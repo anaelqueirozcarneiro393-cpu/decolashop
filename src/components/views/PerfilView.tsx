@@ -45,7 +45,7 @@ export default function PerfilView() {
             <h3 className="text-xl font-black text-white">{name}</h3>
             <p className="text-xs text-muted-foreground">{email}</p>
             <div className="flex items-center gap-2 mt-2">
-              <span className="text-[10px] font-black uppercase tracking-wider bg-orange-500/20 text-orange-400 border border-orange-500/30 px-2.5 py-0.5 rounded-full">
+              <span className="text-[10px] font-black uppercase tracking-wider bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/30 px-2.5 py-0.5 rounded-full shadow-[0_0_10px_rgba(34,197,94,0.15)]">
                 Admin Master
               </span>
               <span className="text-[10px] font-black uppercase tracking-wider bg-primary/20 text-primary border border-primary/30 px-2.5 py-0.5 rounded-full">

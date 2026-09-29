@@ -58,7 +58,7 @@ export default function SettingsView() {
             <div className="mt-2 inline-flex items-center gap-2">
               <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
                 isVip
-                  ? 'bg-orange-500/20 text-orange-400 border-orange-500/30'
+                  ? 'bg-[#22c55e]/20 text-[#4ade80] border-[#22c55e]/30'
                   : 'bg-primary/10 text-primary border-primary/20'
               }`}>
                 {isVip ? '★ MEMBRO VIP ANUAL' : 'PLANO GRATUITO'}
@@ -79,7 +79,7 @@ export default function SettingsView() {
       <div className="glass rounded-3xl p-6 md:p-8 border-border/50 space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-400">
+            <div className="w-10 h-10 rounded-xl bg-[#22c55e]/15 flex items-center justify-center text-[#4ade80] border border-[#22c55e]/30">
               <CreditCard size={20} />
             </div>
             <div>
@@ -116,7 +116,7 @@ export default function SettingsView() {
               href="https://go.ironpayapp.com.br/evspnrga7y"
               target="_blank"
               rel="noreferrer"
-              className="flex-1 flex items-center justify-center gap-2 py-3 px-6 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 text-white font-extrabold text-xs hover:from-orange-500 hover:to-orange-400 transition-all shadow-lg shadow-orange-500/20"
+              className="flex-1 flex items-center justify-center gap-2 py-3 px-6 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] text-black font-extrabold text-xs hover:from-[#4ade80] hover:to-[#22c55e] transition-all shadow-lg shadow-[#22c55e]/25"
             >
               <Sparkles size={16} /> Fazer Upgrade para VIP Anual (R$ 249/ano)
             </a>

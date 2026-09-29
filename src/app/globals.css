@@ -7,24 +7,24 @@
   --card-foreground: #f8fafc;
   --popover: #0a0e27;
   --popover-foreground: #f8fafc;
-  --primary: #f97316;
-  --primary-foreground: #ffffff;
+  --primary: #22c55e;
+  --primary-foreground: #000000;
   --secondary: #10b981;
   --secondary-foreground: #ffffff;
   --muted: #1e293b;
   --muted-foreground: #64748b;
-  --accent: #eab308;
+  --accent: #4ade80;
   --accent-foreground: #000000;
   --destructive: #ef4444;
   --destructive-foreground: #fafafa;
   --border: #1a1f3a;
   --input: #1e293b;
-  --ring: #f97316;
+  --ring: #22c55e;
   --radius: 0.75rem;
 
   /* Custom Palette */
-  --green: #10b981;
-  --orange: #f97316;
+  --green: #22c55e;
+  --orange: #22c55e;
   --red: #ef4444;
   --yellow: #eab308;
   --dark-bg: #0a0e27;
@@ -110,15 +110,15 @@ body {
 
 /* Apex Gradient */
 .apex-gradient {
-  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
 }
 
 .apex-gradient-orange {
-  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  background: linear-gradient(135deg, #22c55e 0%, #4ade80 100%);
 }
 
 .apex-gradient-text {
-  background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+  background: linear-gradient(135deg, #22c55e 0%, #4ade80 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }

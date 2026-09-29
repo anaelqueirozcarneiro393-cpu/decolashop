@@ -63,17 +63,17 @@ export default function LoginView() {
   return (
     <div className="min-h-screen bg-dark-bg flex flex-col items-center justify-center p-4 overflow-hidden relative">
       {/* Background Glows */}
-      <div className="absolute top-[-10%] right-[-10%] w-[45%] h-[45%] bg-primary/15 rounded-full blur-[140px] -z-10 animate-pulse" />
-      <div className="absolute bottom-[-10%] left-[-10%] w-[45%] h-[45%] bg-orange-500/10 rounded-full blur-[140px] -z-10 animate-pulse" />
+      <div className="absolute top-[-10%] right-[-10%] w-[45%] h-[45%] bg-[#22c55e]/15 rounded-full blur-[140px] -z-10 animate-pulse" />
+      <div className="absolute bottom-[-10%] left-[-10%] w-[45%] h-[45%] bg-[#10b981]/15 rounded-full blur-[140px] -z-10 animate-pulse" />
 
       <div className="max-w-lg w-full glass rounded-3xl p-8 md:p-10 border-white/10 shadow-2xl relative z-10">
         {/* Header */}
         <div className="flex flex-col items-center text-center mb-8">
-          <div className="w-16 h-16 apex-gradient rounded-2xl flex items-center justify-center mb-4 shadow-xl shadow-primary/25 border border-white/20">
-            <Zap className="text-white w-9 h-9" fill="currentColor" />
+          <div className="w-16 h-16 bg-gradient-to-br from-[#22c55e] to-[#15803d] rounded-2xl flex items-center justify-center mb-4 shadow-xl shadow-[#22c55e]/25 border border-white/20 text-black">
+            <Zap className="text-black w-9 h-9 fill-current" />
           </div>
           <h1 className="text-3xl md:text-4xl font-black mb-2 tracking-tight">
-            Decola<span className="apex-gradient-text">Shop</span>
+            Decola<span className="text-transparent bg-clip-text bg-gradient-to-r from-[#22c55e] to-[#4ade80]">Shop</span>
           </h1>
           <p className="text-xs text-muted-foreground uppercase font-bold tracking-widest">
             Mineração de Produtos & Anúncios Virais com IA
@@ -84,16 +84,16 @@ export default function LoginView() {
         <div className="mb-6 p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3">
           <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-muted-foreground">
             <span>Acesso Rápido para Teste</span>
-            <span className="text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">1-Clique</span>
+            <span className="text-[10px] text-[#4ade80] bg-[#22c55e]/15 px-2 py-0.5 rounded-full border border-[#22c55e]/30">1-Clique</span>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => handleDemoLogin('yearly')}
               disabled={!!isDemoLoading || isLoading}
-              className="flex flex-col items-center justify-center p-3 rounded-xl bg-gradient-to-br from-orange-500/20 to-primary/20 hover:from-orange-500/30 hover:to-primary/30 border border-orange-500/30 text-white font-bold text-xs transition-all hover:scale-[1.02] active:scale-95 text-center shadow-lg"
+              className="flex flex-col items-center justify-center p-3 rounded-xl bg-gradient-to-br from-[#22c55e]/20 to-[#10b981]/20 hover:from-[#22c55e]/30 hover:to-[#10b981]/30 border border-[#22c55e]/40 text-white font-bold text-xs transition-all hover:scale-[1.02] active:scale-95 text-center shadow-lg"
             >
-              <div className="flex items-center gap-1 text-orange-400 font-black text-xs mb-1">
+              <div className="flex items-center gap-1 text-[#4ade80] font-black text-xs mb-1">
                 <Sparkles size={14} /> VIP Completo
               </div>
               <span className="text-[11px] text-slate-300 font-medium">Sem paywall, IA liberada</span>
@@ -171,7 +171,7 @@ export default function LoginView() {
       <div className="mt-8 flex flex-wrap justify-center items-center gap-4 text-muted-foreground/60 text-xs font-bold uppercase tracking-wider">
         <span className="flex items-center gap-1.5"><TrendingUp size={14} className="text-primary" /> Tendências em Tempo Real</span>
         <span>•</span>
-        <span className="flex items-center gap-1.5"><Sparkles size={14} className="text-orange-400" /> IA Gemini & Llama Integradas</span>
+        <span className="flex items-center gap-1.5"><Sparkles size={14} className="text-[#4ade80]" /> IA Gemini & Llama Integradas</span>
         <span>•</span>
         <span className="flex items-center gap-1.5"><Shield size={14} className="text-emerald-400" /> Pagamento Seguro IronPay</span>
       </div>
