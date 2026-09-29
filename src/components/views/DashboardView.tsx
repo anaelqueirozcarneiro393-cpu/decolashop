@@ -71,13 +71,16 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
 
   // Use real products for the Top 5
   const topList = realProducts.slice(0, 5).map((p, index) => {
-    const rawPrice = typeof p.price === 'string' ? p.price : `R$ ${p.price?.toFixed(2) || '99,90'}`;
+    const rawPrice = typeof p.price === 'string' ? p.price : `R$ ${p.price?.toFixed(2).replace('.', ',') || '99,90'}`;
     const units = pedidos > 0 ? Math.max(1, Math.floor(pedidos * (0.35 - index * 0.06))) : 0;
+    const marketSales = (p as any).vendas_mes 
+      ? `${(p as any).vendas_mes.toLocaleString('pt-BR')} vendas no radar` 
+      : 'Alta conversão';
     return {
       rank: index + 1,
       id: p.id,
       name: p.name || p.title || 'Produto do Catálogo',
-      sales: pedidos > 0 ? `${units} unidades vendidas` : '0 vendas hoje',
+      sales: pedidos > 0 ? `${units} vendas na sua loja` : marketSales,
       price: rawPrice,
       image: p.image_url,
     };

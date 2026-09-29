@@ -181,7 +181,7 @@ export default function ProductDetailView({ product, isSaved, onSave, onNavigate
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm font-bold">Engajamento</span>
-                <span className="text-xs font-black text-orange">🔥 {product.evidence.communities.engagement}</span>
+                <span className="text-xs font-black text-primary">🔥 {product.evidence.communities.engagement}</span>
               </div>
 
               <div className="space-y-2 pt-4 border-t border-border/30 text-[11px]">

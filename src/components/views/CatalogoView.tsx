@@ -55,7 +55,9 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
 
   const filtered = products.filter(p => {
     const matchesSearch = (p.name || p.title || '').toLowerCase().includes(search.toLowerCase());
-    const matchesCat = selectedCategory === 'Todas' || (p.category || '').toLowerCase() === selectedCategory.toLowerCase();
+    const catLower = (p.category || '').toLowerCase();
+    const selLower = selectedCategory.toLowerCase();
+    const matchesCat = selectedCategory === 'Todas' || catLower.includes(selLower) || selLower.includes(catLower);
     return matchesSearch && matchesCat;
   });
 
