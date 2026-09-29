@@ -10,6 +10,14 @@ const nextConfig: NextConfig = {
       { protocol: 'http', hostname: '**' },
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: '/:path((?!api|_next|static|favicon.png|icon.png|manifest.json|robots.txt).*)',
+        destination: '/',
+      },
+    ];
+  },
 };
 
 export default nextConfig;

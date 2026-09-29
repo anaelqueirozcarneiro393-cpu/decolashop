@@ -53,6 +53,31 @@ export default function AppContainer() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const rawPath = window.location.pathname.replace(/^\//, '').toLowerCase();
+      const validViews: ViewType[] = [
+        'dashboard', 
+        'financeiro', 
+        'catalogo', 
+        'divulgacao-ia', 
+        'video-ia', 
+        'conectar', 
+        'video-aula', 
+        'perfil', 
+        'reembolso', 
+        'minerador', 
+        'detalhe', 
+        'anuncio', 
+        'meus-produtos', 
+        'calculadora', 
+        'fornecedores', 
+        'configuracoes'
+      ];
+      if (rawPath && validViews.includes(rawPath as ViewType)) {
+        setCurrentView(rawPath as ViewType);
+      }
+    }
+
     const seenOnboarding = localStorage.getItem('apexfinder_seen_onboarding');
     if (!seenOnboarding) {
       setShowOnboarding(true);
@@ -80,6 +105,9 @@ export default function AppContainer() {
   const navigateToView = (view: ViewType, product?: Product) => {
     if (product) setSelectedProduct(product);
     setCurrentView(view);
+    if (typeof window !== 'undefined') {
+      window.history.pushState(null, '', `/${view}`);
+    }
     window.scrollTo(0, 0);
   };
 
