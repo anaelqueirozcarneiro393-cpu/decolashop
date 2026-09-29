@@ -28,7 +28,7 @@ export default function FinanceiroView() {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const userEmail = session?.user?.email || 'nextshopsaas@gmail.com';
-  const averageCommission = pedidos > 0 ? (saldoDisponivel / pedidos).toFixed(2).replace('.', ',') : '40,90';
+  const averageCommission = pedidos > 0 ? (saldoDisponivel / pedidos).toFixed(2).replace('.', ',') : '0,00';
 
   const handleAntecipacao = () => {
     setIsProcessing(true);

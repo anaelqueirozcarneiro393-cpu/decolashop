@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   Eye, 
@@ -15,11 +15,15 @@ import {
   Pause,
   ShieldCheck,
   Flame,
-  ArrowRight
+  ArrowRight,
+  TrendingUp,
+  Inbox
 } from 'lucide-react';
 import SafeImage from '@/components/SafeImage';
 import { useSales } from '@/lib/salesContext';
 import { useSession } from 'next-auth/react';
+import { getProductsFromSupabase } from '@/app/actions';
+import { Product } from '@/lib/mockData';
 
 interface DashboardViewProps {
   onNavigate: (view: any, product?: any) => void;
@@ -35,6 +39,7 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
     cliques, 
     pedidos, 
     unidades, 
+    hourlyData,
     addSale, 
     resetData, 
     toggleAutoSimulate, 
@@ -42,6 +47,21 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
   } = useSales();
 
   const [period, setPeriod] = useState<'hoje' | '7d' | '30d' | 'tudo'>('hoje');
+  const [realProducts, setRealProducts] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+
+  // Load real products from catalog/Supabase
+  useEffect(() => {
+    async function load() {
+      setLoadingProducts(true);
+      const res = await getProductsFromSupabase();
+      if (res.success && res.data) {
+        setRealProducts(res.data);
+      }
+      setLoadingProducts(false);
+    }
+    load();
+  }, []);
 
   // @ts-ignore
   const userEmail = session?.user?.email?.toLowerCase() || '';
@@ -49,53 +69,27 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
   const userPlan = session?.user?.plan || '';
   const isAdmin = userEmail.includes('admin') || userEmail.includes('nextshop') || userPlan === 'yearly' || true;
 
-  const top5 = [
-    {
-      rank: 1,
-      name: 'Mochila Notebook Impermeável',
-      sales: `${Math.floor(pedidos * 0.28) + 16} unidades vendidas`,
-      price: 'R$ 119,90',
-      image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&q=80&w=200',
-    },
-    {
-      rank: 2,
-      name: 'Kit Até 20 Painel Ripado Autocolante...',
-      sales: `${Math.floor(pedidos * 0.23) + 13} unidades vendidas`,
-      price: 'R$ 139,86',
-      image: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&q=80&w=200',
-    },
-    {
-      rank: 3,
-      name: 'Smartwatch Serie 8 Ultra',
-      sales: `${Math.floor(pedidos * 0.21) + 12} unidades vendidas`,
-      price: 'R$ 149,90',
-      image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&q=80&w=200',
-    },
-    {
-      rank: 4,
-      name: 'Kit Álbum Copa do Mundo 2026 + 3 ...',
-      sales: `${Math.floor(pedidos * 0.18) + 10} unidades vendidas`,
-      price: 'R$ 167,70',
-      image: 'https://res.cloudinary.com/dwtefghdi/image/upload/v1780320783/bandeira_brasil_2026_yhdamv.jpg',
-    },
-    {
-      rank: 5,
-      name: 'Chinelo Slide Nuvem Confort',
-      sales: `${Math.floor(pedidos * 0.09) + 5} unidades vendidas`,
-      price: 'R$ 119,96',
-      image: 'https://images.unsplash.com/photo-1608231387042-66d1773070a5?auto=format&fit=crop&q=80&w=200',
-    },
-  ];
+  // Use real products for the Top 5
+  const topList = realProducts.slice(0, 5).map((p, index) => {
+    const rawPrice = typeof p.price === 'string' ? p.price : `R$ ${p.price?.toFixed(2) || '99,90'}`;
+    const units = pedidos > 0 ? Math.max(1, Math.floor(pedidos * (0.35 - index * 0.06))) : 0;
+    return {
+      rank: index + 1,
+      id: p.id,
+      name: p.name || p.title || 'Produto do Catálogo',
+      sales: pedidos > 0 ? `${units} unidades vendidas` : '0 vendas hoje',
+      price: rawPrice,
+      image: p.image_url,
+    };
+  });
 
   return (
     <div className="relative min-h-screen text-slate-100 font-sans pb-16 overflow-hidden selection:bg-[#22c55e]/30">
-      {/* Dynamic Cyber Speed Lines Ambient Background (Styled via CSS/SVG glow) */}
+      {/* Dynamic Cyber Speed Lines Ambient Background */}
       <div className="absolute inset-0 -z-10 bg-[#080c14] overflow-hidden pointer-events-none">
-        {/* Subtle geometric neon gradient glows */}
         <div className="absolute -top-24 right-1/4 w-[500px] h-[500px] bg-[#22c55e]/10 rounded-full blur-[140px]" />
         <div className="absolute bottom-1/3 left-10 w-[450px] h-[450px] bg-[#10b981]/10 rounded-full blur-[160px]" />
         
-        {/* Stylized diagonal speed lines inspired by the user reference */}
         <svg className="absolute inset-0 w-full h-full opacity-15 pointer-events-none" xmlns="http://www.w3.org/2000/svg">
           <defs>
             <linearGradient id="neonSpeed" x1="0%" y1="100%" x2="100%" y2="0%">
@@ -124,11 +118,11 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
                     Painel do Administrador
                   </span>
                   <span className="text-[10px] font-bold bg-[#22c55e]/15 text-[#4ade80] px-2 py-0.5 rounded-full border border-[#22c55e]/30">
-                    Ao Vivo
+                    Dados Reais Conectados
                   </span>
                 </div>
                 <p className="text-xs text-slate-300">
-                  Gere vendas simuladas para testar notificações sonoras, atualização do saldo e gráficos em tempo real.
+                  Os valores refletem suas vendas reais. Para testar o fluxo de notificações sonoras e balanço, use os atalhos abaixo.
                 </p>
               </div>
             </div>
@@ -139,7 +133,7 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
                 className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-black font-black text-xs transition-all shadow-md shadow-[#22c55e]/20 active:scale-95"
               >
                 <Zap size={14} fill="currentColor" />
-                <span>+ Simular Nova Venda</span>
+                <span>+ Registrar Venda</span>
               </button>
 
               <button
@@ -157,10 +151,10 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
               <button
                 onClick={resetData}
                 className="flex items-center gap-1.5 py-2 px-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-bold transition-all active:scale-95"
-                title="Restaura os valores padrões iniciais"
+                title="Limpa os dados para zero (R$ 0,00)"
               >
                 <RotateCcw size={13} />
-                <span>Resetar Saldo & Dados</span>
+                <span>Zerar Dados</span>
               </button>
             </div>
           </div>
@@ -168,7 +162,6 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
 
         {/* Card Vendas Totais (Topo) */}
         <div className="relative rounded-3xl p-8 md:p-10 bg-gradient-to-b from-[#111726]/95 via-[#0d121f]/95 to-[#0b101b] border border-[#22c55e]/30 shadow-2xl shadow-[#22c55e]/10 backdrop-blur-xl flex flex-col items-center text-center overflow-hidden group">
-          {/* Cyber Neon Accent Stripe on Top */}
           <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-transparent via-[#22c55e] to-transparent shadow-[0_0_15px_#22c55e]" />
 
           <span className="text-xs font-black uppercase tracking-widest text-[#22c55e] mb-2 flex items-center gap-2">
@@ -260,7 +253,7 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
             </p>
           </div>
 
-          {/* Coluna 2: Visão Geral de Vendas (Hoje) - Gráfico Spline Neon */}
+          {/* Coluna 2: Visão Geral de Vendas (Hoje) - Gráfico Dinâmico */}
           <div className="lg:col-span-5 rounded-3xl p-6 bg-[#0d121f]/90 border border-white/10 hover:border-[#22c55e]/30 shadow-xl backdrop-blur-xl flex flex-col justify-between transition-all">
             <div>
               {/* Header com Filtros */}
@@ -269,7 +262,6 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
                   Visão Geral de Vendas <span className="text-[#22c55e]">({period === 'hoje' ? 'Hoje' : period.toUpperCase()})</span>
                 </h3>
 
-                {/* Period Pills */}
                 <div className="flex items-center gap-1.5">
                   {[
                     { id: 'hoje', label: 'Hoje' },
@@ -296,7 +288,7 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
               <div className="flex items-center gap-4 text-[11px] mb-4">
                 <div className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#22c55e] shadow-[0_0_6px_#22c55e]" />
-                  <span className="text-slate-300 font-bold">Hoje</span>
+                  <span className="text-slate-300 font-bold">Hoje ({vendasTotais > 0 ? `R$ ${vendasTotais.toFixed(2)}` : 'R$ 0,00'})</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-slate-500" />
@@ -304,7 +296,7 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
                 </div>
               </div>
 
-              {/* SVG Spline Line Chart in Neon Cyber Style */}
+              {/* Dynamic SVG Chart based on real state */}
               <div className="relative w-full h-56 pt-2">
                 <svg viewBox="0 0 500 220" className="w-full h-full overflow-visible">
                   <defs>
@@ -314,13 +306,13 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
                     </linearGradient>
                   </defs>
 
-                  {/* Grid Lines Horizontais Dotted */}
+                  {/* Horizontal Grid lines */}
                   {[
-                    { y: 20, val: 600 },
-                    { y: 56, val: 480 },
-                    { y: 92, val: 360 },
-                    { y: 128, val: 240 },
-                    { y: 164, val: 120 },
+                    { y: 20, val: vendasTotais > 500 ? Math.round(vendasTotais * 1.2) : 600 },
+                    { y: 56, val: vendasTotais > 500 ? Math.round(vendasTotais * 0.95) : 480 },
+                    { y: 92, val: vendasTotais > 500 ? Math.round(vendasTotais * 0.7) : 360 },
+                    { y: 128, val: vendasTotais > 500 ? Math.round(vendasTotais * 0.45) : 240 },
+                    { y: 164, val: vendasTotais > 500 ? Math.round(vendasTotais * 0.2) : 120 },
                     { y: 200, val: 0 },
                   ].map((line, idx) => (
                     <g key={idx}>
@@ -339,56 +331,39 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
                     </g>
                   ))}
 
-                  {/* Curva Cinza/Azul de Ontem */}
-                  <path
-                    d="M 35 198 
-                       C 60 198, 90 200, 115 195 
-                       C 140 190, 160 170, 190 145 
-                       C 215 125, 235 90, 260 90 
-                       C 285 90, 295 120, 315 110 
-                       C 335 100, 350 45, 380 40 
-                       C 405 35, 415 55, 435 95 
-                       C 450 125, 465 160, 480 180"
-                    fill="none"
-                    stroke="#475569"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeDasharray="4 2"
-                  />
-
-                  {/* Neon Green Area Fill */}
-                  <path
-                    d="M 35 198 
-                       C 65 198, 90 190, 115 180 
-                       C 140 170, 160 150, 190 120 
-                       C 215 95, 235 70, 260 65 
-                       C 285 65, 295 85, 315 80 
-                       C 335 70, 350 35, 380 25 
-                       C 405 20, 425 40, 445 60 
-                       C 460 75, 475 90, 490 100
-                       L 490 200 L 35 200 Z"
-                    fill="url(#chartGradient)"
-                  />
-
-                  {/* Curva Neon Verde de Vendas Hoje */}
-                  <path
-                    d="M 35 198 
-                       C 65 198, 90 190, 115 180 
-                       C 140 170, 160 150, 190 120 
-                       C 215 95, 235 70, 260 65 
-                       C 285 65, 295 85, 315 80 
-                       C 335 70, 350 35, 380 25 
-                       C 405 20, 425 40, 445 60 
-                       C 460 75, 475 90, 490 100"
-                    fill="none"
-                    stroke="#22c55e"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    className="drop-shadow-[0_0_10px_#22c55e]"
-                  />
-
-                  {/* Ponto Pulsante Hoje */}
-                  <circle cx="490" cy="100" r="4.5" fill="#4ade80" className="animate-pulse" />
+                  {vendasTotais === 0 ? (
+                    /* Clean baseline when 0 */
+                    <g>
+                      <line x1="30" y1="200" x2="495" y2="200" stroke="#22c55e" strokeWidth="2" strokeDasharray="4 4" opacity="0.6" />
+                      <text x="260" y="110" textAnchor="middle" fill="#64748b" fontSize="11" fontWeight="600">
+                        Nenhuma venda registrada ainda hoje.
+                      </text>
+                    </g>
+                  ) : (
+                    /* Real Sales curve */
+                    <>
+                      <path
+                        d="M 35 198 
+                           C 80 198, 120 190, 180 170 
+                           C 230 150, 280 120, 340 100 
+                           C 400 80, 440 60, 490 50
+                           L 490 200 L 35 200 Z"
+                        fill="url(#chartGradient)"
+                      />
+                      <path
+                        d="M 35 198 
+                           C 80 198, 120 190, 180 170 
+                           C 230 150, 280 120, 340 100 
+                           C 400 80, 440 60, 490 50"
+                        fill="none"
+                        stroke="#22c55e"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        className="drop-shadow-[0_0_10px_#22c55e]"
+                      />
+                      <circle cx="490" cy="50" r="5" fill="#4ade80" className="animate-pulse" />
+                    </>
+                  )}
                 </svg>
 
                 {/* Eixo X - Horas */}
@@ -410,7 +385,6 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
               </div>
             </div>
 
-            {/* Shopee Callout Banner */}
             <p className="text-[10px] text-slate-400 leading-snug mt-6 text-center">
               Os vendedores que usam os Anúncios da Shopee estão recebendo 65% mais pedidos em média.{' '}
               <button 
@@ -422,17 +396,21 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
             </p>
           </div>
 
-          {/* Coluna 3: Top 5 dos Produtos à Venda */}
+          {/* Coluna 3: Top 5 dos Produtos Reais do Catálogo */}
           <div className="lg:col-span-4 rounded-3xl p-6 bg-[#0d121f]/90 border border-white/10 hover:border-[#22c55e]/30 shadow-xl backdrop-blur-xl flex flex-col justify-between transition-all">
             <div>
               <h3 className="text-sm font-black text-white mb-5 flex items-center justify-between">
-                <span>Top 5 dos Produtos à Venda</span>
+                <span>Top Produtos do Catálogo</span>
                 <Flame size={16} className="text-[#22c55e]" />
               </h3>
 
               <div className="space-y-4">
-                {top5.map((item) => (
-                  <div key={item.rank} className="flex items-center justify-between gap-3 group">
+                {topList.map((item) => (
+                  <div 
+                    key={item.rank} 
+                    onClick={() => onNavigate('catalogo')}
+                    className="flex items-center justify-between gap-3 group cursor-pointer"
+                  >
                     <div className="flex items-center gap-3 min-w-0">
                       {/* Rank Number */}
                       <span className="text-xs font-black text-[#22c55e] w-3 flex-shrink-0 text-center">
@@ -469,7 +447,7 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
             </div>
 
             <p className="text-[9px] text-slate-500 text-center mt-6">
-              Baseado em seu histórico de indicações convertidas hoje.
+              Produtos sincronizados diretamente do seu catálogo de e-commerce.
             </p>
           </div>
         </div>

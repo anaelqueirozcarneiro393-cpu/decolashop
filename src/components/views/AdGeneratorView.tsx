@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Sparkles, 
   Crown, 
@@ -14,83 +14,42 @@ import {
 import SafeImage from '@/components/SafeImage';
 import { toast } from 'react-hot-toast';
 import { useSales } from '@/lib/salesContext';
+import { getProductsFromSupabase } from '@/app/actions';
+import { Product, mockProducts } from '@/lib/mockData';
 
 interface AdGeneratorViewProps {
   product?: any;
   onNavigate: (view: any, product?: any) => void;
 }
 
-const catalogProducts = [
-  {
-    id: 'prod-1',
-    name: 'Jogo de Camisas De Jogo Uniforme Futebol 53 Peça...',
-    fullTitle: 'Jogo de Camisas De Jogo Uniforme Futebol 53 Peças Completo',
-    price: 'R$ 1.489,90',
-    category: 'Esportes',
-    description: 'Fardamento esportivo completo com 53 peças (camisetas + calções) em tecido Dri-FIT com personalização de escudo, patrocínio e numeração profissional.',
-    image: 'https://images.unsplash.com/photo-1518091043644-c1d4457512c6?auto=format&fit=crop&q=80&w=300',
-  },
-  {
-    id: 'prod-2',
-    name: 'Jogo De Camisas + calção ...',
-    fullTitle: 'Jogo De Camisas + Calção Futebol Amador 18 Peças',
-    price: 'R$ 459,90',
-    category: 'Esportes',
-    description: 'Kit de jogo para equipe de society ou campo, tecido respirável com acabamento reforçado.',
-    image: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&q=80&w=300',
-  },
-  {
-    id: 'prod-3',
-    name: 'Camiseta Oversized Pedri ...',
-    fullTitle: 'Camiseta Oversized Pedri Streetwear Algodão 100%',
-    price: 'R$ 49,90',
-    category: 'Esportes',
-    description: 'Camiseta estilo streetwear com estampa fotográfica em alta definição e modelagem premium.',
-    image: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&q=80&w=300',
-  },
-  {
-    id: 'prod-4',
-    name: 'Camiseta Blusa Algodão U...',
-    fullTitle: 'Camiseta Blusa Algodão Unissex Básica Premium',
-    price: 'R$ 44,90',
-    category: 'Esportes',
-    description: 'Camiseta unissex fio 30.1 penteado, gola canelada e toque aveludado.',
-    image: 'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?auto=format&fit=crop&q=80&w=300',
-  },
-  {
-    id: 'prod-5',
-    name: 'Jogo Uniforme Futebol Fa...',
-    fullTitle: 'Jogo Uniforme Futebol Fábrica 22 Conjuntos',
-    price: 'R$ 589,90',
-    category: 'Esportes',
-    description: 'Conjunto completo direto da fábrica para torneios amadores com tecido tecnológico.',
-    image: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&q=80&w=300',
-  },
-  {
-    id: 'prod-6',
-    name: 'Nova Camisa De Futebol P...',
-    fullTitle: 'Nova Camisa De Futebol Profissional Edição Especial',
-    price: 'R$ 39,90',
-    category: 'Esportes',
-    description: 'Camisa oficial comemorativa de alta respirabilidade e detalhes sublimados.',
-    image: 'https://images.unsplash.com/photo-1517466787929-bc90951d0974?auto=format&fit=crop&q=80&w=300',
-  },
-];
-
-const categories = ['Todos', 'Esportes', 'Eletrônicos', 'Cosméticos', 'Casa & Jardim', 'Brinquedos'];
-
-export default function AdGeneratorView({ onNavigate }: AdGeneratorViewProps) {
+export default function AdGeneratorView({ product: initialProduct, onNavigate }: AdGeneratorViewProps) {
+  const [products, setProducts] = useState<Product[]>(mockProducts);
+  const [selectedProduct, setSelectedProduct] = useState<Product>(initialProduct || mockProducts[0]);
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedProduct, setSelectedProduct] = useState(catalogProducts[0]);
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishProgress, setPublishProgress] = useState(0);
   const [publishedNetwork, setPublishedNetwork] = useState('');
   const { addSale } = useSales();
 
-  const filteredProducts = catalogProducts.filter((p) => {
+  useEffect(() => {
+    async function load() {
+      const res = await getProductsFromSupabase();
+      if (res.success && res.data && res.data.length > 0) {
+        setProducts(res.data);
+        if (!initialProduct) {
+          setSelectedProduct(res.data[0]);
+        }
+      }
+    }
+    load();
+  }, [initialProduct]);
+
+  const categories = ['Todos', ...Array.from(new Set(products.map(p => p.category || 'Geral')))];
+
+  const filteredProducts = products.filter((p) => {
     const matchCat = selectedCategory === 'Todos' || p.category === selectedCategory;
-    const matchSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchSearch = (p.name || p.title || '').toLowerCase().includes(searchQuery.toLowerCase());
     return matchCat && matchSearch;
   });
 
@@ -114,10 +73,17 @@ export default function AdGeneratorView({ onNavigate }: AdGeneratorViewProps) {
       setPublishedNetwork('Finalizado! 6 redes conectadas e gerando tráfego.');
       setIsPublishing(false);
       toast.success('🚀 Divulgação com IA iniciada com sucesso em todas as redes!');
-      const numericPrice = parseFloat(selectedProduct.price.replace('R$', '').replace('.', '').replace(',', '.').trim()) || 1489.90;
-      addSale(selectedProduct.name, numericPrice, numericPrice * 0.25);
+      
+      const rawPrice = typeof selectedProduct.price === 'string'
+        ? parseFloat(selectedProduct.price.replace('R$', '').replace('.', '').replace(',', '.').trim()) || 99.90
+        : (selectedProduct.price || 99.90);
+      addSale(selectedProduct.name || selectedProduct.title, rawPrice, rawPrice * 0.25);
     }, 2400);
   };
+
+  const currentPriceFormatted = typeof selectedProduct.price === 'string'
+    ? selectedProduct.price
+    : `R$ ${selectedProduct.price?.toFixed(2) || '99,90'}`;
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-16 animate-in fade-in duration-300">
@@ -131,7 +97,7 @@ export default function AdGeneratorView({ onNavigate }: AdGeneratorViewProps) {
           Divulgação com IA
         </h1>
         <p className="text-xs text-slate-400 font-medium mt-1">
-          Sua central inteligente para propagar produtos automaticamente por toda a internet.
+          Sua central inteligente para propagar produtos do catálogo automaticamente por toda a internet.
         </p>
       </div>
 
@@ -196,26 +162,35 @@ export default function AdGeneratorView({ onNavigate }: AdGeneratorViewProps) {
             <div className="flex items-center gap-3.5">
               <div className="w-16 h-16 rounded-2xl overflow-hidden bg-black/40 border border-white/10 flex-shrink-0">
                 <SafeImage
-                  src={selectedProduct.image}
-                  alt={selectedProduct.name}
+                  src={selectedProduct.image_url}
+                  alt={selectedProduct.name || selectedProduct.title}
                   className="w-full h-full object-cover"
                 />
               </div>
               <div className="min-w-0">
                 <h4 className="text-xs font-extrabold text-white leading-snug line-clamp-2">
-                  {selectedProduct.fullTitle}
+                  {selectedProduct.name || selectedProduct.title}
                 </h4>
                 <p className="text-sm font-black text-[#4ade80] mt-1">
-                  {selectedProduct.price}
+                  {currentPriceFormatted}
                 </p>
               </div>
             </div>
 
-            {/* Quote box */}
-            <div className="bg-black/30 rounded-2xl p-3.5 border border-white/5">
-              <p className="text-[11px] text-slate-400 italic leading-relaxed">
-                "{selectedProduct.description}"
-              </p>
+            {/* Evidence/Hype score box */}
+            <div className="bg-black/30 rounded-2xl p-3.5 border border-white/5 space-y-1.5">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-slate-400">Score de Viralização:</span>
+                <span className="text-[#4ade80] font-bold">{selectedProduct.hype_score || 90}/100</span>
+              </div>
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-slate-400">Categoria:</span>
+                <span className="text-white font-semibold">{selectedProduct.category || 'Geral'}</span>
+              </div>
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-slate-400">Status no Mercado:</span>
+                <span className="text-[#22c55e] font-semibold">{selectedProduct.status || 'EM ALTA'}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -227,7 +202,7 @@ export default function AdGeneratorView({ onNavigate }: AdGeneratorViewProps) {
               Passo 1: Escolha o Produto & Divulgue com IA
             </h2>
             <p className="text-xs text-slate-400 mt-1">
-              Selecione um produto do seu catálogo abaixo para que o algoritmo gere campanhas otimizadas.
+              Selecione um produto real do seu catálogo para que os modelos gerem copys e campanhas otimizadas.
             </p>
           </div>
 
@@ -238,10 +213,10 @@ export default function AdGeneratorView({ onNavigate }: AdGeneratorViewProps) {
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input
                   type="text"
-                  placeholder="Buscar..."
+                  placeholder="Buscar produto..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-28 focus:w-44 text-xs font-medium pl-8 pr-3 py-1.5 rounded-full border border-white/10 focus:outline-none focus:border-[#22c55e] transition-all bg-black/40 text-white placeholder:text-slate-500"
+                  className="w-32 focus:w-48 text-xs font-medium pl-8 pr-3 py-1.5 rounded-full border border-white/10 focus:outline-none focus:border-[#22c55e] transition-all bg-black/40 text-white placeholder:text-slate-500"
                 />
               </div>
 
@@ -261,10 +236,11 @@ export default function AdGeneratorView({ onNavigate }: AdGeneratorViewProps) {
             </div>
           </div>
 
-          {/* Product Grid */}
+          {/* Product Grid from Real Catalog */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[380px] overflow-y-auto pr-1">
             {filteredProducts.map((p) => {
               const isSelected = selectedProduct.id === p.id;
+              const priceText = typeof p.price === 'string' ? p.price : `R$ ${p.price?.toFixed(2) || '99,90'}`;
               return (
                 <div
                   key={p.id}
@@ -278,22 +254,21 @@ export default function AdGeneratorView({ onNavigate }: AdGeneratorViewProps) {
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-12 h-12 rounded-xl overflow-hidden bg-black/40 border border-white/10 flex-shrink-0">
                       <SafeImage
-                        src={p.image}
-                        alt={p.name}
+                        src={p.image_url}
+                        alt={p.name || p.title}
                         className="w-full h-full object-cover"
                       />
                     </div>
                     <div className="min-w-0">
                       <p className="text-xs font-bold text-slate-200 truncate">
-                        {p.name}
+                        {p.name || p.title}
                       </p>
                       <p className="text-xs font-black text-[#4ade80] mt-0.5">
-                        {p.price}
+                        {priceText}
                       </p>
                     </div>
                   </div>
 
-                  {/* Radio selector icon */}
                   <div className="flex-shrink-0">
                     {isSelected ? (
                       <div className="w-5 h-5 rounded-full bg-[#22c55e] text-black flex items-center justify-center font-bold">

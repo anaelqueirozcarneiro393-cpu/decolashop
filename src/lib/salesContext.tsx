@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
+import { mockProducts } from './mockData';
 
 export interface SaleItem {
   id: string;
@@ -32,37 +33,19 @@ interface SalesContextType {
   toggleAutoSimulate: () => void;
 }
 
-const DEFAULT_HOURLY: ChartHour[] = [
-  { hour: '00', valHoje: 45, valOntem: 20 },
-  { hour: '02', valHoje: 12, valOntem: 15 },
-  { hour: '04', valHoje: 8, valOntem: 5 },
-  { hour: '06', valHoje: 30, valOntem: 18 },
-  { hour: '08', valHoje: 120, valOntem: 80 },
-  { hour: '10', valHoje: 240, valOntem: 190 },
-  { hour: '12', valHoje: 380, valOntem: 310 },
-  { hour: '14', valHoje: 520, valOntem: 410 },
-  { hour: '16', valHoje: 480, valOntem: 430 },
-  { hour: '18', valHoje: 590, valOntem: 490 },
-  { hour: '20', valHoje: 510, valOntem: 440 },
-  { hour: '22', valHoje: 290, valOntem: 260 },
-];
-
-const DEFAULT_SALES: SaleItem[] = [
-  { id: 'TX-9841', product: 'Mochila Notebook Impermeável', value: 119.90, commission: 38.36, time: 'Hoje, 01:54' },
-  { id: 'TX-9840', product: 'Smartwatch Serie 8 Ultra', value: 149.90, commission: 47.96, time: 'Hoje, 01:42' },
-  { id: 'TX-9839', product: 'Kit Álbum Copa do Mundo 2026', value: 167.70, commission: 53.66, time: 'Hoje, 01:28' },
-  { id: 'TX-9838', product: 'Kit Painel Ripado Decoração', value: 139.86, commission: 44.75, time: 'Hoje, 00:59' },
-  { id: 'TX-9837', product: 'Chinelo Slide Nuvem Confort', value: 119.96, commission: 38.38, time: 'Hoje, 00:41' },
-];
-
-const SAMPLE_PRODUCTS = [
-  { name: 'Mochila Notebook Impermeável', price: 119.90, commission: 38.36 },
-  { name: 'Smartwatch Serie 8 Ultra', price: 149.90, commission: 47.96 },
-  { name: 'Kit Até 20 Painel Ripado Autocolante', price: 139.86, commission: 44.75 },
-  { name: 'Kit Álbum Copa do Mundo 2026 + 3 Envelopes', price: 167.70, commission: 53.66 },
-  { name: 'Chinelo Slide Nuvem Confort', price: 119.96, commission: 38.38 },
-  { name: 'Fone Bluetooth Pro Wireless Noise Cancelling', price: 89.90, commission: 28.76 },
-  { name: 'Mini Projetor Portátil 4K Cinema Pro', price: 299.00, commission: 95.68 },
+const CLEAN_HOURLY: ChartHour[] = [
+  { hour: '00', valHoje: 0, valOntem: 0 },
+  { hour: '02', valHoje: 0, valOntem: 0 },
+  { hour: '04', valHoje: 0, valOntem: 0 },
+  { hour: '06', valHoje: 0, valOntem: 0 },
+  { hour: '08', valHoje: 0, valOntem: 0 },
+  { hour: '10', valHoje: 0, valOntem: 0 },
+  { hour: '12', valHoje: 0, valOntem: 0 },
+  { hour: '14', valHoje: 0, valOntem: 0 },
+  { hour: '16', valHoje: 0, valOntem: 0 },
+  { hour: '18', valHoje: 0, valOntem: 0 },
+  { hour: '20', valHoje: 0, valOntem: 0 },
+  { hour: '22', valHoje: 0, valOntem: 0 },
 ];
 
 const SalesContext = createContext<SalesContextType | null>(null);
@@ -105,57 +88,62 @@ function playCashChime() {
 }
 
 export function SalesProvider({ children }: { children: React.ReactNode }) {
-  const [vendasTotais, setVendasTotais] = useState<number>(2290.35);
-  const [saldoDisponivel, setSaldoDisponivel] = useState<number>(2290.35);
-  const [visitas, setVisitas] = useState<number>(791);
-  const [cliques, setCliques] = useState<number>(2159);
-  const [pedidos, setPedidos] = useState<number>(56);
-  const [unidades, setUnidades] = useState<number>(56);
-  const [hourlyData, setHourlyData] = useState<ChartHour[]>(DEFAULT_HOURLY);
-  const [recentSales, setRecentSales] = useState<SaleItem[]>(DEFAULT_SALES);
+  const [vendasTotais, setVendasTotais] = useState<number>(0);
+  const [saldoDisponivel, setSaldoDisponivel] = useState<number>(0);
+  const [visitas, setVisitas] = useState<number>(0);
+  const [cliques, setCliques] = useState<number>(0);
+  const [pedidos, setPedidos] = useState<number>(0);
+  const [unidades, setUnidades] = useState<number>(0);
+  const [hourlyData, setHourlyData] = useState<ChartHour[]>(CLEAN_HOURLY);
+  const [recentSales, setRecentSales] = useState<SaleItem[]>([]);
   const [autoSimulate, setAutoSimulate] = useState<boolean>(false);
 
-  // Load from localStorage on mount
+  // Load from localStorage on mount - migrate away from legacy hardcoded 2290.35
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('decolashop_sales_state');
+      const saved = localStorage.getItem('decolashop_sales_state_v2');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed.vendasTotais) setVendasTotais(parsed.vendasTotais);
-        if (parsed.saldoDisponivel) setSaldoDisponivel(parsed.saldoDisponivel);
-        if (parsed.visitas) setVisitas(parsed.visitas);
-        if (parsed.cliques) setCliques(parsed.cliques);
-        if (parsed.pedidos) setPedidos(parsed.pedidos);
-        if (parsed.unidades) setUnidades(parsed.unidades);
+        if (typeof parsed.vendasTotais === 'number') setVendasTotais(parsed.vendasTotais);
+        if (typeof parsed.saldoDisponivel === 'number') setSaldoDisponivel(parsed.saldoDisponivel);
+        if (typeof parsed.visitas === 'number') setVisitas(parsed.visitas);
+        if (typeof parsed.cliques === 'number') setCliques(parsed.cliques);
+        if (typeof parsed.pedidos === 'number') setPedidos(parsed.pedidos);
+        if (typeof parsed.unidades === 'number') setUnidades(parsed.unidades);
         if (parsed.hourlyData) setHourlyData(parsed.hourlyData);
         if (parsed.recentSales) setRecentSales(parsed.recentSales);
+      } else {
+        // Clear any old fake state
+        localStorage.removeItem('decolashop_sales_state');
       }
     } catch {
       // ignore
     }
   }, []);
 
-  // Save to localStorage when updated
   const persistState = (data: any) => {
     try {
-      localStorage.setItem('decolashop_sales_state', JSON.stringify(data));
+      localStorage.setItem('decolashop_sales_state_v2', JSON.stringify(data));
     } catch {
       // ignore
     }
   };
 
   const addSale = (productName?: string, price?: number, commission?: number) => {
-    const randomPick = SAMPLE_PRODUCTS[Math.floor(Math.random() * SAMPLE_PRODUCTS.length)];
-    const chosenProduct = productName || randomPick.name;
-    const chosenPrice = price || randomPick.price;
-    const chosenCommission = commission || randomPick.commission;
+    const catalogItem = mockProducts[Math.floor(Math.random() * mockProducts.length)];
+    const chosenProduct = productName || catalogItem.name;
+    const rawPrice = typeof catalogItem.price === 'string' 
+      ? parseFloat(catalogItem.price.replace('R$', '').replace('.', '').replace(',', '.').trim()) 
+      : (catalogItem.price || 149.90);
+    const chosenPrice = price || rawPrice;
+    const chosenCommission = commission || Math.round(chosenPrice * 0.32 * 100) / 100;
 
     const newVendas = Math.round((vendasTotais + chosenPrice) * 100) / 100;
     const newSaldo = Math.round((saldoDisponivel + chosenCommission) * 100) / 100;
     const newPedidos = pedidos + 1;
     const newUnidades = unidades + 1;
-    const newCliques = cliques + Math.floor(Math.random() * 15) + 3;
-    const newVisitas = visitas + Math.floor(Math.random() * 5) + 1;
+    const newCliques = cliques + Math.floor(Math.random() * 8) + 1;
+    const newVisitas = visitas + Math.floor(Math.random() * 3) + 1;
 
     const now = new Date();
     const timeStr = `Hoje, ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -169,13 +157,14 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
 
     const newRecent = [newTx, ...recentSales.slice(0, 15)];
 
-    // Update hourly graph
-    const newHourly = [...hourlyData];
-    const lastIdx = newHourly.length - 1;
-    newHourly[lastIdx] = {
-      ...newHourly[lastIdx],
-      valHoje: Math.round(newHourly[lastIdx].valHoje + chosenPrice),
-    };
+    // Update current hour in graph
+    const currentHourStr = String(Math.floor(now.getHours() / 2) * 2).padStart(2, '0');
+    const newHourly = hourlyData.map(h => {
+      if (h.hour === currentHourStr) {
+        return { ...h, valHoje: Math.round((h.valHoje + chosenPrice) * 100) / 100 };
+      }
+      return h;
+    });
 
     setVendasTotais(newVendas);
     setSaldoDisponivel(newSaldo);
@@ -197,10 +186,8 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
       hourlyData: newHourly,
     });
 
-    // Play chime sound
     playCashChime();
 
-    // Show live celebratory popup toast
     toast.custom((t) => (
       <div className={`flex items-center gap-3 p-4 rounded-2xl bg-[#0d121f] border border-[#22c55e]/50 shadow-2xl shadow-[#22c55e]/25 text-white max-w-md ${
         t.visible ? 'animate-in slide-in-from-top-3' : 'animate-out fade-out'
@@ -211,7 +198,7 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-black uppercase tracking-wider text-[#22c55e] bg-[#22c55e]/10 px-2 py-0.5 rounded-full border border-[#22c55e]/30">
-              Venda Aprovada!
+              Venda Confirmada!
             </span>
             <span className="text-xs font-black text-[#4ade80]">
               + R$ {chosenCommission.toFixed(2)}
@@ -225,28 +212,29 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
   };
 
   const resetData = () => {
-    setVendasTotais(2290.35);
-    setSaldoDisponivel(2290.35);
-    setVisitas(791);
-    setCliques(2159);
-    setPedidos(56);
-    setUnidades(56);
-    setHourlyData(DEFAULT_HOURLY);
-    setRecentSales(DEFAULT_SALES);
+    setVendasTotais(0);
+    setSaldoDisponivel(0);
+    setVisitas(0);
+    setCliques(0);
+    setPedidos(0);
+    setUnidades(0);
+    setHourlyData(CLEAN_HOURLY);
+    setRecentSales([]);
     setAutoSimulate(false);
 
     try {
+      localStorage.removeItem('decolashop_sales_state_v2');
       localStorage.removeItem('decolashop_sales_state');
     } catch {}
 
-    toast.success('🔄 Dashboard e Saldo resetados para os valores padrão!');
+    toast.success('🔄 Dashboard e Métricas limpos com sucesso (R$ 0,00)!');
   };
 
   const toggleAutoSimulate = () => {
     setAutoSimulate(prev => {
       const next = !prev;
       if (next) {
-        toast('⚡ Modo Auto-Vendas Ativado! Vendas simuladas a cada 10s.', { icon: '🚀' });
+        toast('⚡ Modo Auto-Vendas Ativado! Vendas a cada 10s.', { icon: '🚀' });
       } else {
         toast('Modo Auto-Vendas Pausado.', { icon: '⏸️' });
       }
@@ -254,7 +242,6 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  // Auto simulate loop
   useEffect(() => {
     if (!autoSimulate) return;
     const interval = setInterval(() => {
@@ -284,7 +271,9 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useSales() {
-  const ctx = useContext(SalesContext);
-  if (!ctx) throw new Error('useSales must be used inside SalesProvider');
-  return ctx;
+  const context = useContext(SalesContext);
+  if (!context) {
+    throw new Error('useSales must be used within a SalesProvider');
+  }
+  return context;
 }

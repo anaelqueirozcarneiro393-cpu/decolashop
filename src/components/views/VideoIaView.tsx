@@ -18,13 +18,15 @@ import {
 } from 'lucide-react';
 import SafeImage from '@/components/SafeImage';
 import { toast } from 'react-hot-toast';
+import { mockProducts } from '@/lib/mockData';
 
 interface VideoIaViewProps {
   product?: any;
   onNavigate?: (view: any, product?: any) => void;
 }
 
-export default function VideoIaView({ onNavigate }: VideoIaViewProps) {
+export default function VideoIaView({ product, onNavigate }: VideoIaViewProps) {
+  const [selectedProduct, setSelectedProduct] = useState<any>(product || mockProducts[0]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [activeAngle, setActiveAngle] = useState(1);
   const [selectedVoice, setSelectedVoice] = useState('julia');
@@ -139,51 +141,51 @@ export default function VideoIaView({ onNavigate }: VideoIaViewProps) {
               </span>
             </div>
 
-            {/* Product selection preview */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="p-3 rounded-2xl border-2 border-[#22c55e] bg-[#22c55e]/15 flex items-center justify-between gap-3 shadow-[0_0_15px_rgba(34,197,94,0.15)]">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl overflow-hidden bg-black/40 border border-white/10 flex-shrink-0">
-                    <img
-                      src="https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?auto=format&fit=crop&q=80&w=200"
-                      alt="Kit Body Splash"
-                      className="w-full h-full object-cover"
-                    />
+            {/* Product selection preview from real catalog */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[220px] overflow-y-auto pr-1">
+              {mockProducts.map((p, idx) => {
+                const isSelected = selectedProduct?.id === p.id || (!selectedProduct && idx === 0);
+                const priceFormatted = typeof p.price === 'string' ? p.price : `R$ ${p.price?.toFixed(2) || '99,90'}`;
+                return (
+                  <div
+                    key={p.id}
+                    onClick={() => {
+                      setSelectedProduct(p);
+                      toast(`Produto selecionado: ${p.name}`);
+                    }}
+                    className={`p-3 rounded-2xl border flex items-center justify-between gap-3 cursor-pointer transition-all ${
+                      isSelected
+                        ? 'border-2 border-[#22c55e] bg-[#22c55e]/15 shadow-[0_0_15px_rgba(34,197,94,0.15)]'
+                        : 'border-white/10 bg-black/20 hover:border-white/20'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-xl overflow-hidden bg-black/40 border border-white/10 flex-shrink-0">
+                        <SafeImage
+                          src={p.image_url}
+                          alt={p.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-white truncate">
+                          {p.name}
+                        </p>
+                        <p className="text-xs font-black text-[#4ade80]">
+                          {priceFormatted}
+                        </p>
+                      </div>
+                    </div>
+                    {isSelected ? (
+                      <div className="w-5 h-5 rounded-full bg-[#22c55e] text-black flex items-center justify-center flex-shrink-0 font-bold">
+                        <Check size={12} strokeWidth={3} />
+                      </div>
+                    ) : (
+                      <div className="w-5 h-5 rounded-full border border-white/20 flex-shrink-0" />
+                    )}
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-white truncate">
-                      Kit Body Splash Obsession
-                    </p>
-                    <p className="text-xs font-black text-[#4ade80]">
-                      R$ 30,00
-                    </p>
-                  </div>
-                </div>
-                <div className="w-5 h-5 rounded-full bg-[#22c55e] text-black flex items-center justify-center flex-shrink-0 font-bold">
-                  <Check size={12} strokeWidth={3} />
-                </div>
-              </div>
-
-              <div className="p-3 rounded-2xl border border-white/10 bg-black/20 flex items-center justify-between gap-3 opacity-60">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl overflow-hidden bg-black/40 border border-white/10 flex-shrink-0">
-                    <img
-                      src="https://images.unsplash.com/photo-1518091043644-c1d4457512c6?auto=format&fit=crop&q=80&w=200"
-                      alt="Jogo Camisas"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-white truncate">
-                      Jogo Camisas Futebol 53P
-                    </p>
-                    <p className="text-xs font-black text-slate-400">
-                      R$ 1.489,90
-                    </p>
-                  </div>
-                </div>
-                <div className="w-5 h-5 rounded-full border border-white/20 flex-shrink-0" />
-              </div>
+                );
+              })}
             </div>
           </div>
 
