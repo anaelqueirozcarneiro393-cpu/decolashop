@@ -78,12 +78,12 @@ export default function AppContainer() {
       }
     }
 
-    const seenOnboarding = localStorage.getItem('apexfinder_seen_onboarding');
+    const seenOnboarding = localStorage.getItem('decolashop_seen_onboarding') || localStorage.getItem('apexfinder_seen_onboarding');
     if (!seenOnboarding) {
       setShowOnboarding(true);
     }
 
-    const saved = localStorage.getItem('apexfinder_saved_products');
+    const saved = localStorage.getItem('decolashop_saved_products') || localStorage.getItem('apexfinder_saved_products');
     if (saved) {
       setSavedProducts(JSON.parse(saved));
     }
@@ -99,7 +99,7 @@ export default function AppContainer() {
       toast.success('Salvo! Você já pode gerar anúncios.');
     }
     setSavedProducts(newSaved);
-    localStorage.setItem('apexfinder_saved_products', JSON.stringify(newSaved));
+    localStorage.setItem('decolashop_saved_products', JSON.stringify(newSaved));
   };
 
   const navigateToView = (view: ViewType, product?: Product) => {
@@ -144,11 +144,11 @@ export default function AppContainer() {
         <OnboardingView 
           onClose={() => {
             setShowOnboarding(false);
-            localStorage.setItem('apexfinder_seen_onboarding', 'true');
+            localStorage.setItem('decolashop_seen_onboarding', 'true');
           }} 
           onStart={() => {
             setShowOnboarding(false);
-            localStorage.setItem('apexfinder_seen_onboarding', 'true');
+            localStorage.setItem('decolashop_seen_onboarding', 'true');
             navigateToView('minerador');
           }}
         />

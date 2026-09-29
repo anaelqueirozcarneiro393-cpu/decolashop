@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     type: 'website',
   },
   alternates: {
-    canonical: 'https://apexfinder.com.br',
+    canonical: 'https://decolashop.com.br',
   },
   manifest: "/manifest.json",
   icons: {

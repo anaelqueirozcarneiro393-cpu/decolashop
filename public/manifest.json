@@ -1,11 +1,11 @@
 {
-  "name": "ApexFinder",
-  "short_name": "ApexFinder",
+  "name": "Decola Shop",
+  "short_name": "Decola Shop",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#111827",
-  "theme_color": "#111827",
-  "description": "ApexFinder - Mineração Assimétrica de Produtos Shopee.",
+  "background_color": "#080c14",
+  "theme_color": "#22c55e",
+  "description": "Decola Shop - Mineração de Produtos Virais & Fornecedores Integrados.",
   "icons": [
     {
       "src": "/icon-512x512.png",

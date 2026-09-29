@@ -7,7 +7,7 @@ export default function robots(): MetadataRoute.Robots {
       allow: '/',
       disallow: ['/api/', '/private/'],
     },
-    sitemap: 'https://apexfinder.com.br/sitemap.xml',
-    host: 'https://apexfinder.com.br',
+    sitemap: 'https://decolashop.com.br/sitemap.xml',
+    host: 'https://decolashop.com.br',
   }
 }
