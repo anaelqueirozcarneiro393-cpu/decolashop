@@ -56,7 +56,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!credentials?.email) return null;
         let email = (credentials.email as string).toLowerCase().trim();
         if (email === "admin") {
-          email = "admin@newshop.com";
+          email = "admin@decolashop.com";
         }
 
         if (BLOCKED_EMAILS.includes(email)) {
@@ -68,8 +68,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         // Explicit Admin check
         const isAdmin = 
-          email === "admin@newshop.com" || 
           email === "admin@decolashop.com" || 
+          email === "admin@newshop.com" || 
           email.includes("admin") ||
           purchaseCode?.toLowerCase() === "admin" ||
           purchaseCode?.toLowerCase() === "vip" ||
@@ -98,7 +98,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         const displayName = isAdmin 
-          ? "Administrador NewShop"
+          ? "Administrador DecolaShop"
           : email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
         return {

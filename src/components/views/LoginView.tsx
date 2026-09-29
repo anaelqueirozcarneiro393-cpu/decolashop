@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { signIn } from "next-auth/react";
-import { Mail, Lock, Key, ExternalLink, ShieldCheck, Sparkles, Crown } from 'lucide-react';
+import { Mail, Lock, Key, ExternalLink, ShieldCheck, Sparkles, Crown, Rocket, X, Check, ArrowRight } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 export default function LoginView() {
@@ -10,22 +10,22 @@ export default function LoginView() {
   const [password, setPassword] = useState('');
   const [purchaseCode, setPurchaseCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedPlanModal, setSelectedPlanModal] = useState<'lifetime' | 'monthly' | null>(null);
 
-  const handleLogin = async (e?: React.FormEvent, customCredentials?: { email?: string; password?: string; purchaseCode?: string; demoPlan?: string }) => {
-    if (e) e.preventDefault();
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-    const targetEmail = customCredentials?.email || email || 'admin@newshop.com';
-    const targetPassword = customCredentials?.password ?? password ?? 'admin123';
-    const targetCode = customCredentials?.purchaseCode ?? purchaseCode;
-    const targetPlan = customCredentials?.demoPlan;
+    if (!email) {
+      toast.error('Informe seu e-mail');
+      return;
+    }
 
     setIsLoading(true);
     try {
       const res = await signIn('credentials', {
-        email: targetEmail,
-        password: targetPassword,
-        purchaseCode: targetCode,
-        demoPlan: targetPlan,
+        email: email.trim(),
+        password: password.trim(),
+        purchaseCode: purchaseCode.trim(),
         redirect: false,
       });
 
@@ -33,8 +33,8 @@ export default function LoginView() {
         toast.error('Erro ao autenticar. Verifique seus dados.');
       } else {
         toast.success(
-          targetEmail.includes('admin') 
-            ? '🚀 Bem-vindo, Administrador NewShop!' 
+          email.toLowerCase().includes('admin') 
+            ? '🚀 Bem-vindo ao DecolaShop, Administrador!' 
             : 'Login realizado com sucesso!'
         );
         window.location.reload();
@@ -47,37 +47,33 @@ export default function LoginView() {
   };
 
   const fillAdmin = () => {
-    setEmail('admin@newshop.com');
+    setEmail('admin@decolashop.com');
     setPassword('admin123');
     setPurchaseCode('ADMIN-VIP');
-    toast.success('Credenciais de Administrador preenchidas!');
+    toast.success('Credenciais de Administrador preenchidas! Clique em Entrar.');
   };
 
   return (
-    <div className="min-h-screen bg-[#ea580c] flex items-center justify-center p-4 selection:bg-[#ea580c]/30">
+    <div className="min-h-screen bg-[#080c14] flex items-center justify-center p-4 selection:bg-[#22c55e]/30 relative overflow-hidden">
+      {/* Background Glows */}
+      <div className="absolute top-[-10%] right-[-10%] w-[45%] h-[45%] bg-[#22c55e]/15 rounded-full blur-[140px] -z-10 animate-pulse pointer-events-none" />
+      <div className="absolute bottom-[-10%] left-[-10%] w-[45%] h-[45%] bg-[#10b981]/15 rounded-full blur-[140px] -z-10 animate-pulse pointer-events-none" />
+
       {/* Central Login Card */}
-      <div className="max-w-[420px] w-full bg-white rounded-[32px] p-6 sm:p-8 shadow-2xl relative">
+      <div className="max-w-[430px] w-full bg-[#111726] border border-white/10 rounded-[32px] p-6 sm:p-8 shadow-2xl relative z-10">
         
         {/* Brand Header */}
         <div className="flex flex-col items-center text-center mb-6">
-          <div className="flex items-center gap-2 mb-1.5">
-            {/* Custom NewShop Shopping Bag / Cart Logo */}
-            <div className="relative w-9 h-9 flex items-center justify-center">
-              <svg viewBox="0 0 48 48" className="w-9 h-9" fill="none" xmlns="http://www.w3.org/2000/svg">
-                {/* Cart Body */}
-                <path d="M6 10H12L16.5 32H38L42 16H15" stroke="#ea580c" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
-                {/* Wheels */}
-                <circle cx="19" cy="39" r="3" fill="#ea580c" />
-                <circle cx="35" cy="39" r="3" fill="#ea580c" />
-                {/* Blue Rocket / Fast Arrow */}
-                <path d="M22 28L32 14M32 14H24M32 14V22" stroke="#2563eb" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+          <div className="flex items-center gap-2.5 mb-1.5">
+            {/* DecolaShop Rocket Icon */}
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#22c55e] to-[#4ade80] flex items-center justify-center shadow-lg shadow-[#22c55e]/25 text-[#080c14]">
+              <Rocket className="w-5 h-5 fill-current stroke-[2.5]" />
             </div>
-            <h1 className="text-3xl font-black tracking-tight text-slate-900">
-              New<span className="text-[#2563eb]">Shop</span>
+            <h1 className="text-3xl font-black tracking-tight text-white">
+              Decola<span className="text-[#22c55e]">Shop</span>
             </h1>
           </div>
-          <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">
+          <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
             PLATAFORMA COM FORNECEDORES INTEGRADOS
           </p>
         </div>
@@ -85,32 +81,32 @@ export default function LoginView() {
         {/* Heading & Cadastre-se */}
         <div className="flex items-start justify-between mb-5">
           <div>
-            <h2 className="text-2xl font-black text-slate-900 leading-none mb-1">
+            <h2 className="text-2xl font-black text-white leading-none mb-1">
               Entrar
             </h2>
-            <p className="text-xs text-slate-500 font-medium">
-              Acesse sua conta NewShop.
+            <p className="text-xs text-slate-400 font-medium">
+              Acesse sua conta DecolaShop.
             </p>
           </div>
           <button 
             type="button"
-            onClick={fillAdmin}
-            className="flex items-center gap-1 text-[11px] font-black uppercase text-[#ea580c] hover:text-[#c2410c] tracking-wider transition-colors pt-0.5"
-            title="Preencher dados de Administrador"
+            onClick={() => setSelectedPlanModal('lifetime')}
+            className="flex items-center gap-1 text-[11px] font-black uppercase text-[#22c55e] hover:text-[#4ade80] tracking-wider transition-colors pt-0.5"
+            title="Escolha um plano para se cadastrar"
           >
             CADASTRE-SE <ExternalLink size={12} className="stroke-[2.5]" />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={(e) => handleLogin(e)} className="space-y-4">
+        <form onSubmit={handleLogin} className="space-y-4">
           {/* E-mail */}
           <div>
-            <label className="block text-xs font-bold text-slate-800 mb-1.5">
+            <label className="block text-xs font-bold text-slate-300 mb-1.5">
               E-mail
             </label>
             <div className="relative flex items-center">
-              <div className="absolute left-3.5 text-slate-400 pointer-events-none">
+              <div className="absolute left-3.5 text-slate-500 pointer-events-none">
                 <Mail size={18} />
               </div>
               <input
@@ -119,18 +115,18 @@ export default function LoginView() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="seu.email@exemplo.com"
-                className="w-full pl-10 pr-4 py-3 bg-slate-50/70 border border-slate-200 rounded-2xl text-slate-900 placeholder:text-slate-400 text-sm focus:outline-none focus:border-[#ea580c] focus:bg-white focus:ring-2 focus:ring-[#ea580c]/20 transition-all font-medium"
+                className="w-full pl-10 pr-4 py-3 bg-[#0d131f] border border-white/10 rounded-2xl text-white placeholder:text-slate-500 text-sm focus:outline-none focus:border-[#22c55e] focus:ring-2 focus:ring-[#22c55e]/20 transition-all font-medium"
               />
             </div>
           </div>
 
           {/* Senha */}
           <div>
-            <label className="block text-xs font-bold text-slate-800 mb-1.5">
+            <label className="block text-xs font-bold text-slate-300 mb-1.5">
               Senha
             </label>
             <div className="relative flex items-center">
-              <div className="absolute left-3.5 text-slate-400 pointer-events-none">
+              <div className="absolute left-3.5 text-slate-500 pointer-events-none">
                 <Lock size={18} />
               </div>
               <input
@@ -139,18 +135,18 @@ export default function LoginView() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-10 pr-4 py-3 bg-slate-50/70 border border-slate-200 rounded-2xl text-slate-900 placeholder:text-slate-400 text-sm focus:outline-none focus:border-[#ea580c] focus:bg-white focus:ring-2 focus:ring-[#ea580c]/20 transition-all font-medium"
+                className="w-full pl-10 pr-4 py-3 bg-[#0d131f] border border-white/10 rounded-2xl text-white placeholder:text-slate-500 text-sm focus:outline-none focus:border-[#22c55e] focus:ring-2 focus:ring-[#22c55e]/20 transition-all font-medium"
               />
             </div>
           </div>
 
           {/* Código de Compra */}
           <div>
-            <label className="block text-xs font-bold text-slate-800 mb-1.5">
+            <label className="block text-xs font-bold text-slate-300 mb-1.5">
               Código de Compra
             </label>
             <div className="relative flex items-center">
-              <div className="absolute left-3.5 text-slate-400 pointer-events-none">
+              <div className="absolute left-3.5 text-slate-500 pointer-events-none">
                 <Key size={18} />
               </div>
               <input
@@ -158,7 +154,7 @@ export default function LoginView() {
                 value={purchaseCode}
                 onChange={(e) => setPurchaseCode(e.target.value)}
                 placeholder="Insira seu código de compra"
-                className="w-full pl-10 pr-4 py-3 bg-slate-50/70 border border-slate-200 rounded-2xl text-slate-900 placeholder:text-slate-400 text-sm focus:outline-none focus:border-[#ea580c] focus:bg-white focus:ring-2 focus:ring-[#ea580c]/20 transition-all font-medium"
+                className="w-full pl-10 pr-4 py-3 bg-[#0d131f] border border-white/10 rounded-2xl text-white placeholder:text-slate-500 text-sm focus:outline-none focus:border-[#22c55e] focus:ring-2 focus:ring-[#22c55e]/20 transition-all font-medium"
               />
             </div>
           </div>
@@ -167,89 +163,176 @@ export default function LoginView() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-4 bg-[#ea580c] hover:bg-[#c2410c] active:scale-[0.99] text-white font-black text-sm uppercase tracking-wider rounded-2xl shadow-lg shadow-[#ea580c]/30 hover:shadow-xl hover:shadow-[#ea580c]/40 transition-all duration-200 flex items-center justify-center gap-2 mt-2 cursor-pointer disabled:opacity-70"
+            className="w-full py-4 bg-[#22c55e] hover:bg-[#16a34a] active:scale-[0.99] text-[#080c14] font-black text-sm uppercase tracking-wider rounded-2xl shadow-lg shadow-[#22c55e]/25 hover:shadow-xl hover:shadow-[#22c55e]/35 transition-all duration-200 flex items-center justify-center gap-2 mt-2 cursor-pointer disabled:opacity-70"
           >
             {isLoading ? (
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <div className="w-5 h-5 border-2 border-[#080c14] border-t-transparent rounded-full animate-spin" />
             ) : (
-              'ENTRAR NA NEWSHOP'
+              'ENTRAR NA DECOLASHOP'
             )}
           </button>
         </form>
 
         {/* Separator / Plans Header */}
         <div className="text-center my-5">
-          <p className="text-[11px] font-bold text-slate-600 leading-tight">
+          <p className="text-[11px] font-bold text-slate-400 leading-tight">
             Ainda não possui o código de compra definitivo? Escolha um plano:
           </p>
         </div>
 
-        {/* Plan Cards Grid */}
+        {/* Plan Cards Grid (Clicar aqui ABRE A OPÇÃO DE COMPRA, NÃO LOGA!) */}
         <div className="grid grid-cols-2 gap-3">
-          {/* Card Vitalício (Laranja) */}
+          {/* Card Vitalício */}
           <div
-            onClick={() => handleLogin(undefined, { email: 'vip@newshop.com', password: 'demo', demoPlan: 'yearly', purchaseCode: 'VITALICIO-VIP' })}
-            className="bg-[#ea580c] hover:bg-[#d94600] active:scale-[0.98] text-white rounded-2xl p-3.5 text-center shadow-md cursor-pointer transition-all flex flex-col justify-between"
+            onClick={() => setSelectedPlanModal('lifetime')}
+            className="bg-gradient-to-b from-[#22c55e]/20 to-[#15803d]/20 border border-[#22c55e]/40 hover:border-[#22c55e] active:scale-[0.98] text-white rounded-2xl p-3.5 text-center shadow-md cursor-pointer transition-all flex flex-col justify-between group"
           >
             <div>
-              <div className="flex items-center justify-center gap-1 text-[10px] font-black uppercase tracking-wider mb-1 opacity-95">
+              <div className="flex items-center justify-center gap-1 text-[10px] font-black uppercase tracking-wider mb-1 text-[#4ade80]">
                 <Crown size={12} className="stroke-[2.5]" />
                 <span>MAIS ESCOLHIDO</span>
               </div>
-              <h3 className="font-black text-sm mb-1 tracking-tight">
+              <h3 className="font-black text-sm mb-1 tracking-tight text-white group-hover:text-[#4ade80] transition-colors">
                 Plano Vitalício
               </h3>
               <div className="flex items-center justify-center gap-1.5 my-1">
-                <span className="text-[11px] text-orange-200 line-through font-bold">R$ 297</span>
+                <span className="text-[11px] text-slate-400 line-through font-bold">R$ 297</span>
                 <span className="text-base font-black text-white">R$ 179,90</span>
               </div>
             </div>
-            <p className="text-[9px] text-orange-100 font-semibold mt-1">
+            <p className="text-[9px] text-[#4ade80] font-semibold mt-1">
               Pague 1x • 250% Créditos/dia
             </p>
           </div>
 
-          {/* Card Mensal (Claro) */}
+          {/* Card Mensal */}
           <div
-            onClick={() => handleLogin(undefined, { email: 'mensal@newshop.com', password: 'demo', demoPlan: 'yearly', purchaseCode: 'MENSAL-PRO' })}
-            className="bg-white hover:bg-slate-50 border border-slate-200 active:scale-[0.98] text-slate-800 rounded-2xl p-3.5 text-center shadow-sm cursor-pointer transition-all flex flex-col justify-between"
+            onClick={() => setSelectedPlanModal('monthly')}
+            className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 active:scale-[0.98] text-white rounded-2xl p-3.5 text-center shadow-sm cursor-pointer transition-all flex flex-col justify-between group"
           >
             <div>
-              <div className="flex items-center justify-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-[#ea580c] mb-1">
+              <div className="flex items-center justify-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-[#4ade80] mb-1">
                 <Sparkles size={12} className="stroke-[2.5]" />
                 <span>RECORRENTE</span>
               </div>
-              <h3 className="font-black text-sm mb-1 text-slate-900 tracking-tight">
+              <h3 className="font-black text-sm mb-1 text-white group-hover:text-slate-200 tracking-tight">
                 Plano Mensal
               </h3>
               <div className="flex items-baseline justify-center gap-1 my-1">
-                <span className="text-base font-black text-slate-900">R$ 89,90</span>
-                <span className="text-[11px] text-slate-500 font-medium">/ mês</span>
+                <span className="text-base font-black text-white">R$ 89,90</span>
+                <span className="text-[11px] text-slate-400 font-medium">/ mês</span>
               </div>
             </div>
-            <p className="text-[9px] text-slate-500 font-semibold mt-1">
+            <p className="text-[9px] text-slate-400 font-semibold mt-1">
               Assinatura Mensal • 100% Créditos/dia
             </p>
           </div>
         </div>
 
         {/* Quick Admin Helper Badge */}
-        <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400 font-medium">
-          <div className="flex items-center gap-1 text-slate-500">
-            <ShieldCheck size={13} className="text-[#ea580c]" />
+        <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] text-slate-500 font-medium">
+          <div className="flex items-center gap-1.5">
+            <ShieldCheck size={14} className="text-[#22c55e]" />
             <span>Admin:</span>
-            <code className="text-slate-700 font-bold bg-slate-100 px-1 py-0.5 rounded">admin@newshop.com</code>
+            <code className="text-[#22c55e] font-bold bg-[#22c55e]/10 px-1.5 py-0.5 rounded border border-[#22c55e]/20">
+              admin@decolashop.com
+            </code>
           </div>
           <button
             type="button"
             onClick={fillAdmin}
-            className="text-[#ea580c] hover:underline font-bold text-[10px] uppercase cursor-pointer"
+            className="text-[#22c55e] hover:underline font-bold text-[10px] uppercase cursor-pointer"
           >
             Auto-Preencher
           </button>
         </div>
 
       </div>
+
+      {/* Modal de Compra / Planos (Aberto ao clicar nos cards de preço) */}
+      {selectedPlanModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="max-w-md w-full bg-[#111726] border border-[#22c55e]/30 rounded-3xl p-6 sm:p-8 shadow-2xl relative">
+            <button
+              onClick={() => setSelectedPlanModal(null)}
+              className="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="text-center mb-6">
+              <span className="inline-flex items-center gap-1 text-xs font-black uppercase tracking-wider text-[#4ade80] bg-[#22c55e]/15 px-3 py-1 rounded-full border border-[#22c55e]/30 mb-2">
+                {selectedPlanModal === 'lifetime' ? '👑 Plano Vitalício' : '⚡ Plano Mensal'}
+              </span>
+              <h3 className="text-2xl font-black text-white">
+                {selectedPlanModal === 'lifetime' ? 'Acesso Definitivo DecolaShop' : 'Assinatura Mensal DecolaShop'}
+              </h3>
+              <div className="flex items-center justify-center gap-2 mt-2">
+                {selectedPlanModal === 'lifetime' && (
+                  <span className="text-sm text-slate-500 line-through">R$ 297,00</span>
+                )}
+                <span className="text-3xl font-black text-[#22c55e]">
+                  {selectedPlanModal === 'lifetime' ? 'R$ 179,90' : 'R$ 89,90'}
+                </span>
+                <span className="text-xs text-slate-400">
+                  {selectedPlanModal === 'lifetime' ? 'pagamento único' : '/ mês'}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2.5 mb-6 text-xs text-slate-300">
+              <div className="flex items-center gap-2">
+                <Check size={16} className="text-[#22c55e] shrink-0" />
+                <span>Mineração ao vivo de produtos Shopee e Mercado Livre</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check size={16} className="text-[#22c55e] shrink-0" />
+                <span>Fornecedores validados com despacho em 24h</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check size={16} className="text-[#22c55e] shrink-0" />
+                <span>Gerador de Anúncios e Roteiros virais com IA</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check size={16} className="text-[#22c55e] shrink-0" />
+                <span>
+                  {selectedPlanModal === 'lifetime' ? '250% de créditos diários para sempre' : '100% de créditos diários'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check size={16} className="text-[#22c55e] shrink-0" />
+                <span>Código de compra enviado imediatamente por e-mail</span>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => {
+                  toast.success('Redirecionando para o checkout seguro...');
+                  // Em produção pode abrir o checkout Ironpay / Kiwify
+                  window.open('https://decolashop.com.br', '_blank');
+                }}
+                className="w-full py-3.5 bg-[#22c55e] hover:bg-[#16a34a] text-[#080c14] font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg shadow-[#22c55e]/25 flex items-center justify-center gap-2 transition-all"
+              >
+                Comprar Agora com Desconto <ArrowRight size={14} />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedPlanModal(null);
+                  toast('Preencha seu e-mail e código de compra para entrar.', { icon: '🔑' });
+                }}
+                className="w-full py-2.5 text-xs text-slate-400 hover:text-white transition-colors text-center font-medium"
+              >
+                Já possui código? Voltar ao login
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
