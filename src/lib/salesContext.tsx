@@ -31,6 +31,9 @@ interface SalesContextType {
   recentSales: SaleItem[];
   autoSimulate: boolean;
   
+  // Taxa de antecipação dinâmica
+  taxaAntecipacao: number;
+
   // Configurações do Gerador
   intervalMode: 'range' | 'fixed';
   minSeconds: number;
@@ -40,6 +43,7 @@ interface SalesContextType {
   availableProducts: Product[];
 
   addSale: (targetProduct?: Partial<Product>, customPrice?: number) => void;
+  triggerDelayedCampaignSales: (targetProduct: Partial<Product>, customPrice?: number) => void;
   resetData: () => void;
   toggleAutoSimulate: () => void;
   setIntervalMode: (mode: 'range' | 'fixed') => void;
@@ -104,7 +108,10 @@ function playCashChime() {
   }
 }
 
+const STORAGE_KEY = 'decolashop_sales_state_v3';
+
 export function SalesProvider({ children }: { children: React.ReactNode }) {
+  const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [vendasTotais, setVendasTotais] = useState<number>(0);
   const [saldoDisponivel, setSaldoDisponivel] = useState<number>(0);
   const [visitas, setVisitas] = useState<number>(0);
@@ -152,10 +159,10 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
       });
   }, []);
 
-  // Load from localStorage on mount
+  // 1. Carrega dados persistidos do localStorage no mount
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('decolashop_sales_state_v3');
+      const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (typeof parsed.vendasTotais === 'number') setVendasTotais(parsed.vendasTotais);
@@ -164,8 +171,8 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         if (typeof parsed.cliques === 'number') setCliques(parsed.cliques);
         if (typeof parsed.pedidos === 'number') setPedidos(parsed.pedidos);
         if (typeof parsed.unidades === 'number') setUnidades(parsed.unidades);
-        if (parsed.hourlyData) setHourlyData(parsed.hourlyData);
-        if (parsed.recentSales) setRecentSales(parsed.recentSales);
+        if (Array.isArray(parsed.hourlyData)) setHourlyData(parsed.hourlyData);
+        if (Array.isArray(parsed.recentSales)) setRecentSales(parsed.recentSales);
         if (parsed.intervalMode) setIntervalMode(parsed.intervalMode);
         if (parsed.minSeconds) setMinSeconds(parsed.minSeconds);
         if (parsed.maxSeconds) setMaxSeconds(parsed.maxSeconds);
@@ -174,16 +181,55 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
       }
     } catch {
       // ignore
+    } finally {
+      setIsLoaded(true);
     }
   }, []);
 
-  const persistState = (data: any) => {
+  // 2. Salva no localStorage sempre que algum valor do dashboard mudar
+  useEffect(() => {
+    if (!isLoaded) return;
     try {
-      localStorage.setItem('decolashop_sales_state_v3', JSON.stringify(data));
+      const dataToSave = {
+        vendasTotais,
+        saldoDisponivel,
+        visitas,
+        cliques,
+        pedidos,
+        unidades,
+        hourlyData,
+        recentSales,
+        intervalMode,
+        minSeconds,
+        maxSeconds,
+        fixedSeconds,
+        selectedProductId
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
     } catch {
       // ignore
     }
-  };
+  }, [
+    isLoaded,
+    vendasTotais,
+    saldoDisponivel,
+    visitas,
+    cliques,
+    pedidos,
+    unidades,
+    hourlyData,
+    recentSales,
+    intervalMode,
+    minSeconds,
+    maxSeconds,
+    fixedSeconds,
+    selectedProductId
+  ]);
+
+  // Taxa de Antecipação: Sobe junto com o faturamento (7% do faturamento), com limite máximo de R$ 150,00
+  const taxaAntecipacao = vendasTotais <= 0 
+    ? 50 
+    : Math.min(150, Math.max(50, Math.round(vendasTotais * 0.07 * 100) / 100));
 
   const addSale = (targetProduct?: Partial<Product>, customPrice?: number) => {
     // Escolhe produto alvo, ou o selecionado no admin, ou aleatório do catálogo
@@ -252,7 +298,6 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
       <div className={`flex items-center gap-3 p-3.5 rounded-2xl bg-[#0d121f]/95 border border-[#22c55e]/50 shadow-2xl shadow-[#22c55e]/25 text-white max-w-sm backdrop-blur-xl ${
         t.visible ? 'animate-in slide-in-from-top-3 duration-300' : 'animate-out fade-out duration-200'
       }`}>
-        {/* Foto Real do Produto */}
         <div className="relative w-12 h-12 rounded-xl overflow-hidden border border-[#22c55e]/40 flex-shrink-0 bg-slate-900">
           <img 
             src={chosen.image_url} 
@@ -284,6 +329,29 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     ), { duration: 4000 });
   };
 
+  // Divulgação com IA: 1ª venda em exatamente 60s (1 min), e depois vendas entre 1 a 5 minutos
+  const triggerDelayedCampaignSales = (targetProduct: Partial<Product>, customPrice?: number) => {
+    // 1ª Venda após 1 minuto (60.000 ms)
+    setTimeout(() => {
+      addSale(targetProduct, customPrice);
+      toast.success('🎉 Primeira venda da sua campanha com IA acabou de cair! Comissões liberadas.', {
+        duration: 5000,
+        icon: '💰'
+      });
+
+      // Loop subsequente entre 1 e 5 minutos (60s a 300s aleatório)
+      const scheduleSubsequent = () => {
+        const randomSeconds = Math.floor(Math.random() * (300 - 60 + 1)) + 60;
+        setTimeout(() => {
+          addSale(targetProduct, customPrice);
+          scheduleSubsequent();
+        }, randomSeconds * 1000);
+      };
+
+      scheduleSubsequent();
+    }, 60000);
+  };
+
   const resetData = () => {
     setVendasTotais(0);
     setSaldoDisponivel(0);
@@ -296,7 +364,7 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     setAutoSimulate(false);
 
     try {
-      localStorage.removeItem('decolashop_sales_state_v3');
+      localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem('decolashop_sales_state_v2');
       localStorage.removeItem('decolashop_sales_state');
     } catch {}
@@ -326,7 +394,7 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  // Loop de Auto-Vendas com intervalo dinâmico (fixo ou aleatório entre min e max)
+  // Loop de Auto-Vendas manual via atalho ou painel Gerente
   useEffect(() => {
     if (!autoSimulate) return;
 
@@ -408,6 +476,7 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
       hourlyData,
       recentSales,
       autoSimulate,
+      taxaAntecipacao,
       intervalMode,
       minSeconds,
       maxSeconds,
@@ -415,6 +484,7 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
       selectedProductId,
       availableProducts,
       addSale,
+      triggerDelayedCampaignSales,
       resetData,
       toggleAutoSimulate,
       setIntervalMode,

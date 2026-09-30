@@ -47,7 +47,18 @@ const navItems = [
 
 export default function Sidebar({ currentView, onNavigate, isOpen, setIsOpen }: SidebarProps) {
   const { data: session } = useSession();
-  const userEmail = session?.user?.email || 'admin@decolashop.com';
+  const rawEmail = session?.user?.email || 'usuario@decolashop.com';
+  const userEmail = rawEmail.toLowerCase().trim();
+  const userRole = (session?.user as any)?.role || '';
+  const isNormalUser = userEmail === 'usuario@decolashop.com' || userEmail === 'cliente@decolashop.com' || userEmail === 'user@decolashop.com';
+  const isAdmin = !isNormalUser && (
+    userEmail.includes('admin') || 
+    userEmail.includes('gerente') || 
+    userRole === 'gerente' || 
+    userRole === 'admin'
+  );
+  const userBadge = isAdmin ? 'Gerente' : 'Membro VIP';
+  const planBadge = isAdmin ? 'Créditos ∞' : 'Plano Vitalício';
 
   return (
     <aside className={cn(
@@ -122,9 +133,9 @@ export default function Sidebar({ currentView, onNavigate, isOpen, setIsOpen }: 
           <div className="px-3 py-2 rounded-xl bg-[#0f1523] border border-white/10">
             <p className="text-xs font-bold text-white truncate">{userEmail}</p>
             <div className="flex items-center gap-1.5 text-[10px] text-[#22c55e] font-extrabold mt-0.5">
-              <span>Admin Master</span>
+              <span>{userBadge}</span>
               <span>•</span>
-              <span>Créditos ∞</span>
+              <span>{planBadge}</span>
             </div>
           </div>
 

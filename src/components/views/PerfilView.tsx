@@ -7,8 +7,22 @@ import { toast } from 'react-hot-toast';
 
 export default function PerfilView() {
   const { data: session } = useSession();
-  const [name, setName] = useState(session?.user?.name || 'Administrador Master');
-  const [email, setEmail] = useState(session?.user?.email || 'nextshopsaas@gmail.com');
+  const rawEmail = session?.user?.email || 'usuario@decolashop.com';
+  const userEmail = rawEmail.toLowerCase().trim();
+  const userRole = (session?.user as any)?.role || '';
+  const isNormalUser = userEmail === 'usuario@decolashop.com' || userEmail === 'cliente@decolashop.com' || userEmail === 'user@decolashop.com';
+  const isAdmin = !isNormalUser && (
+    userEmail.includes('admin') || 
+    userEmail.includes('gerente') || 
+    userRole === 'gerente' || 
+    userRole === 'admin'
+  );
+  const userBadge = isAdmin ? 'Gerente' : 'Membro VIP';
+  const planBadge = isAdmin ? 'Créditos ∞ (Ilimitado)' : 'Plano Vitalício Ativo';
+
+  const defaultName = session?.user?.name || (isAdmin ? 'Gerente DecolaShop' : 'Membro DecolaShop');
+  const [name, setName] = useState(defaultName);
+  const [email, setEmail] = useState(rawEmail);
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = (e: React.FormEvent) => {
@@ -46,10 +60,10 @@ export default function PerfilView() {
             <p className="text-xs text-muted-foreground">{email}</p>
             <div className="flex items-center gap-2 mt-2">
               <span className="text-[10px] font-black uppercase tracking-wider bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/30 px-2.5 py-0.5 rounded-full shadow-[0_0_10px_rgba(34,197,94,0.15)]">
-                Admin Master
+                {userBadge}
               </span>
               <span className="text-[10px] font-black uppercase tracking-wider bg-primary/20 text-primary border border-primary/30 px-2.5 py-0.5 rounded-full">
-                Créditos ∞ (Ilimitado)
+                {planBadge}
               </span>
             </div>
           </div>

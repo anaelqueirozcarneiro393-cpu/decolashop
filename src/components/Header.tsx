@@ -14,7 +14,16 @@ export default function Header({ onMenuClick, session: propSession }: HeaderProp
   const { data: hookSession, status } = useSession();
   const session = propSession || hookSession;
   const isAuthenticated = !!session;
-  const { addSale } = useSales();
+  const userEmail = session?.user?.email?.toLowerCase().trim() || '';
+  const userRole = (session?.user as any)?.role || '';
+  const isNormalUser = userEmail === 'usuario@decolashop.com' || userEmail === 'cliente@decolashop.com' || userEmail === 'user@decolashop.com';
+  const isAdmin = !isNormalUser && (
+    userEmail.includes('admin') || 
+    userEmail.includes('gerente') || 
+    userRole === 'gerente' || 
+    userRole === 'admin'
+  );
+  const userBadge = isAdmin ? 'Gerente' : 'Membro VIP';
   
   return (
     <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between px-4 md:px-8 bg-[#090d16]/90 backdrop-blur-xl border-b border-white/10 text-white">
@@ -61,7 +70,7 @@ export default function Header({ onMenuClick, session: propSession }: HeaderProp
                 {session.user?.name || session.user?.email || 'admin@decolashop.com'}
               </span>
               <span className="text-[10px] font-black uppercase tracking-wider text-[#22c55e]">
-                Admin Master
+                {userBadge}
               </span>
             </div>
             <div className="w-8 h-8 rounded-xl border border-[#22c55e]/40 overflow-hidden bg-black/50 flex items-center justify-center p-0.5 shadow-md shadow-[#22c55e]/15">

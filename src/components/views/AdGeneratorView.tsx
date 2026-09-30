@@ -32,7 +32,7 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishProgress, setPublishProgress] = useState(0);
   const [publishedNetwork, setPublishedNetwork] = useState('');
-  const { addSale } = useSales();
+  const { addSale, triggerDelayedCampaignSales } = useSales();
 
   useEffect(() => {
     async function load() {
@@ -74,12 +74,16 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
       setPublishProgress(100);
       setPublishedNetwork('Finalizado! 6 redes conectadas e gerando tráfego.');
       setIsPublishing(false);
-      toast.success('🚀 Divulgação com IA iniciada com sucesso em todas as redes!');
+      toast.success('🚀 Anúncio publicado nas 6 redes! Tráfego ativo. 1ª venda prevista em ~1 minuto.', {
+        duration: 4000
+      });
       
       const rawPrice = typeof selectedProduct.price === 'string'
         ? parseFloat(selectedProduct.price.replace('R$', '').replace('.', '').replace(',', '.').trim()) || 99.90
         : (selectedProduct.price || 99.90);
-      addSale(selectedProduct, rawPrice);
+
+      // Não vende instantaneamente: espera 1 minuto para a 1ª venda, e depois de 1 a 5 minutos
+      triggerDelayedCampaignSales(selectedProduct, rawPrice);
 
       addDivulgado({
         productId: selectedProduct.id,
@@ -92,8 +96,8 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
         networks: ['Meta Ads (Instagram & Facebook)', 'TikTok Shop Ads', 'Google Shopping', 'Kwai Ads', 'WhatsApp Grupos VIP'],
         impressions: Math.floor(Math.random() * 1500) + 950,
         clicks: Math.floor(Math.random() * 90) + 50,
-        salesCount: 1,
-        revenue: rawPrice,
+        salesCount: 0,
+        revenue: 0,
         roas: 4.6,
         conversionRate: 3.8,
         targeting: {

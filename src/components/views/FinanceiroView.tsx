@@ -21,7 +21,7 @@ import { useSession } from 'next-auth/react';
 
 export default function FinanceiroView() {
   const { data: session } = useSession();
-  const { saldoDisponivel, vendasTotais, pedidos, cliques } = useSales();
+  const { saldoDisponivel, vendasTotais, pedidos, cliques, taxaAntecipacao } = useSales();
   const [pixType, setPixType] = useState('CPF');
   const [pixKey, setPixKey] = useState('000.000.000-00');
   const [withdrawAmount, setWithdrawAmount] = useState('0,00');
@@ -34,7 +34,7 @@ export default function FinanceiroView() {
     setIsProcessing(true);
     setTimeout(() => {
       setIsProcessing(false);
-      toast.success('⚡ Antecipação solicitada! Chave PIX gerada para pagamento da taxa de R$ 50,00.');
+      toast.success(`⚡ Antecipação solicitada! Chave PIX gerada para pagamento da taxa de R$ ${taxaAntecipacao.toFixed(2).replace('.', ',')}.`);
     }, 800);
   };
 
@@ -153,7 +153,7 @@ export default function FinanceiroView() {
             className="flex-shrink-0 flex items-center gap-2 py-3 px-5 rounded-2xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-black font-black text-xs uppercase tracking-wider shadow-lg shadow-[#22c55e]/25 transition-all active:scale-95 disabled:opacity-70"
           >
             <Zap size={14} fill="currentColor" />
-            <span>{isProcessing ? 'GERANDO PIX...' : 'ANTECIPAR SALDO AGORA (TAXA R$ 50,00)'}</span>
+            <span>{isProcessing ? 'GERANDO PIX...' : `ANTECIPAR SALDO AGORA (TAXA R$ ${taxaAntecipacao.toFixed(2).replace('.', ',')})`}</span>
           </button>
         </div>
 
