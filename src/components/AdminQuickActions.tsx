@@ -50,16 +50,21 @@ export default function AdminQuickActions() {
   const [customSaldo, setCustomSaldo] = useState('');
   const [searchProduct, setSearchProduct] = useState('');
 
-  // Verificação estrita de Administrador
+  // Verificação estrita de Gerente (Admin)
   // @ts-ignore
   const userEmail = session?.user?.email?.toLowerCase().trim() || '';
   // @ts-ignore
   const userRole = (session?.user as any)?.role || '';
-  const isAdmin = 
+  const isNormalUser = userEmail === 'usuario@decolashop.com' || userEmail === 'cliente@decolashop.com' || userEmail === 'user@decolashop.com';
+  const isAdmin = !isNormalUser && (
     userEmail === 'admin@decolashop.com' || 
     userEmail === 'admin@newshop.com' || 
+    userEmail === 'gerente@decolashop.com' || 
     userEmail.includes('admin') || 
-    userRole === 'admin';
+    userEmail.includes('gerente') || 
+    userRole === 'admin' ||
+    userRole === 'gerente'
+  );
 
   // Atalho secreto do teclado: [Alt + A] ou [Ctrl + Shift + A]
   useEffect(() => {
@@ -75,7 +80,7 @@ export default function AdminQuickActions() {
         setIsOpen((prev) => {
           const next = !prev;
           if (next) {
-            toast('🛡️ Painel de Administrador Decola Shop aberto!', {
+            toast('🛡️ Painel do Gerente DecolaShop aberto!', {
               icon: '⚡',
               style: {
                 background: '#111726',
@@ -139,9 +144,9 @@ export default function AdminQuickActions() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base sm:text-lg font-black text-white">Gerador de Vendas & Admin</h3>
+                <h3 className="text-base sm:text-lg font-black text-white">Painel do Gerente</h3>
                 <span className="text-[9px] font-black uppercase tracking-wider text-[#080c14] bg-[#22c55e] px-1.5 py-0.5 rounded-full">
-                  Exclusivo
+                  Gerente
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">

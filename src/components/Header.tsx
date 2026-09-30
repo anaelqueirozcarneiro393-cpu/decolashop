@@ -47,16 +47,6 @@ export default function Header({ onMenuClick, session: propSession }: HeaderProp
       </div>
 
       <div className="flex items-center gap-3">
-        {/* Quick sale button for Admin */}
-        <button
-          onClick={() => addSale()}
-          className="hidden sm:flex items-center gap-1.5 py-1.5 px-3 rounded-xl bg-[#22c55e]/15 hover:bg-[#22c55e]/25 border border-[#22c55e]/30 text-[#4ade80] text-xs font-black transition-all active:scale-95 shadow-md shadow-[#22c55e]/10"
-          title="Atalho: Simular Nova Venda (Alt + V)"
-        >
-          <Zap size={13} fill="currentColor" />
-          <span>+ Venda</span>
-        </button>
-
         <button className="relative p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors">
           <Bell className="w-4 h-4" />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#22c55e] rounded-full ring-2 ring-[#090d16] animate-pulse" />

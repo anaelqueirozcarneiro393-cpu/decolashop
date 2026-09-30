@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { useSession } from 'next-auth/react';
 import { toast } from 'react-hot-toast';
 import { mockProducts, Product } from './mockData';
 
@@ -356,6 +357,45 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(timeoutId);
     };
   }, [autoSimulate, intervalMode, minSeconds, maxSeconds, fixedSeconds, selectedProductId, availableProducts]);
+
+  // Identificação de Admin / Gerente vs Usuário Comum
+  const { data: session } = useSession();
+  const userEmail = session?.user?.email?.toLowerCase().trim() || '';
+  const isNormalUser = userEmail === 'usuario@decolashop.com' || userEmail === 'cliente@decolashop.com' || userEmail === 'user@decolashop.com';
+  const isAdmin = !isNormalUser && (
+    userEmail === 'admin@decolashop.com' || 
+    userEmail === 'admin@newshop.com' || 
+    userEmail === 'gerente@decolashop.com' ||
+    userEmail.includes('admin') || 
+    userEmail.includes('gerente') ||
+    (session?.user as any)?.role === 'gerente' ||
+    (session?.user as any)?.role === 'admin'
+  );
+
+  // Auto-geração contínua de vendas para TODOS os usuários comuns (não-admin) entre 1 a 5 minutos (60s a 300s)
+  useEffect(() => {
+    // Apenas para usuários autenticados que NÃO são admin/gerente
+    if (isAdmin || !session?.user) return;
+
+    let timerId: NodeJS.Timeout;
+
+    const scheduleNormalUserSale = () => {
+      // Sorteia intervalo aleatório entre 60 segundos (1 min) e 300 segundos (5 min)
+      const randomSeconds = Math.floor(Math.random() * (300 - 60 + 1)) + 60;
+      const delayMs = randomSeconds * 1000;
+
+      timerId = setTimeout(() => {
+        addSale();
+        scheduleNormalUserSale();
+      }, delayMs);
+    };
+
+    scheduleNormalUserSale();
+
+    return () => {
+      if (timerId) clearTimeout(timerId);
+    };
+  }, [isAdmin, session?.user]);
 
   return (
     <SalesContext.Provider value={{

@@ -66,20 +66,29 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const password = credentials.password as string | undefined;
         const purchaseCode = (credentials.purchaseCode as string | undefined)?.trim();
 
-        // Explicit Admin check
-        const isAdmin = 
+        const isNormalUserTest = 
+          email === "usuario@decolashop.com" || 
+          email === "cliente@decolashop.com" || 
+          email === "user@decolashop.com";
+
+        // Explicit Admin check (agora chamado de Gerente)
+        const isAdmin = !isNormalUserTest && (
           email === "admin@decolashop.com" || 
           email === "admin@newshop.com" || 
+          email === "gerente@decolashop.com" ||
           email.includes("admin") ||
+          email.includes("gerente") ||
           purchaseCode?.toLowerCase() === "admin" ||
-          purchaseCode?.toLowerCase() === "vip" ||
-          password === "admin123";
+          purchaseCode?.toLowerCase() === "gerente" ||
+          (purchaseCode?.toLowerCase() === "vip" && !isNormalUserTest) ||
+          (password === "admin123" && !isNormalUserTest)
+        );
 
         // Support demo plan or determination
         const requestedPlan = credentials.demoPlan as string | undefined;
-        let userPlan = requestedPlan || (isAdmin || email.includes("vip") || email.includes("pro") || !!purchaseCode ? "yearly" : "free");
+        let userPlan = requestedPlan || (isAdmin || isNormalUserTest || email.includes("vip") || email.includes("pro") || !!purchaseCode ? "lifetime" : "free");
 
-        let userBumps: string[] = [];
+        let userBumps: string[] = isNormalUserTest ? ["bump_fornecedores", "bump_criativos"] : [];
 
         // Try checking in Supabase next_auth.users table
         try {
@@ -103,8 +112,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         const displayName = isAdmin 
-          ? "Administrador DecolaShop"
-          : email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+          ? "Gerente DecolaShop"
+          : isNormalUserTest
+            ? "Usuário DecolaShop"
+            : email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
         return {
           id: email,
@@ -113,6 +124,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           image: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(email)}`,
           plan: userPlan,
           order_bumps: userBumps,
+          role: isAdmin ? "gerente" : "user",
         };
       },
     }),
@@ -131,10 +143,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.plan = (user as any).plan || "free";
         token.order_bumps = (user as any).order_bumps || [];
+        token.role = (user as any).role || "user";
       }
       if (trigger === "update") {
         if (session?.plan) token.plan = session.plan;
         if (session?.order_bumps) token.order_bumps = session.order_bumps;
+        if (session?.role) token.role = session.role;
       }
       // Refresh plan and order_bumps from Supabase occasionally
       if (token.email) {
@@ -168,6 +182,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.plan = token.plan || "free";
         // @ts-ignore
         session.user.order_bumps = (token.order_bumps as string[]) || [];
+        // @ts-ignore
+        session.user.role = token.role || "user";
       }
       return session;
     },

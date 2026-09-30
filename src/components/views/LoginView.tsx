@@ -34,8 +34,8 @@ export default function LoginView() {
         toast.error('Erro ao autenticar. Verifique seus dados.');
       } else {
         toast.success(
-          email.toLowerCase().includes('admin') 
-            ? '🚀 Bem-vindo ao DecolaShop, Administrador!' 
+          (email.toLowerCase().includes('admin') || email.toLowerCase().includes('gerente'))
+            ? '🚀 Bem-vindo ao DecolaShop, Gerente!' 
             : 'Login realizado com sucesso!'
         );
         window.location.reload();
@@ -47,11 +47,18 @@ export default function LoginView() {
     }
   };
 
-  const fillAdmin = () => {
-    setEmail('admin@decolashop.com');
+  const fillGerente = () => {
+    setEmail('gerente@decolashop.com');
     setPassword('admin123');
-    setPurchaseCode('ADMIN-VIP');
-    toast.success('Credenciais de Administrador preenchidas! Clique em Entrar.');
+    setPurchaseCode('GERENTE-VIP');
+    toast.success('Credenciais de Gerente preenchidas! Clique em Entrar.');
+  };
+
+  const fillUser = () => {
+    setEmail('usuario@decolashop.com');
+    setPassword('user123');
+    setPurchaseCode('');
+    toast.success('Credenciais de Usuário Comum preenchidas! Clique em Entrar.');
   };
 
   return (
@@ -245,22 +252,43 @@ export default function LoginView() {
           </div>
         </div>
 
-        {/* Quick Admin Helper Badge */}
-        <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] text-slate-500 font-medium">
-          <div className="flex items-center gap-1.5">
-            <ShieldCheck size={14} className="text-[#22c55e]" />
-            <span>Admin:</span>
-            <code className="text-[#22c55e] font-bold bg-[#22c55e]/10 px-1.5 py-0.5 rounded border border-[#22c55e]/20">
-              admin@decolashop.com
-            </code>
+        {/* Quick Login Helpers (Gerente & Usuário Comum) */}
+        <div className="mt-4 pt-3 border-t border-white/5 space-y-2 text-[11px] text-slate-400 font-medium">
+          {/* Gerente */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <ShieldCheck size={13} className="text-[#22c55e]" />
+              <span className="font-bold text-slate-300">Gerente:</span>
+              <code className="text-[#22c55e] font-mono text-[10px] bg-[#22c55e]/10 px-1.5 py-0.5 rounded border border-[#22c55e]/20">
+                gerente@decolashop.com
+              </code>
+            </div>
+            <button
+              type="button"
+              onClick={fillGerente}
+              className="text-[#22c55e] hover:text-[#4ade80] font-black text-[10px] uppercase cursor-pointer"
+            >
+              Preencher
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={fillAdmin}
-            className="text-[#22c55e] hover:underline font-bold text-[10px] uppercase cursor-pointer"
-          >
-            Auto-Preencher
-          </button>
+
+          {/* Usuário Normal */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <Mail size={13} className="text-cyan-400" />
+              <span className="font-bold text-slate-300">Usuário:</span>
+              <code className="text-cyan-400 font-mono text-[10px] bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20">
+                usuario@decolashop.com
+              </code>
+            </div>
+            <button
+              type="button"
+              onClick={fillUser}
+              className="text-cyan-400 hover:text-cyan-300 font-black text-[10px] uppercase cursor-pointer"
+            >
+              Preencher
+            </button>
+          </div>
         </div>
 
       </div>
