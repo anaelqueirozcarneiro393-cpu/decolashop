@@ -17,7 +17,8 @@ import {
   X,
   Zap,
   ShoppingBasket,
-  Flame
+  Flame,
+  Megaphone
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSession, signOut } from 'next-auth/react';
@@ -35,6 +36,7 @@ const navItems = [
   { name: 'Catálogo', id: 'catalogo', icon: ShoppingBag },
   { name: 'Minerador Live', id: 'minerador', icon: Flame, badge: 'HOT', badgeColor: 'bg-[#ef4444]/20 text-[#f87171] border-[#ef4444]/30' },
   { name: 'Divulgação com IA', id: 'divulgacao-ia', icon: Sparkles, badge: 'IA', badgeColor: 'bg-[#22c55e]/20 text-[#4ade80] border-[#22c55e]/30' },
+  { name: 'Produtos Divulgados', id: 'divulgados', icon: Megaphone, badge: 'ATIVO', badgeColor: 'bg-[#06b6d4]/20 text-[#22d3ee] border-[#06b6d4]/30' },
   { name: 'Gerar Vídeos com IA', id: 'video-ia', icon: Video, badge: 'PRO', badgeColor: 'bg-[#84cc16]/20 text-[#a3e635] border-[#84cc16]/30' },
   { name: 'Conexões e integrações', id: 'conectar', icon: Share2 },
   { name: 'Video aula', id: 'video-aula', icon: BookOpen },

@@ -14,7 +14,7 @@ const initialGroups = [
   { name: "Vende Fácil Shopee", link: "https://gruposwhats.app/group/861054", desc: "Grupo de links para divulgação (busque nome atualizado)." }
 ];
 
-export default function FindGroupsButton({ className }: { className?: string }) {
+export default function FindGroupsButton({ className, productName }: { className?: string; productName?: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [groups, setGroups] = useState(initialGroups);

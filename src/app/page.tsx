@@ -20,6 +20,7 @@ import VideoAulaView from '@/components/views/VideoAulaView';
 import PerfilView from '@/components/views/PerfilView';
 import ReembolsoView from '@/components/views/ReembolsoView';
 import SettingsView from '@/components/views/SettingsView';
+import DivulgadosView from '@/components/views/DivulgadosView';
 import AdminQuickActions from '@/components/AdminQuickActions';
 import { Product } from '@/lib/mockData';
 import { Toaster, toast } from 'react-hot-toast';
@@ -32,6 +33,7 @@ export type ViewType =
   | 'financeiro' 
   | 'catalogo' 
   | 'divulgacao-ia' 
+  | 'divulgados'
   | 'video-ia' 
   | 'conectar' 
   | 'video-aula' 
@@ -61,6 +63,7 @@ export default function AppContainer() {
         'financeiro', 
         'catalogo', 
         'divulgacao-ia', 
+        'divulgados',
         'video-ia', 
         'conectar', 
         'video-aula', 
@@ -206,6 +209,12 @@ export default function AppContainer() {
             {(currentView === 'divulgacao-ia' || currentView === 'anuncio') && (
               <AdGeneratorView 
                 product={selectedProduct}
+                onNavigate={navigateToView}
+              />
+            )}
+
+            {currentView === 'divulgados' && (
+              <DivulgadosView 
                 onNavigate={navigateToView}
               />
             )}

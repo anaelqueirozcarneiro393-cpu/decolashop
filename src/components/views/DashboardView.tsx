@@ -16,7 +16,8 @@ import {
   Zap,
   Play,
   Pause,
-  ShieldCheck
+  ShieldCheck,
+  Megaphone
 } from 'lucide-react';
 import { ViewType } from '@/app/page';
 import { useSales } from '@/lib/salesContext';
@@ -167,6 +168,15 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
               >
                 <ExternalLink size={13} />
                 <span>IR PARA O FINANCEIRO</span>
+              </button>
+
+              {/* Botão Ver Produtos Divulgados */}
+              <button
+                onClick={() => onNavigate('divulgados')}
+                className="w-full mt-2 py-2.5 px-3 rounded-xl sm:rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#22c55e]/30 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer"
+              >
+                <Megaphone size={14} className="text-[#22c55e]" />
+                <span>PRODUTOS DIVULGADOS</span>
               </button>
             </div>
 

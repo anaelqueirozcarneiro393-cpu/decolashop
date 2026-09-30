@@ -9,13 +9,15 @@ import {
   CheckCircle2, 
   Loader2, 
   ShoppingBag,
-  Zap
+  Zap,
+  Megaphone
 } from 'lucide-react';
 import SafeImage from '@/components/SafeImage';
 import { toast } from 'react-hot-toast';
 import { useSales } from '@/lib/salesContext';
 import { getProductsFromSupabase } from '@/app/actions';
 import { Product, mockProducts } from '@/lib/mockData';
+import { addDivulgado } from '@/lib/divulgados';
 
 interface AdGeneratorViewProps {
   product?: any;
@@ -78,6 +80,34 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
         ? parseFloat(selectedProduct.price.replace('R$', '').replace('.', '').replace(',', '.').trim()) || 99.90
         : (selectedProduct.price || 99.90);
       addSale(selectedProduct, rawPrice);
+
+      addDivulgado({
+        productId: selectedProduct.id,
+        name: selectedProduct.name || selectedProduct.title || 'Produto Viral DecolaShop',
+        image_url: selectedProduct.image_url,
+        category: selectedProduct.category || 'Geral',
+        price: rawPrice,
+        commission: selectedProduct.commission || `R$ ${(rawPrice * 0.32).toFixed(2).replace('.', ',')}`,
+        status: 'active',
+        networks: ['Meta Ads (Instagram & Facebook)', 'TikTok Shop Ads', 'Google Shopping', 'Kwai Ads', 'WhatsApp Grupos VIP'],
+        impressions: Math.floor(Math.random() * 1500) + 950,
+        clicks: Math.floor(Math.random() * 90) + 50,
+        salesCount: 1,
+        revenue: rawPrice,
+        roas: 4.6,
+        conversionRate: 3.8,
+        targeting: {
+          audience: `Compradores engajados na categoria ${selectedProduct.category || 'Geral'}`,
+          ageRange: '18 - 50 anos',
+          location: 'Brasil (Entrega Rápida)',
+          interests: [selectedProduct.category || 'Compras Online', 'Ofertas Shopee', 'Tendências']
+        },
+        sampleCopy: {
+          headline: `🔥 OFERTA IMPERDÍVEL: ${selectedProduct.name || selectedProduct.title}`,
+          body: selectedProduct.description || 'Produto validado com alta taxa de satisfação e pronta entrega para todo o Brasil.',
+          cta: '👉 CLIQUE AQUI PARA GARANTIR O SEU'
+        }
+      });
     }, 2400);
   };
 
@@ -88,17 +118,27 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-16 animate-in fade-in duration-300">
       {/* Header */}
-      <div>
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#22c55e]/15 text-[#4ade80] border border-[#22c55e]/30 text-xs font-bold mb-2 shadow-[0_0_10px_rgba(34,197,94,0.15)]">
-          <Sparkles className="w-3.5 h-3.5 text-[#22c55e]" />
-          <span>INTELIGÊNCIA ARTIFICIAL</span>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#22c55e]/15 text-[#4ade80] border border-[#22c55e]/30 text-xs font-bold mb-2 shadow-[0_0_10px_rgba(34,197,94,0.15)]">
+            <Sparkles className="w-3.5 h-3.5 text-[#22c55e]" />
+            <span>INTELIGÊNCIA ARTIFICIAL</span>
+          </div>
+          <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight">
+            Divulgação com IA
+          </h1>
+          <p className="text-xs text-slate-400 font-medium mt-1">
+            Sua central inteligente para propagar produtos do catálogo automaticamente por toda a internet.
+          </p>
         </div>
-        <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight">
-          Divulgação com IA
-        </h1>
-        <p className="text-xs text-slate-400 font-medium mt-1">
-          Sua central inteligente para propagar produtos do catálogo automaticamente por toda a internet.
-        </p>
+
+        <button
+          onClick={() => onNavigate('divulgados')}
+          className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-white font-bold text-xs flex items-center gap-2 cursor-pointer transition-all self-start sm:self-auto hover:border-[#22c55e]/40 shadow-lg"
+        >
+          <Megaphone size={15} className="text-[#22c55e]" />
+          <span>Ver Produtos Divulgados</span>
+        </button>
       </div>
 
       {/* Main Grid */}

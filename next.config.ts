@@ -16,6 +16,7 @@ const nextConfig: NextConfig = {
       { source: '/financeiro', destination: '/' },
       { source: '/catalogo', destination: '/' },
       { source: '/divulgacao-ia', destination: '/' },
+      { source: '/divulgados', destination: '/' },
       { source: '/anuncio', destination: '/' },
       { source: '/video-ia', destination: '/' },
       { source: '/conectar', destination: '/' },
