@@ -1,17 +1,27 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { validateAndSanitizePayload, isValidEmail, sanitizeString } from "@/lib/security";
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
+    const rawBody = await req.json();
+
+    // 1. Validate payload against SQLi & XSS attacks
+    const payloadValidation = validateAndSanitizePayload(rawBody);
+    if (!payloadValidation.safe) {
+      console.warn(`[SECURITY] Webhook CN Pay bloqueado por payload malicioso: ${payloadValidation.reason}`);
+      return NextResponse.json({ error: "Payload inválido" }, { status: 400 });
+    }
+
+    const body = rawBody;
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = 
       process.env.SUPABASE_SERVICE_ROLE_KEY || 
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    const body = await req.json();
     console.log("🔥 [WEBHOOK CN PAY RECEBIDO] 🔥", JSON.stringify(body, null, 2));
 
     // Validations
@@ -19,8 +29,14 @@ export async function POST(req: Request) {
     const email = (customer.email || body.email || "").toLowerCase().trim();
     const status = (body.status || body.event || "").toLowerCase();
 
-    if (!email) {
-      return NextResponse.json({ error: "E-mail do cliente não encontrado no payload" }, { status: 400 });
+    if (!email || !isValidEmail(email)) {
+      return NextResponse.json({ error: "E-mail do cliente inválido ou não encontrado no payload" }, { status: 400 });
+    }
+
+    // Protect administrative email
+    if (email.startsWith("admin@")) {
+      console.warn(`[SECURITY] Tentativa de ativação de webhook para conta de admin bloqueada: ${email}`);
+      return NextResponse.json({ error: "Conta protegida" }, { status: 403 });
     }
 
     const items = body.items || [];

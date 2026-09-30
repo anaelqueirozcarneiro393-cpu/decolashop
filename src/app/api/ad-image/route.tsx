@@ -2,9 +2,12 @@ import { ImageResponse } from 'next/og';
 import { NextRequest } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { isSafeImageUrl } from '@/lib/security';
 
-// Bypass SSL/TLS unauthorized errors globally for external fetch calls on local/Windows environments
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+// Bypass SSL/TLS unauthorized errors only in development environment
+if (process.env.NODE_ENV === 'development') {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
 
 // Force dynamic execution to prevent caching in App Router
 export const dynamic = 'force-dynamic';
@@ -29,6 +32,12 @@ export async function GET(req: NextRequest) {
     if (fetchUrl.startsWith('/')) {
       const origin = new URL(req.url).origin;
       fetchUrl = `${origin}${fetchUrl}`;
+    }
+
+    // SSRF Prevention: Validate external image URL
+    if (fetchUrl && !fetchUrl.startsWith('data:') && !isSafeImageUrl(fetchUrl)) {
+      console.warn(`[SECURITY] SSRF attempt or invalid image URL blocked: ${fetchUrl}`);
+      fetchUrl = '';
     }
     
     // Força URLs do Cloudinary a retornarem JPG (Satori não suporta WebP)

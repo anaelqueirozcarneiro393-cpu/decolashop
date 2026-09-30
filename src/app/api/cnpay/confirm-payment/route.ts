@@ -1,12 +1,29 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { validateAndSanitizePayload, isValidEmail, isValidCpf, sanitizeString } from '@/lib/security';
 
 export const dynamic = 'force-dynamic';
 
+const PROTECTED_ADMIN_EMAILS = [
+  'admin@decolashop.com',
+  'admin@newshop.com',
+];
+
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { email, name, cpf, phone, password, plan, bumps, transactionId } = body;
+    const rawBody = await req.json();
+
+    // 1. SQL Injection and XSS Payload Validation
+    const payloadValidation = validateAndSanitizePayload(rawBody);
+    if (!payloadValidation.safe) {
+      console.warn(`[SECURITY] Requisição bloqueada em confirm-payment: ${payloadValidation.reason}`);
+      return NextResponse.json(
+        { success: false, error: 'Dados inválidos ou payload suspeito detectado.' },
+        { status: 400 }
+      );
+    }
+
+    const { email, name, cpf, phone, password, plan, bumps, transactionId } = rawBody;
 
     if (!email) {
       return NextResponse.json(
@@ -16,7 +33,28 @@ export async function POST(req: Request) {
     }
 
     const cleanEmail = email.toLowerCase().trim();
-    const cleanName = (name || cleanEmail.split('@')[0]).trim();
+
+    // 2. Email format validation
+    if (!isValidEmail(cleanEmail)) {
+      return NextResponse.json(
+        { success: false, error: 'Formato de e-mail inválido.' },
+        { status: 400 }
+      );
+    }
+
+    // 3. Admin Account Protection (Prevent unauthorized account takeover)
+    if (PROTECTED_ADMIN_EMAILS.includes(cleanEmail) || cleanEmail.startsWith('admin@')) {
+      console.warn(`[SECURITY] Tentativa de alteração não autorizada de conta administrativa: ${cleanEmail}`);
+      return NextResponse.json(
+        { success: false, error: 'Esta conta é restrita e não pode ser redefinida por esta rota.' },
+        { status: 403 }
+      );
+    }
+
+    const cleanName = sanitizeString(name || cleanEmail.split('@')[0]);
+    const cleanCpf = cpf ? String(cpf).replace(/\D/g, '') : null;
+    const cleanPhone = phone ? String(phone).replace(/\D/g, '') : null;
+    const cleanPassword = sanitizeString(password || '');
     const userPlan = plan === 'monthly' ? 'monthly' : 'lifetime';
 
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -37,13 +75,17 @@ export async function POST(req: Request) {
         // Check if user exists
         const { data: existingUser } = await supabase
           .from('users')
-          .select('*')
+          .select('id, email, password, order_bumps')
           .eq('email', cleanEmail)
           .maybeSingle();
 
+        const safeBumps = Array.isArray(bumps) 
+          ? bumps.map((b: any) => sanitizeString(String(b)))
+          : [];
+
         if (existingUser) {
           const existingBumps = Array.isArray(existingUser.order_bumps) ? existingUser.order_bumps : [];
-          const newBumps = Array.from(new Set([...existingBumps, ...(bumps || [])]));
+          const newBumps = Array.from(new Set([...existingBumps, ...safeBumps]));
           await supabase
             .from('users')
             .update({
@@ -52,9 +94,9 @@ export async function POST(req: Request) {
               plan_expires_at: expiresAt.toISOString(),
               status: 'active',
               order_bumps: newBumps,
-              phone: phone || null,
-              cpf: cpf || null,
-              password: password || existingUser.password || 'decola123'
+              phone: cleanPhone || null,
+              cpf: cleanCpf || null,
+              password: cleanPassword || existingUser.password || 'decola123'
             })
             .eq('email', cleanEmail);
         } else {
@@ -66,31 +108,28 @@ export async function POST(req: Request) {
               plan: userPlan,
               plan_expires_at: expiresAt.toISOString(),
               status: 'active',
-              order_bumps: bumps || [],
-              phone: phone || null,
-              cpf: cpf || null,
-              password: password || 'decola123'
+              order_bumps: safeBumps,
+              phone: cleanPhone || null,
+              cpf: cleanCpf || null,
+              password: cleanPassword || 'decola123'
             });
         }
-      } catch (dbErr: any) {
-        console.warn('[Confirm Payment DB Warning]:', dbErr.message);
+      } catch (dbErr) {
+        console.error('Erro ao registrar usuário no Supabase:', dbErr);
       }
     }
 
     return NextResponse.json({
       success: true,
-      message: 'Pagamento confirmado e conta ativada!',
-      user: {
-        email: cleanEmail,
-        name: cleanName,
-        plan: userPlan
-      }
+      message: 'Pagamento confirmado e conta liberada com sucesso!',
+      email: cleanEmail,
+      plan: userPlan,
+      transactionId: transactionId || null
     });
-
-  } catch (error: any) {
-    console.error('[Confirm Payment Error]:', error);
+  } catch (err: any) {
+    console.error('Erro ao processar confirm-payment:', err);
     return NextResponse.json(
-      { success: false, error: error.message || 'Erro ao confirmar pagamento' },
+      { success: false, error: 'Falha ao processar confirmação de pagamento.' },
       { status: 500 }
     );
   }

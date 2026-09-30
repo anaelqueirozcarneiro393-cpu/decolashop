@@ -1,10 +1,21 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { validateAndSanitizePayload, isValidEmail, sanitizeString } from "@/lib/security";
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
+    const rawBody = await req.json();
+
+    // 1. Validate payload against SQLi & XSS attacks
+    const payloadValidation = validateAndSanitizePayload(rawBody);
+    if (!payloadValidation.safe) {
+      console.warn(`[SECURITY] Webhook Ironpay bloqueado por payload malicioso: ${payloadValidation.reason}`);
+      return NextResponse.json({ error: "Payload inválido" }, { status: 400 });
+    }
+
+    const body = rawBody;
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = 
       process.env.SUPABASE_SERVICE_ROLE_KEY || 
@@ -21,7 +32,6 @@ export async function POST(req: Request) {
       },
     });
 
-    const body = await req.json();
     console.log("🔥 [WEBHOOK IRONPAY RECEBIDO] 🔥");
 
     // Validação básica do payload da Ironpay
@@ -29,7 +39,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
     }
 
-    const email = body.customer.email.toLowerCase();
+    const email = body.customer.email.toLowerCase().trim();
+
+    // Protect administrative email
+    if (email.startsWith("admin@")) {
+      console.warn(`[SECURITY] Tentativa de webhook para conta de admin bloqueada: ${email}`);
+      return NextResponse.json({ error: "Conta protegida" }, { status: 403 });
+    }
     const status = body.status; // 'paid', 'canceled', 'refunded', etc
     const items = body.items || [];
     const productName = items.length > 0 ? items[0].title || "" : "";

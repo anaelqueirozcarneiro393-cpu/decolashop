@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import QRCode from 'qrcode';
+import { validateAndSanitizePayload, isValidEmail, isValidCpf, sanitizeString } from '@/lib/security';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,11 +70,37 @@ function generatePixBRCode({
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+
+    // 1. Security & Payload Validation (SQLi, XSS)
+    const payloadValidation = validateAndSanitizePayload(body);
+    if (!payloadValidation.safe) {
+      console.warn(`[SECURITY] Requisição bloqueada em /api/cnpay/pix: ${payloadValidation.reason}`);
+      return NextResponse.json(
+        { success: false, error: 'Dados inválidos ou payload suspeito detectado.' },
+        { status: 400 }
+      );
+    }
+
     const { plan, planPrice, bumps, total, customer } = body;
 
     if (!customer || !customer.email || !customer.cpf) {
       return NextResponse.json(
         { success: false, error: 'Dados do cliente incompletos (e-mail e CPF obrigatórios)' }, 
+        { status: 400 }
+      );
+    }
+
+    if (!isValidEmail(String(customer.email))) {
+      return NextResponse.json(
+        { success: false, error: 'Formato de e-mail inválido.' },
+        { status: 400 }
+      );
+    }
+
+    const numTotal = Number(total);
+    if (isNaN(numTotal) || numTotal <= 0 || numTotal > 50000) {
+      return NextResponse.json(
+        { success: false, error: 'Valor da transação inválido.' },
         { status: 400 }
       );
     }

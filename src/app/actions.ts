@@ -3,16 +3,20 @@
 import { searchYouTubeTrends } from '@/lib/google-services';
 import { supabase } from '@/lib/supabase';
 import { mockProducts } from '@/lib/mockData';
+import { sanitizeString } from '@/lib/security';
 
 /**
  * Action to generate ad copy using Groq AI
  */
 export async function generateAdAction(productTitle: string, category: string): Promise<{ success: boolean; copy?: string; error?: string }> {
+  const safeTitle = sanitizeString(productTitle || 'Produto Exclusivo').slice(0, 150);
+  const safeCategory = sanitizeString(category || 'Geral').slice(0, 50);
+
   const apiKey = process.env.GEMINI_API_KEY;
   const groqApiKey = process.env.GROQ_API_KEY;
 
   const prompt = `Você é um copywriter de elite especialista em e-commerce e conversão.
-Crie um anúncio persuasivo e altamente focado em vendas para o produto: "${productTitle}" da categoria "${category}".
+Crie um anúncio persuasivo e altamente focado em vendas para o produto: "${safeTitle}" da categoria "${safeCategory}".
 
 Use a estrutura de copy focada em conversão:
 1. Uma 'Hook' (Gancho) forte na primeira linha para chamar atenção.
