@@ -23,7 +23,7 @@ import { useSession } from 'next-auth/react';
 
 export default function FinanceiroView() {
   const { data: session } = useSession();
-  const { saldoDisponivel, vendasTotais, pedidos, cliques, taxaAntecipacao } = useSales();
+  const { saldoDisponivel, vendasTotais, pedidos, cliques, taxaAntecipacao, recentSales } = useSales();
   const [pixType, setPixType] = useState('CPF');
   const [pixKey, setPixKey] = useState('000.000.000-00');
   const [withdrawAmount, setWithdrawAmount] = useState('0,00');
@@ -364,6 +364,109 @@ export default function FinanceiroView() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* ================= EXTRATO DETALHADO DE VENDAS & COMISSÕES ================= */}
+      <div className="bg-[#0d121f]/90 rounded-3xl p-6 md:p-8 border border-white/10 shadow-xl backdrop-blur-xl space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#22c55e]/10 border border-[#22c55e]/25 text-[#4ade80] text-[10px] font-black uppercase tracking-wider mb-1">
+              <CheckCircle2 size={11} />
+              <span>Extrato de Vendas em Tempo Real</span>
+            </div>
+            <h3 className="text-sm sm:text-base font-extrabold text-white flex items-center gap-2">
+              <span>Registro de Vendas e Comissões</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-400 font-semibold">
+                {recentSales.length} {recentSales.length === 1 ? 'venda' : 'vendas'}
+              </span>
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Histórico detalhado de cada venda gerada pelo radar e campanhas de IA vinculadas à sua conta.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 bg-white/[0.02] border border-white/5 px-3 py-1.5 rounded-2xl">
+            <span className="text-[11px] text-slate-400 font-medium">Saldo a Receber:</span>
+            <span className="text-sm font-black text-[#4ade80]">
+              R$ {saldoDisponivel.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
+        </div>
+
+        {recentSales.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-white/10 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                  <th className="pb-3 pl-2">Transação</th>
+                  <th className="pb-3">Produto</th>
+                  <th className="pb-3 text-center">Data / Hora</th>
+                  <th className="pb-3 text-right">Valor Venda</th>
+                  <th className="pb-3 text-right">Sua Comissão</th>
+                  <th className="pb-3 text-right pr-2">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {recentSales.map((sale) => (
+                  <tr key={sale.id} className="hover:bg-white/[0.02] transition-colors group">
+                    <td className="py-3.5 pl-2 font-mono text-[11px] font-bold text-slate-400">
+                      {sale.id}
+                    </td>
+                    <td className="py-3.5">
+                      <div className="flex items-center gap-2.5 max-w-xs sm:max-w-sm">
+                        <div className="w-8 h-8 rounded-lg overflow-hidden border border-white/10 bg-slate-900 shrink-0">
+                          {sale.image ? (
+                            <img 
+                              src={sale.image} 
+                              alt={sale.product} 
+                              className="w-full h-full object-cover"
+                              onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                            />
+                          ) : (
+                            <ShoppingBag size={14} className="m-auto text-slate-500 mt-2" />
+                          )}
+                        </div>
+                        <span className="font-bold text-white truncate group-hover:text-[#4ade80] transition-colors" title={sale.product}>
+                          {sale.product}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="py-3.5 text-center text-slate-400 font-medium text-[11px]">
+                      {sale.time}
+                    </td>
+                    <td className="py-3.5 text-right font-semibold text-slate-300">
+                      R$ {sale.value.toFixed(2).replace('.', ',')}
+                    </td>
+                    <td className="py-3.5 text-right font-black text-[#4ade80]">
+                      + R$ {sale.commission.toFixed(2).replace('.', ',')}
+                    </td>
+                    <td className="py-3.5 text-right pr-2">
+                      {isAnticipated ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-[#22c55e]/15 text-[#4ade80] border border-[#22c55e]/30">
+                          <CheckCircle2 size={10} />
+                          <span>Liberado</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                          <Clock size={10} />
+                          <span>Em Carência (30D)</span>
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="py-8 text-center text-slate-400 space-y-2 border border-dashed border-white/10 rounded-2xl bg-white/[0.01]">
+            <ShoppingBag size={28} className="mx-auto text-slate-500 opacity-60" />
+            <p className="text-xs font-semibold text-slate-300">Nenhuma venda registrada ainda</p>
+            <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
+              As vendas geradas pelo piloto automático e por campanhas de IA aparecerão detalhadas aqui a cada nova aprovação.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* ================= MODAL PIX DA TAXA DE ANTECIPAÇÃO ================= */}

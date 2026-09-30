@@ -52,6 +52,8 @@ interface SalesContextType {
   setFixedSeconds: (val: number) => void;
   setSelectedProductId: (id: string) => void;
   setSaldoDisponivelDirect: (val: number) => void;
+  isSoundEnabled: boolean;
+  toggleSound: () => void;
 }
 
 const CLEAN_HOURLY: ChartHour[] = [
@@ -121,6 +123,20 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
   const [hourlyData, setHourlyData] = useState<ChartHour[]>(CLEAN_HOURLY);
   const [recentSales, setRecentSales] = useState<SaleItem[]>([]);
   const [autoSimulate, setAutoSimulate] = useState<boolean>(false);
+  const [isSoundEnabled, setIsSoundEnabled] = useState<boolean>(true);
+  const isSoundEnabledRef = useRef(true);
+  isSoundEnabledRef.current = isSoundEnabled;
+
+  const toggleSound = () => {
+    setIsSoundEnabled(prev => {
+      const next = !prev;
+      toast(next ? '🔊 Efeitos sonoros ativados' : '🔇 Efeitos sonoros silenciados', {
+        icon: next ? '🔊' : '🔇',
+        duration: 2000
+      });
+      return next;
+    });
+  };
 
   // Intervalo configurável pelo admin
   const [intervalMode, setIntervalMode] = useState<'range' | 'fixed'>('range');
@@ -159,7 +175,7 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
       });
   }, []);
 
-  // 1. Carrega dados persistidos do localStorage no mount
+  // 1. Carrega dados persistidos do localStorage no mount + Catch-up de vendas offline
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -178,6 +194,26 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         if (parsed.maxSeconds) setMaxSeconds(parsed.maxSeconds);
         if (parsed.fixedSeconds) setFixedSeconds(parsed.fixedSeconds);
         if (parsed.selectedProductId) setSelectedProductId(parsed.selectedProductId);
+
+        // Sistema Inteligente de Vendas Offline:
+        // Se o usuário ficou fora por mais de 4 minutos (240s), calcula vendas acumuladas enquanto esteve fora
+        if (parsed.lastActiveTimestamp && typeof parsed.lastActiveTimestamp === 'number') {
+          const nowMs = Date.now();
+          const elapsedMs = nowMs - parsed.lastActiveTimestamp;
+          if (elapsedMs >= 240_000) { // 4 minutos
+            // Média de 1 venda a cada ~8 minutos (480s), limitado a no máximo 4 vendas por retorno
+            const offlineSales = Math.min(4, Math.max(1, Math.floor(elapsedMs / (8 * 60 * 1000))));
+            setTimeout(() => {
+              for (let i = 0; i < offlineSales; i++) {
+                addSale();
+              }
+              toast.success(`🔥 Enquanto você esteve fora, sua loja gerou ${offlineSales} ${offlineSales === 1 ? 'nova venda' : 'novas vendas'} no piloto automático!`, {
+                duration: 6000,
+                icon: '🚀'
+              });
+            }, 1800);
+          }
+        }
       }
     } catch {
       // ignore
@@ -203,7 +239,8 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         minSeconds,
         maxSeconds,
         fixedSeconds,
-        selectedProductId
+        selectedProductId,
+        lastActiveTimestamp: Date.now()
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
     } catch {
@@ -289,7 +326,9 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
       return h;
     }));
 
-    playCashChime();
+    if (isSoundEnabledRef.current) {
+      playCashChime();
+    }
 
     // Notificação com FOTO DO PRODUTO REAL
     toast.custom((t) => (
@@ -327,7 +366,7 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     ), { duration: 4000 });
   };
 
-  // Divulgação com IA: 1ª venda em exatamente 60s (1 min), e depois vendas entre 1 a 5 minutos
+  // Divulgação com IA: 1ª venda em exatamente 60s (1 min), e depois vendas entre 4 a 15 minutos
   const triggerDelayedCampaignSales = (targetProduct: Partial<Product>, customPrice?: number) => {
     // 1ª Venda após 1 minuto (60.000 ms)
     setTimeout(() => {
@@ -337,9 +376,9 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         icon: '💰'
       });
 
-      // Loop subsequente entre 1 e 5 minutos (60s a 300s aleatório)
+      // Loop subsequente entre 4 e 15 minutos (240s a 900s aleatório)
       const scheduleSubsequent = () => {
-        const randomSeconds = Math.floor(Math.random() * (300 - 60 + 1)) + 60;
+        const randomSeconds = Math.floor(Math.random() * (900 - 240 + 1)) + 240;
         setTimeout(() => {
           addSale(targetProduct, customPrice);
           scheduleSubsequent();
@@ -438,7 +477,7 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     (session?.user as any)?.role === 'admin'
   );
 
-  // Auto-geração contínua de vendas para TODOS os usuários comuns (não-admin) entre 1 a 5 minutos (60s a 300s)
+  // Auto-geração contínua de vendas para TODOS os usuários comuns (não-admin) entre 4 a 15 minutos (240s a 900s)
   useEffect(() => {
     // Apenas para usuários autenticados que NÃO são admin/gerente
     if (isAdmin || !session?.user) return;
@@ -446,8 +485,8 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     let timerId: NodeJS.Timeout;
 
     const scheduleNormalUserSale = () => {
-      // Sorteia intervalo aleatório entre 60 segundos (1 min) e 300 segundos (5 min)
-      const randomSeconds = Math.floor(Math.random() * (300 - 60 + 1)) + 60;
+      // Sorteia intervalo aleatório entre 240 segundos (4 min) e 900 segundos (15 min)
+      const randomSeconds = Math.floor(Math.random() * (900 - 240 + 1)) + 240;
       const delayMs = randomSeconds * 1000;
 
       timerId = setTimeout(() => {
@@ -491,6 +530,8 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
       setFixedSeconds,
       setSelectedProductId,
       setSaldoDisponivelDirect,
+      isSoundEnabled,
+      toggleSound,
     }}>
       {children}
     </SalesContext.Provider>
