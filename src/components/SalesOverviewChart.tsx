@@ -60,41 +60,37 @@ export default function SalesOverviewChart({
   }, []);
 
   // Compute dataset based on selected period
+  // Compute dataset based on selected period
   const data: DataPoint[] = useMemo(() => {
     const baseTotal = Math.max(vendasTotais, 0);
 
     if (period === 'hoje') {
       const hours = ['00', '02', '04', '06', '08', '10', '12', '14', '16', '18', '20', '22'];
       const currentHour = new Date().getHours();
+      const currentBracket = String(Math.floor(currentHour / 2) * 2).padStart(2, '0');
       
-      // Proportions for a standard e-commerce day curve (peaks around 11h-14h and 19h-22h)
-      const weights = [0.02, 0.01, 0.01, 0.03, 0.06, 0.12, 0.14, 0.11, 0.09, 0.13, 0.18, 0.10];
-      
-      return hours.map((h, i) => {
-        const hourNum = parseInt(h, 10);
-        // Look up if context has recorded values for this hour
-        const ctxHour = hourlyData.find(item => item.hour === h);
-        const recordedVal = ctxHour ? ctxHour.valHoje : 0;
+      // Total recorded directly in hourlyData
+      const totalRecordedInHours = hourlyData.reduce((acc, item) => acc + (item.valHoje || 0), 0);
 
-        let currentVal = recordedVal;
-        if (baseTotal > 0 && currentVal === 0 && hourNum <= currentHour) {
-          // If total sales exist but specific hour has 0, distribute realistic ramp-up
-          currentVal = Math.round(baseTotal * weights[i] * 100) / 100;
+      return hours.map((h) => {
+        const ctxHour = hourlyData.find(item => item.hour === h);
+        let currentVal = ctxHour ? (ctxHour.valHoje || 0) : 0;
+
+        // Fallback: se hourlyData estiver zerado mas vendasTotais > 0, coloca no horário atual
+        if (totalRecordedInHours === 0 && baseTotal > 0 && h === currentBracket) {
+          currentVal = baseTotal;
         }
 
-        // Previous day value: ~80% with realistic variance
-        const prevRatio = 0.75 + ((i * 7) % 15) / 100;
-        const prevVal = baseTotal > 0 
-          ? Math.round(baseTotal * weights[i] * prevRatio * 100) / 100 
+        const prevVal = ctxHour ? (ctxHour.valOntem || 0) : 0;
+        const pointOrders = currentVal > 0 
+          ? (baseTotal > 0 ? Math.max(1, Math.round((currentVal / baseTotal) * pedidos)) : 1)
           : 0;
-
-        const pointOrders = currentVal > 0 ? Math.max(1, Math.round((currentVal / (baseTotal || 1)) * pedidos)) : 0;
 
         return {
           label: `${h}h`,
           sublabel: `Hoje, ${h}:00`,
-          current: currentVal,
-          previous: prevVal,
+          current: Math.round(currentVal * 100) / 100,
+          previous: Math.round(prevVal * 100) / 100,
           orders: pointOrders,
           commission: Math.round(currentVal * 0.32 * 100) / 100
         };
@@ -103,20 +99,16 @@ export default function SalesOverviewChart({
 
     if (period === '7d') {
       const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Hoje'];
-      const weights = [0.11, 0.13, 0.12, 0.15, 0.18, 0.17, 0.14];
-      const scale7d = baseTotal > 0 ? baseTotal * 4.6 : 0;
-
       return days.map((day, i) => {
-        const currentVal = Math.round(scale7d * weights[i] * 100) / 100;
-        const prevRatio = 0.82 + ((i * 9) % 12) / 100;
-        const prevVal = Math.round(currentVal * prevRatio * 100) / 100;
-        const pointOrders = currentVal > 0 ? Math.max(2, Math.round(pedidos * (weights[i] * 3.8))) : 0;
+        const isToday = i === days.length - 1;
+        const currentVal = isToday ? baseTotal : 0;
+        const pointOrders = isToday ? pedidos : 0;
 
         return {
           label: day,
-          sublabel: i === 6 ? 'Hoje' : `${day}-feira`,
-          current: currentVal,
-          previous: prevVal,
+          sublabel: isToday ? 'Hoje' : `${day}-feira`,
+          current: Math.round(currentVal * 100) / 100,
+          previous: 0,
           orders: pointOrders,
           commission: Math.round(currentVal * 0.32 * 100) / 100
         };
@@ -124,20 +116,17 @@ export default function SalesOverviewChart({
     }
 
     if (period === '30d') {
-      const buckets = ['D03', 'D06', 'D09', 'D12', 'D15', 'D18', 'D21', 'D24', 'D27', 'Hoje'];
-      const weights = [0.06, 0.08, 0.07, 0.10, 0.11, 0.09, 0.13, 0.12, 0.11, 0.13];
-      const scale30d = baseTotal > 0 ? baseTotal * 16.4 : 0;
-
+      const buckets = ['D-27', 'D-24', 'D-21', 'D-18', 'D-15', 'D-12', 'D-09', 'D-06', 'D-03', 'Hoje'];
       return buckets.map((b, i) => {
-        const currentVal = Math.round(scale30d * weights[i] * 100) / 100;
-        const prevVal = Math.round(currentVal * 0.81 * 100) / 100;
-        const pointOrders = currentVal > 0 ? Math.max(5, Math.round(pedidos * (weights[i] * 12))) : 0;
+        const isToday = i === buckets.length - 1;
+        const currentVal = isToday ? baseTotal : 0;
+        const pointOrders = isToday ? pedidos : 0;
 
         return {
           label: b,
-          sublabel: i === 9 ? 'Hoje (Acumulado)' : `Período ${b}`,
-          current: currentVal,
-          previous: prevVal,
+          sublabel: isToday ? 'Hoje (Acumulado)' : `Período ${b}`,
+          current: Math.round(currentVal * 100) / 100,
+          previous: 0,
           orders: pointOrders,
           commission: Math.round(currentVal * 0.32 * 100) / 100
         };
@@ -146,19 +135,16 @@ export default function SalesOverviewChart({
 
     // 'tudo' (All Time)
     const months = ['Out', 'Nov', 'Dez', 'Jan', 'Fev', 'Hoje'];
-    const weights = [0.08, 0.12, 0.18, 0.16, 0.22, 0.24];
-    const scaleAll = baseTotal > 0 ? baseTotal * 38.5 : 0;
-
     return months.map((m, i) => {
-      const currentVal = Math.round(scaleAll * weights[i] * 100) / 100;
-      const prevVal = Math.round(currentVal * 0.65 * 100) / 100;
-      const pointOrders = currentVal > 0 ? Math.max(10, Math.round(pedidos * (weights[i] * 28))) : 0;
+      const isCurrent = i === months.length - 1;
+      const currentVal = isCurrent ? baseTotal : 0;
+      const pointOrders = isCurrent ? pedidos : 0;
 
       return {
         label: m,
-        sublabel: i === 5 ? 'Mês Atual' : `Mês de ${m}`,
-        current: currentVal,
-        previous: prevVal,
+        sublabel: isCurrent ? 'Mês Atual' : `Mês de ${m}`,
+        current: Math.round(currentVal * 100) / 100,
+        previous: 0,
         orders: pointOrders,
         commission: Math.round(currentVal * 0.32 * 100) / 100
       };
@@ -167,8 +153,9 @@ export default function SalesOverviewChart({
 
   // Totals, Peaks and Averages
   const periodTotal = useMemo(() => {
-    return data.reduce((acc, d) => acc + d.current, 0);
-  }, [data]);
+    const sum = data.reduce((acc, d) => acc + d.current, 0);
+    return sum > 0 ? Math.round(sum * 100) / 100 : Math.round(Math.max(vendasTotais, 0) * 100) / 100;
+  }, [data, vendasTotais]);
 
   const prevPeriodTotal = useMemo(() => {
     return data.reduce((acc, d) => acc + d.previous, 0);
@@ -210,6 +197,7 @@ export default function SalesOverviewChart({
   // Catmull-Rom Bézier spline generator for smooth organic curve
   const currentSpline = useMemo(() => {
     if (points.length < 2) return '';
+    const bottomY = paddingTop + usableHeight;
     let path = `M ${points[0].x} ${points[0].yCurrent}`;
     for (let i = 0; i < points.length - 1; i++) {
       const p0 = points[Math.max(0, i - 1)];
@@ -218,18 +206,29 @@ export default function SalesOverviewChart({
       const p3 = points[Math.min(points.length - 1, i + 2)];
 
       const cp1x = p1.x + (p2.x - p0.x) / 6;
-      const cp1y = p1.yCurrent + (p2.yCurrent - p0.yCurrent) / 6;
       const cp2x = p2.x - (p3.x - p1.x) / 6;
-      const cp2y = p2.yCurrent - (p3.yCurrent - p1.yCurrent) / 6;
+
+      let cp1y = p1.yCurrent + (p2.yCurrent - p0.yCurrent) / 6;
+      let cp2y = p2.yCurrent - (p3.yCurrent - p1.yCurrent) / 6;
+
+      // Se ambos os pontos são zero, força linha reta no chão (evita qualquer overshoot)
+      if (p1.data.current === 0 && p2.data.current === 0) {
+        cp1y = bottomY;
+        cp2y = bottomY;
+      } else {
+        cp1y = Math.min(bottomY, Math.max(paddingTop, cp1y));
+        cp2y = Math.min(bottomY, Math.max(paddingTop, cp2y));
+      }
 
       path += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.yCurrent.toFixed(1)}`;
     }
     return path;
-  }, [points]);
+  }, [points, paddingTop, usableHeight]);
 
   // Previous period spline (dashed reference line)
   const previousSpline = useMemo(() => {
     if (points.length < 2) return '';
+    const bottomY = paddingTop + usableHeight;
     let path = `M ${points[0].x} ${points[0].yPrevious}`;
     for (let i = 0; i < points.length - 1; i++) {
       const p0 = points[Math.max(0, i - 1)];
@@ -238,13 +237,28 @@ export default function SalesOverviewChart({
       const p3 = points[Math.min(points.length - 1, i + 2)];
 
       const cp1x = p1.x + (p2.x - p0.x) / 6;
-      const cp1y = p1.yPrevious + (p2.yPrevious - p0.yPrevious) / 6;
       const cp2x = p2.x - (p3.x - p1.x) / 6;
-      const cp2y = p2.yPrevious - (p3.yPrevious - p1.yPrevious) / 6;
+
+      let cp1y = p1.yPrevious + (p2.yPrevious - p0.yPrevious) / 6;
+      let cp2y = p2.yPrevious - (p3.yPrevious - p1.yPrevious) / 6;
+
+      if (p1.data.previous === 0 && p2.data.previous === 0) {
+        cp1y = bottomY;
+        cp2y = bottomY;
+      } else {
+        cp1y = Math.min(bottomY, Math.max(paddingTop, cp1y));
+        cp2y = Math.min(bottomY, Math.max(paddingTop, cp2y));
+      }
 
       path += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.yPrevious.toFixed(1)}`;
     }
     return path;
+  }, [points, paddingTop, usableHeight]);
+
+  // Latest active point with sales > 0 to place pulsing indicator
+  const latestActivePoint = useMemo(() => {
+    const reversed = [...points].reverse();
+    return reversed.find(p => p.data.current > 0) || points[points.length - 1];
   }, [points]);
 
   // Area under current spline
@@ -545,20 +559,20 @@ export default function SalesOverviewChart({
                 />
               )}
 
-              {/* Pulsing Dot on Latest Active Data Point */}
-              {points.length > 0 && periodTotal > 0 && (
+              {/* Pulsing Dot on Latest Active Data Point with Sales */}
+              {latestActivePoint && latestActivePoint.data.current > 0 && (
                 <g>
                   <circle
-                    cx={points[points.length - 1].x}
-                    cy={points[points.length - 1].yCurrent}
+                    cx={latestActivePoint.x}
+                    cy={latestActivePoint.yCurrent}
                     r="7"
                     fill="#22c55e"
                     opacity="0.3"
                     className="animate-ping"
                   />
                   <circle
-                    cx={points[points.length - 1].x}
-                    cy={points[points.length - 1].yCurrent}
+                    cx={latestActivePoint.x}
+                    cy={latestActivePoint.yCurrent}
                     r="4.5"
                     fill="#4ade80"
                     stroke="#080c14"
@@ -572,7 +586,8 @@ export default function SalesOverviewChart({
             <g>
               {points.map((p, idx) => {
                 const barWidth = Math.max(12, usableWidth / points.length - 10);
-                const barHeight = Math.max(2, (p.data.current / maxVal) * usableHeight);
+                const barHeight = p.data.current > 0 ? Math.max(3, (p.data.current / maxVal) * usableHeight) : 0;
+                const prevBarHeight = p.data.previous > 0 ? Math.max(3, (p.data.previous / maxVal) * usableHeight) : 0;
                 const barX = p.x - barWidth / 2;
                 const barY = paddingTop + usableHeight - barHeight;
                 const isHovered = hoveredIndex === idx;
@@ -580,28 +595,42 @@ export default function SalesOverviewChart({
                 return (
                   <g key={idx}>
                     {/* Previous period bar outline */}
-                    <rect
-                      x={barX + barWidth * 0.15}
-                      y={paddingTop + usableHeight - Math.max(2, (p.data.previous / maxVal) * usableHeight)}
-                      width={barWidth * 0.7}
-                      height={Math.max(2, (p.data.previous / maxVal) * usableHeight)}
-                      rx="3"
-                      fill="rgba(100, 116, 139, 0.2)"
-                      stroke="#475569"
-                      strokeWidth="1"
-                      strokeDasharray="2 2"
-                    />
+                    {prevBarHeight > 0 && (
+                      <rect
+                        x={barX + barWidth * 0.15}
+                        y={paddingTop + usableHeight - prevBarHeight}
+                        width={barWidth * 0.7}
+                        height={prevBarHeight}
+                        rx="3"
+                        fill="rgba(100, 116, 139, 0.2)"
+                        stroke="#475569"
+                        strokeWidth="1"
+                        strokeDasharray="2 2"
+                      />
+                    )}
                     {/* Current period bar */}
-                    <rect
-                      x={barX}
-                      y={barY}
-                      width={barWidth}
-                      height={barHeight}
-                      rx="4"
-                      fill={isHovered ? '#4ade80' : 'url(#decolaBarGradient)'}
-                      filter={isHovered ? 'url(#neonGlow)' : undefined}
-                      className="transition-all duration-200"
-                    />
+                    {barHeight > 0 ? (
+                      <rect
+                        x={barX}
+                        y={barY}
+                        width={barWidth}
+                        height={barHeight}
+                        rx="4"
+                        fill={isHovered ? '#4ade80' : 'url(#decolaBarGradient)'}
+                        filter={isHovered ? 'url(#neonGlow)' : undefined}
+                        className="transition-all duration-200"
+                      />
+                    ) : (
+                      /* Minimal baseline marker when hovering zero-value bar */
+                      isHovered && (
+                        <circle
+                          cx={p.x}
+                          cy={paddingTop + usableHeight}
+                          r="2.5"
+                          fill="#475569"
+                        />
+                      )
+                    )}
                   </g>
                 );
               })}
