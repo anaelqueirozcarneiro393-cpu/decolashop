@@ -192,7 +192,7 @@ export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
 
   const openBumpModal = () => {
     window.dispatchEvent(new CustomEvent('decolashop_open_bump_modal', { 
-      detail: { bumpId: 'bump_fornecedores' } 
+      detail: { bumpId: 'bump_acompanhamento' } 
     }));
   };
 

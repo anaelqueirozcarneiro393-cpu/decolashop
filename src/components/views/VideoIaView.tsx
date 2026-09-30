@@ -53,7 +53,7 @@ export default function VideoIaView({ product, onNavigate }: VideoIaViewProps) {
 
   const openBumpModal = () => {
     window.dispatchEvent(new CustomEvent('decolashop_open_bump_modal', { 
-      detail: { bumpId: 'bump_criativos' } 
+      detail: { bumpId: 'bump_acelerador' } 
     }));
   };
 

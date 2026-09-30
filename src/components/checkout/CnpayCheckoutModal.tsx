@@ -30,32 +30,36 @@ export interface OrderBump {
   shortDesc: string;
   originalPrice: number;
   price: number;
+  image: string;
 }
 
 export const AVAILABLE_ORDER_BUMPS: OrderBump[] = [
   {
-    id: 'bump_fornecedores',
-    tag: '🔥 87% LEVAM',
-    title: 'Lista 50 Maiores Fornecedores Nacionais',
-    shortDesc: 'WhatsApp direto de importadores com despacho 24h no Brasil.',
-    originalPrice: 97.00,
-    price: 19.90,
+    id: 'bump_curso',
+    tag: '🎓 20 AULAS',
+    title: 'Curso Completo',
+    shortDesc: 'Curso Completo com 20 aulas explicando de forma bem didática para você aprender absolutamente tudo sobre a ferramenta',
+    originalPrice: 37.54,
+    price: 29.90,
+    image: '/images/bump-curso-completo.jpg',
   },
   {
-    id: 'bump_criativos',
-    tag: '⚡ VIRAL',
-    title: 'Pack 120+ Vídeos Virais Sem Marca d\'Água',
-    shortDesc: 'Vídeos prontos para TikTok Shop, Reels e Shopee.',
-    originalPrice: 67.00,
-    price: 14.90,
+    id: 'bump_acompanhamento',
+    tag: '⭐ SUPORTE 24H',
+    title: 'Acompanhamento - 1 ano',
+    shortDesc: 'Acompanhamento Completo por 1 especialista durante 1 ano - 24h',
+    originalPrice: 75.21,
+    price: 59.90,
+    image: '/images/bump-acompanhamento-1ano.jpg',
   },
   {
-    id: 'bump_bot_telegram',
-    tag: '💎 VIP',
-    title: 'Robô Espião: Alertas de Produtos no Telegram',
-    shortDesc: 'Notificações no celular de produtos que começaram a explodir.',
-    originalPrice: 147.00,
-    price: 27.90,
+    id: 'bump_acelerador',
+    tag: '🚀 IA DE ESCALA',
+    title: 'Acelerador de Vendas',
+    shortDesc: 'Conte com uma IA que acelerará suas vendas garantindo 30 vendas nas primeiras 48h!',
+    originalPrice: 50.10,
+    price: 39.90,
+    image: '/images/bump-acelerador-vendas.jpg',
   }
 ];
 
@@ -488,13 +492,13 @@ export default function CnpayCheckoutModal({
                     <div
                       key={bump.id}
                       onClick={() => toggleBump(bump.id)}
-                      className={`p-2 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2.5 ${
+                      className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-3 ${
                         isSelected
-                          ? 'bg-[#22c55e]/10 border-[#22c55e]/60 shadow-sm shadow-[#22c55e]/10'
-                          : 'bg-white/[0.015] border-white/10 hover:border-white/20 opacity-80'
+                          ? 'bg-[#22c55e]/15 border-[#22c55e] shadow-md shadow-[#22c55e]/15'
+                          : 'bg-white/[0.02] border-white/10 hover:border-white/20 opacity-85'
                       }`}
                     >
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div className="flex items-center gap-2.5 flex-1 min-w-0">
                         {/* Custom Checkbox */}
                         <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
                           isSelected ? 'bg-[#22c55e] border-[#22c55e]' : 'border-white/30 bg-black/40'
@@ -502,27 +506,36 @@ export default function CnpayCheckoutModal({
                           {isSelected && <Check size={11} className="text-black stroke-[3]" />}
                         </div>
 
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[8px] font-black px-1 rounded bg-amber-500/20 text-amber-300 shrink-0">
+                        {/* Bump Neon Icon Thumbnail */}
+                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-black/50 border border-[#22c55e]/30 flex-shrink-0">
+                          <img
+                            src={bump.image}
+                            alt={bump.title}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <span className="text-[8px] font-black px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 shrink-0">
                               {bump.tag}
                             </span>
-                            <h4 className="text-[11px] font-bold text-white truncate">
+                            <h4 className="text-xs font-bold text-white truncate">
                               {bump.title}
                             </h4>
                           </div>
-                          <p className="text-[9px] text-slate-400 truncate">
+                          <p className="text-[10px] text-slate-400 line-clamp-1 leading-tight">
                             {bump.shortDesc}
                           </p>
                         </div>
                       </div>
 
                       <div className="text-right shrink-0">
-                        <span className="text-[9px] text-slate-500 line-through block">
-                          R$ {bump.originalPrice.toFixed(2).replace('.', ',')}
+                        <span className="text-[10px] text-red-500 font-bold line-through decoration-red-500 block">
+                          de R$ {bump.originalPrice.toFixed(2).replace('.', ',')}
                         </span>
                         <span className="text-xs font-black text-[#4ade80]">
-                          + R$ {bump.price.toFixed(2).replace('.', ',')}
+                          por R$ {bump.price.toFixed(2).replace('.', ',')}
                         </span>
                       </div>
                     </div>

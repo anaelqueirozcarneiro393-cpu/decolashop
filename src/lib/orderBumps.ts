@@ -7,38 +7,42 @@ export interface OrderBumpItem {
   originalPrice: number;
   price: number;
   icon: string;
+  image: string;
 }
 
 export const ORDER_BUMPS_CATALOG: OrderBumpItem[] = [
   {
-    id: 'bump_fornecedores',
-    tag: '🔥 87% DOS ALUNOS LEVAM',
-    title: 'Lista Secreta: 50 Maiores Fornecedores Nacionais (Despacho 24h)',
-    shortDesc: 'WhatsApp direto dos importadores do Brás, Santa Ifigênia e SC com estoque no Brasil.',
-    fullDesc: 'Acesso imediato à lista secreta e verificada de 50 fornecedores com produtos a preço de fábrica, sem risco de taxas de importação e com despacho em até 24 horas.',
-    originalPrice: 97.00,
-    price: 19.90,
-    icon: 'Truck'
+    id: 'bump_curso',
+    tag: '🎓 20 AULAS PRÁTICAS',
+    title: 'Curso Completo',
+    shortDesc: 'Curso Completo com 20 aulas explicando de forma bem didática para você aprender absolutamente tudo sobre a ferramenta',
+    fullDesc: 'Curso Completo com 20 aulas explicando de forma bem didática para você aprender absolutamente tudo sobre a ferramenta. Domine cada recurso da plataforma.',
+    originalPrice: 37.54,
+    price: 29.90,
+    icon: 'GraduationCap',
+    image: '/images/bump-curso-completo.jpg'
   },
   {
-    id: 'bump_criativos',
-    tag: '⚡ MAIS VENDIDO',
-    title: 'Pack 120+ Vídeos & Criativos Virais do TikTok Shop e Shopee',
-    shortDesc: 'Vídeos prontos gravados em alta definição sem marca d\'água prontos para rodar.',
-    fullDesc: 'Biblioteca completa com mais de 120 criativos virais validados, sem marca d\'água, com roteiros persuasivos e prontos para publicar nas suas redes ou usar em anúncios.',
-    originalPrice: 67.00,
-    price: 14.90,
-    icon: 'Film'
+    id: 'bump_acompanhamento',
+    tag: '⭐ SUPORTE 24H',
+    title: 'Acompanhamento - 1 ano',
+    shortDesc: 'Acompanhamento Completo por 1 especialista durante 1 ano - 24h',
+    fullDesc: 'Acompanhamento Completo por 1 especialista durante 1 ano - 24h. Tire dúvidas diárias e tenha um estrategista guiando suas campanhas.',
+    originalPrice: 75.21,
+    price: 59.90,
+    icon: 'Headphones',
+    image: '/images/bump-acompanhamento-1ano.jpg'
   },
   {
-    id: 'bump_bot_telegram',
-    tag: '💎 ALERTA ANTECIPADO',
-    title: 'Robô Espião VIP: Alertas de Produtos Minerados no Telegram',
-    shortDesc: 'Receba alertas instantâneos no seu celular sempre que um produto começar a viralizar.',
-    fullDesc: 'Canal exclusivo no Telegram monitorado 24 horas por robôs com inteligência artificial que detectam tendências em ascensão rápida antes da concorrência.',
-    originalPrice: 147.00,
-    price: 27.90,
-    icon: 'Bot'
+    id: 'bump_acelerador',
+    tag: '🚀 30 VENDAS EM 48H',
+    title: 'Acelerador de Vendas',
+    shortDesc: 'Conte com uma IA que acelerará suas vendas garantindo 30 vendas nas primeiras 48h!',
+    fullDesc: 'Conte com uma IA que acelerará suas vendas garantindo 30 vendas nas primeiras 48h! Algoritmo proprietário de tráfego e conversão automática.',
+    originalPrice: 50.10,
+    price: 39.90,
+    icon: 'Rocket',
+    image: '/images/bump-acelerador-vendas.jpg'
   }
 ];
 
@@ -47,9 +51,10 @@ export const ALL_BUMP_IDS = ORDER_BUMPS_CATALOG.map(b => b.id);
 export function getUserUnlockedBumps(session?: any): string[] {
   if (typeof window === 'undefined') return [];
 
-  // Admin always has all order bumps unlocked
+  // Gerente / Admin always has all order bumps unlocked
   const email = session?.user?.email?.toLowerCase() || '';
-  if (email.includes('admin') || email === 'admin@decolashop.com') {
+  const role = (session?.user as any)?.role || '';
+  if (email.includes('admin') || email.includes('gerente') || role === 'gerente' || role === 'admin') {
     return ALL_BUMP_IDS;
   }
 
@@ -72,11 +77,19 @@ export function getUserUnlockedBumps(session?: any): string[] {
 
 export function hasOrderBump(bumpId: string, session?: any): boolean {
   const email = session?.user?.email?.toLowerCase() || '';
-  if (email.includes('admin') || email === 'admin@decolashop.com') {
+  const role = (session?.user as any)?.role || '';
+  if (email.includes('admin') || email.includes('gerente') || role === 'gerente' || role === 'admin') {
     return true;
   }
   const unlocked = getUserUnlockedBumps(session);
-  return unlocked.includes(bumpId);
+  if (unlocked.includes(bumpId)) return true;
+
+  // Legacy mappings for backwards-compatibility:
+  if (bumpId === 'bump_bot_telegram' && unlocked.includes('bump_acelerador')) return true;
+  if (bumpId === 'bump_fornecedores' && unlocked.includes('bump_acompanhamento')) return true;
+  if (bumpId === 'bump_criativos' && (unlocked.includes('bump_acelerador') || unlocked.includes('bump_curso'))) return true;
+
+  return false;
 }
 
 export function unlockOrderBumpsLocally(bumpIds: string | string[]): void {

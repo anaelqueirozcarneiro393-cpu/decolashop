@@ -116,7 +116,7 @@ export default function MineradorLiveView({ onNavigate, savedProducts, onSave }:
 
   const openBumpModal = () => {
     window.dispatchEvent(new CustomEvent('decolashop_open_bump_modal', { 
-      detail: { bumpId: 'bump_bot_telegram' } 
+      detail: { bumpId: 'bump_acelerador' } 
     }));
   };
 

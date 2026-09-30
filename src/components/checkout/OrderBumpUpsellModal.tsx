@@ -15,7 +15,10 @@ import {
   Truck,
   Film,
   Bot,
-  AlertTriangle
+  AlertTriangle,
+  GraduationCap,
+  Headphones,
+  Rocket
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { toast } from 'react-hot-toast';
@@ -215,6 +218,9 @@ export default function OrderBumpUpsellModal() {
 
   const renderIcon = (iconName: string) => {
     switch (iconName) {
+      case 'GraduationCap': return <GraduationCap size={18} className="text-[#22c55e]" />;
+      case 'Headphones': return <Headphones size={18} className="text-amber-400" />;
+      case 'Rocket': return <Rocket size={18} className="text-cyan-400" />;
       case 'Truck': return <Truck size={18} className="text-amber-400" />;
       case 'Film': return <Film size={18} className="text-[#22c55e]" />;
       case 'Bot': return <Bot size={18} className="text-cyan-400" />;
@@ -262,10 +268,10 @@ export default function OrderBumpUpsellModal() {
                     className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start gap-3 ${
                       isSelected
                         ? 'bg-[#22c55e]/10 border-[#22c55e]/60 shadow-sm shadow-[#22c55e]/15'
-                        : 'bg-white/[0.02] border-white/10 hover:border-white/20 opacity-75'
+                        : 'bg-white/[0.02] border-white/10 hover:border-white/20 opacity-85'
                     }`}
                   >
-                    <div className="mt-0.5">
+                    <div className="mt-1">
                       <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
                         isSelected ? 'bg-[#22c55e] border-[#22c55e]' : 'border-white/30 bg-black/40'
                       }`}>
@@ -273,17 +279,27 @@ export default function OrderBumpUpsellModal() {
                       </div>
                     </div>
 
+                    {bump.image && (
+                      <div className="w-12 h-12 rounded-lg overflow-hidden bg-black/50 border border-[#22c55e]/30 shrink-0">
+                        <img
+                          src={bump.image}
+                          alt={bump.title}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1 mb-1">
-                        <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300">
+                        <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300">
                           {bump.tag}
                         </span>
                         <div className="text-right">
-                          <span className="text-[10px] text-slate-500 line-through mr-1">
-                            R$ {bump.originalPrice.toFixed(2).replace('.', ',')}
+                          <span className="text-[10px] text-red-500 font-bold line-through decoration-red-500 mr-1.5">
+                            de R$ {bump.originalPrice.toFixed(2).replace('.', ',')}
                           </span>
                           <span className="text-xs font-black text-[#4ade80]">
-                            R$ {bump.price.toFixed(2).replace('.', ',')}
+                            por R$ {bump.price.toFixed(2).replace('.', ',')}
                           </span>
                         </div>
                       </div>
