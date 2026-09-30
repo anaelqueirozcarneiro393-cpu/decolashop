@@ -153,18 +153,37 @@ export async function POST(req: Request) {
           }
         } else {
           console.warn("[CN Pay API Status]", cnpayResponse.status, cnpayData?.message || cnpayData);
+          const detail = cnpayData?.details?.error || cnpayData?.message || 'Seus dados não estão aprovados.';
+          
+          // Check if there is an explicit real fallback Pix key configured
+          const activePixKey = process.env.CNPAY_PIX_KEY || process.env.PIX_KEY;
+          
+          if (!activePixKey || activePixKey === 'contato@decolashop.com') {
+            return NextResponse.json({
+              success: false,
+              error: `CN Pay: ${detail} (Acesse painel.appcnpay.com para verificar os documentos da sua conta de vendedor)`
+            }, { status: 400 });
+          }
         }
       } catch (cnpayError: any) {
         console.warn("[CN Pay Direct API Warning]:", cnpayError.message);
       }
     }
 
-    // 100% Compliant BACEN EMV Pix Generation (Guarantees bank app compatibility!)
-    const activePixKey = process.env.CNPAY_PIX_KEY || process.env.PIX_KEY || 'contato@decolashop.com';
+    // Only generate static EMV Pix if a REAL custom key has been configured (not fake placeholder)
+    const activePixKey = process.env.CNPAY_PIX_KEY || process.env.PIX_KEY;
+    if (!activePixKey || activePixKey === 'contato@decolashop.com') {
+      return NextResponse.json({
+        success: false,
+        error: 'Sua conta na CN Pay ainda não está autorizada para vendas ("Seus dados não estão aprovados"). Acesse painel.appcnpay.com para aprovar seus documentos.'
+      }, { status: 400 });
+    }
+
+    // 100% Compliant BACEN EMV Pix Generation with REAL configured key
     const pixCopiaCola = generatePixBRCode({
       pixKey: activePixKey,
-      merchantName: 'DECOLASHOP',
-      merchantCity: 'SAO PAULO',
+      merchantName: process.env.PIX_MERCHANT_NAME || 'DECOLASHOP',
+      merchantCity: process.env.PIX_MERCHANT_CITY || 'SAO PAULO',
       amount: Number(total),
       txid: transactionId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20)
     });
@@ -217,5 +236,52 @@ export async function POST(req: Request) {
       { success: false, error: error.message || 'Erro ao processar requisição Pix' }, 
       { status: 500 }
     );
+  }
+}
+
+// Quick health check to test if CN Pay has approved the seller account
+export async function GET() {
+  const cnpayPublicKey = process.env.CNPAY_PUBLIC_KEY || process.env.CNPAY_API_KEY || 'iamironman2001m_xfa4zgezewf6mnqk';
+  const cnpaySecretKey = process.env.CNPAY_SECRET_KEY || '319bngqwoe9ggd3p4vafnhgf26g6dkvd8ikkl5jsvirjmten7mu1d2q63cbpui6w';
+  const cnpayBaseUrl = process.env.CNPAY_BASE_URL || process.env.CNPAY_API_URL || 'https://painel.appcnpay.com/api/v1';
+
+  try {
+    const res = await fetch(`${cnpayBaseUrl}/gateway/pix/receive`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-public-key': cnpayPublicKey,
+        'x-secret-key': cnpaySecretKey,
+      },
+      body: JSON.stringify({
+        identifier: 'CHECK-' + Date.now(),
+        amount: 1.00,
+        client: {
+          name: 'Verificacao Status',
+          email: 'teste@decolashop.com',
+          phone: '11999999999',
+          document: '39151747805'
+        }
+      })
+    });
+
+    const data = await res.json();
+    const isApproved = res.ok;
+
+    return NextResponse.json({
+      success: true,
+      status: res.status,
+      approved: isApproved,
+      message: isApproved 
+        ? '🎉 Conta CN Pay aprovada e autorizada para vendas!' 
+        : `Aguardando aprovação na CN Pay: ${data?.details?.error || data?.message || 'Dados em análise'}`,
+      details: data
+    });
+  } catch (err: any) {
+    return NextResponse.json({
+      success: false,
+      approved: false,
+      error: err.message
+    }, { status: 500 });
   }
 }

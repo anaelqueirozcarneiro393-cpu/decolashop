@@ -16,7 +16,8 @@ import {
   EyeOff,
   User,
   Phone,
-  Mail
+  Mail,
+  AlertTriangle
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { signIn } from 'next-auth/react';
@@ -120,6 +121,7 @@ export default function CnpayCheckoutModal({
   const [isLoading, setIsLoading] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   // Synchronize plan & reset state on open
   useEffect(() => {
@@ -129,6 +131,7 @@ export default function CnpayCheckoutModal({
       setCopied(false);
       setIsLoading(false);
       setIsConfirming(false);
+      setApiError(null);
     }
   }, [isOpen, defaultPlan]);
 
@@ -207,6 +210,7 @@ export default function CnpayCheckoutModal({
     }
 
     setIsLoading(true);
+    setApiError(null);
 
     try {
       const response = await fetch('/api/cnpay/pix', {
@@ -231,13 +235,18 @@ export default function CnpayCheckoutModal({
       if (res.success && res.pix) {
         setPixData(res.pix);
         setStep('pix');
+        setApiError(null);
         toast.success('Chave Pix gerada com sucesso!');
       } else {
-        toast.error(res.error || 'Erro ao gerar Pix. Tente novamente.');
+        const errMsg = res.error || 'Erro ao gerar Pix. Tente novamente.';
+        setApiError(errMsg);
+        toast.error(errMsg, { duration: 7000 });
       }
     } catch (err: any) {
       console.error('Erro na requisição CN Pay:', err);
-      toast.error('Falha de conexão com a API de pagamento.');
+      const connErr = 'Falha de conexão com a API de pagamento.';
+      setApiError(connErr);
+      toast.error(connErr);
     } finally {
       setIsLoading(false);
     }
@@ -530,6 +539,16 @@ export default function CnpayCheckoutModal({
                   R$ {totalPrice.toFixed(2).replace('.', ',')}
                 </span>
               </div>
+
+              {apiError && (
+                <div className="p-3.5 rounded-xl bg-amber-500/15 border border-amber-500/35 text-amber-200 text-xs leading-relaxed flex items-start gap-2.5 animate-in fade-in">
+                  <AlertTriangle size={18} className="text-amber-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-amber-300">Aviso do Gateway CN Pay</p>
+                    <p className="text-[11px] text-amber-200/90 mt-0.5 leading-snug">{apiError}</p>
+                  </div>
+                </div>
+              )}
 
               <button
                 type="submit"

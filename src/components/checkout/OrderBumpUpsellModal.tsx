@@ -14,7 +14,8 @@ import {
   Clock,
   Truck,
   Film,
-  Bot
+  Bot,
+  AlertTriangle
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { toast } from 'react-hot-toast';
@@ -41,6 +42,7 @@ export default function OrderBumpUpsellModal() {
   const [isLoading, setIsLoading] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   // Check bumps status on mount & session load
   useEffect(() => {
@@ -129,6 +131,12 @@ export default function OrderBumpUpsellModal() {
     }
 
     setIsLoading(true);
+    setApiError(null);
+
+    const userCpf = 
+      (session?.user as any)?.cpf || 
+      (typeof window !== 'undefined' ? localStorage.getItem('decolashop_user_cpf') : null) || 
+      '39151747805';
 
     try {
       const response = await fetch('/api/cnpay/pix', {
@@ -142,7 +150,7 @@ export default function OrderBumpUpsellModal() {
           customer: {
             name: session?.user?.name || 'Cliente DecolaShop',
             email: session?.user?.email || 'cliente@decolashop.com',
-            cpf: '00000000000',
+            cpf: userCpf,
             phone: '11999999999'
           }
         })
@@ -153,12 +161,17 @@ export default function OrderBumpUpsellModal() {
       if (res.success && res.pix) {
         setPixData(res.pix);
         setStep('pix');
+        setApiError(null);
         toast.success('Chave Pix gerada com sucesso!');
       } else {
-        toast.error('Erro ao gerar Pix. Tente novamente.');
+        const errMsg = res.error || 'Erro ao gerar Pix. Tente novamente.';
+        setApiError(errMsg);
+        toast.error(errMsg, { duration: 7000 });
       }
     } catch {
-      toast.error('Falha de conexão com a API de pagamento.');
+      const connErr = 'Falha de conexão com a API de pagamento.';
+      setApiError(connErr);
+      toast.error(connErr);
     } finally {
       setIsLoading(false);
     }
@@ -297,6 +310,16 @@ export default function OrderBumpUpsellModal() {
                   R$ {totalPrice.toFixed(2).replace('.', ',')}
                 </span>
               </div>
+
+              {apiError && (
+                <div className="p-3.5 rounded-xl bg-amber-500/15 border border-amber-500/35 text-amber-200 text-xs leading-relaxed flex items-start gap-2.5 animate-in fade-in">
+                  <AlertTriangle size={18} className="text-amber-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-amber-300">Aviso do Gateway CN Pay</p>
+                    <p className="text-[11px] text-amber-200/90 mt-0.5 leading-snug">{apiError}</p>
+                  </div>
+                </div>
+              )}
 
               <button
                 type="button"
