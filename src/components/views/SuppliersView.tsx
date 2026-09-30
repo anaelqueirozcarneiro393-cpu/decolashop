@@ -29,12 +29,156 @@ interface SuppliersViewProps {
   onNavigate?: (view: any, product?: any) => void;
 }
 
+const ALL_SUPPLIERS = [
+  {
+    id: 'sportsfull',
+    name: 'SportsFull Distribuidora Oficial - SP',
+    address: 'Rua Doutor Luís da Fonseca Galvão, 231 - São Paulo - SP',
+    category: 'ESPORTES',
+    verified: true,
+    productsCount: '+2.850 produtos',
+    description: 'Maior polo de fardamentos esportivos, camisas de time dry-fit personalizáveis, artigos de treino e acessórios para futebol com envio imediato.',
+    mainImage: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=300',
+    highlights: [
+      { name: 'Jogo de Camisas De Jogo 53P', image: 'https://images.unsplash.com/photo-1518091043644-c1d4457512c6?auto=format&fit=crop&q=80&w=150' },
+      { name: 'Camiseta Oversized Streetwear', image: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&q=80&w=150' },
+      { name: 'Kit Uniforme Futebol Amador', image: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&q=80&w=150' },
+    ],
+  },
+  {
+    id: 'innova',
+    name: 'Innova Partners Tech Hub - SP',
+    address: 'Rua Barão Ladislau, 670 - Brás, São Paulo - SP',
+    category: 'ELETRÔNICOS',
+    verified: true,
+    productsCount: '+3.840 produtos',
+    description: 'Eletrônicos inteligentes, smartwatches serie 8 e 9, fones bluetooth ANC e projetores 4K de alta conversão importados com nota fiscal.',
+    mainImage: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&q=80&w=300',
+    highlights: [
+      { name: 'Mini Projetor Portátil 4K', image: 'https://images.unsplash.com/photo-1535016120720-40c646bebbdc?auto=format&fit=crop&q=80&w=150' },
+      { name: 'Smartwatch Serie 8 Ultra Pro', image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&q=80&w=150' },
+      { name: 'Fone Bluetooth Pro Wireless', image: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&q=80&w=150' },
+    ],
+  },
+  {
+    id: 'lumina',
+    name: 'Lumina Beauty Cosméticos & Skincare',
+    address: 'Av. Paulista, 1078 - Bela Vista, São Paulo - SP',
+    category: 'COSMÉTICOS',
+    verified: true,
+    productsCount: '+1.420 produtos',
+    description: 'Linha completa de perfumes, body splash virais, escovas alisadoras e produtos de estética certificados pela ANVISA prontos para o TikTok Shop.',
+    mainImage: 'https://images.unsplash.com/photo-1522338242992-e1a54906a8da?auto=format&fit=crop&q=80&w=300',
+    highlights: [
+      { name: 'Escova Alisadora 3 em 1 Ionizada', image: 'https://images.unsplash.com/photo-1522338242992-e1a54906a8da?auto=format&fit=crop&q=80&w=150' },
+      { name: 'Kit Body Splash Obsession', image: 'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?auto=format&fit=crop&q=80&w=150' },
+      { name: 'Sérum Facial Vitamina C Ultra', image: 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&q=80&w=150' },
+    ],
+  },
+  {
+    id: 'hometech',
+    name: 'HomeTech Prime Casa & Decoração',
+    address: 'Rua das Flores, 450 - Mooca, São Paulo - SP',
+    category: 'CASA & JARDIM',
+    verified: true,
+    productsCount: '+2.100 produtos',
+    description: 'Painéis ripados autocolantes, fitas de LED inteligentes, organizadores e luminárias de monitor para setup gamer e home office.',
+    mainImage: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&q=80&w=300',
+    highlights: [
+      { name: 'Kit Painel Ripado Decoração', image: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&q=80&w=150' },
+      { name: 'Lâmpada Barra LED Monitor RGB', image: 'https://images.unsplash.com/photo-1547082299-de196ea013d6?auto=format&fit=crop&q=80&w=150' },
+      { name: 'Umidificador Ultrassônico Flame', image: 'https://images.unsplash.com/photo-1585771724684-38269d6639fd?auto=format&fit=crop&q=80&w=150' },
+    ],
+  },
+  {
+    id: 'trendfit',
+    name: 'TrendFit Moda Fitness & Streetwear - SP',
+    address: 'Rua Miller, 420 - Brás, São Paulo - SP',
+    category: 'MODA',
+    verified: true,
+    productsCount: '+3.150 produtos',
+    description: 'Polo fabril de moda fitness sem costura, leggings levanta bumbum, bermudas térmicas e streetwear com etiquetas personalizáveis e despacho no mesmo dia.',
+    mainImage: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&q=80&w=300',
+    highlights: [
+      { name: 'Legging Levanta Bumbum 3D', image: 'https://images.unsplash.com/photo-1506619216599-9d16d0903dfd?auto=format&fit=crop&q=80&w=150' },
+      { name: 'Top Fitness Dry Sem Costura', image: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&q=80&w=150' },
+      { name: 'Bermuda Térmica Compressão', image: 'https://images.unsplash.com/photo-1556906781-9a412961c28c?auto=format&fit=crop&q=80&w=150' },
+    ],
+  },
+  {
+    id: 'autopro',
+    name: 'AutoPro Distribuidora Automotiva - PR',
+    address: 'Av. das Torres, 3100 - Curitiba - PR',
+    category: 'AUTOMOTIVO',
+    verified: true,
+    productsCount: '+1.890 produtos',
+    description: 'Líder em acessórios automotivos de alta demanda: transmissores bluetooth, suportes magnéticos de indução, compressores de pneus digitais e lâmpadas LED.',
+    mainImage: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=300',
+    highlights: [
+      { name: 'Transmissor Bluetooth FM 5.0', image: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&q=80&w=150' },
+      { name: 'Suporte Celular Veicular MagSafe', image: 'https://images.unsplash.com/photo-1584438784894-089d6a62b8fa?auto=format&fit=crop&q=80&w=150' },
+      { name: 'Compressor Ar Portátil USB', image: 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&q=80&w=150' },
+    ],
+  },
+  {
+    id: 'petlovers',
+    name: 'PetLovers Distribuidora Pet Care - SP',
+    address: 'Rod. Dom Pedro I, km 132 - Campinas - SP',
+    category: 'PET SHOP',
+    verified: true,
+    productsCount: '+1.650 produtos',
+    description: 'Distribuidora especializada em achadinhos virais para pets: bebedouros elétricos silenciosos, escovas com vapor tira-pelos e brinquedos interativos.',
+    mainImage: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&q=80&w=300',
+    highlights: [
+      { name: 'Bebedouro Fonte Automática Pet', image: 'https://images.unsplash.com/photo-1548767797-d8c844163c4c?auto=format&fit=crop&q=80&w=150' },
+      { name: 'Escova a Vapor Tira Pelos 3 em 1', image: 'https://images.unsplash.com/photo-1576201836106-db1758fd1c97?auto=format&fit=crop&q=80&w=150' },
+      { name: 'Brinquedo Interativo Laser Pet', image: 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=150' },
+    ],
+  },
+  {
+    id: 'playzone',
+    name: 'PlayZone Distribuidora Games & Geek - SP',
+    address: 'Rua Santa Ifigênia, 280 - Centro, São Paulo - SP',
+    category: 'GAMER',
+    verified: true,
+    productsCount: '+2.400 produtos',
+    description: 'Acessórios gamers campeões de vendas no TikTok Shop: headsets surround 7.1, teclados mecânicos compactos RGB, mousepads gamers gigantes e iluminação.',
+    mainImage: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=300',
+    highlights: [
+      { name: 'Headset Gamer 7.1 Surround RGB', image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&q=80&w=150' },
+      { name: 'Teclado Mecânico Compacto 60%', image: 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?auto=format&fit=crop&q=80&w=150' },
+      { name: 'Mousepad Gamer Speed Extra Grande', image: 'https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?auto=format&fit=crop&q=80&w=150' },
+    ],
+  },
+];
+
+const ALL_SUPPLIER_IDS = ALL_SUPPLIERS.map(s => s.id);
+
 export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
   const { data: session } = useSession();
   const [filter, setFilter] = useState('Todos (8)');
   const [search, setSearch] = useState('');
-  const [activated, setActivated] = useState<string[]>(['sportsfull', 'innova']);
+  const [activated, setActivated] = useState<string[]>(ALL_SUPPLIER_IDS);
   const [isUnlockedSecret, setIsUnlockedSecret] = useState(false);
+
+  // Initialize and persist activated suppliers in localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('decolashop_activated_suppliers');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setActivated(parsed);
+          return;
+        }
+      }
+      // If nothing saved yet, default all 8 active so user has full catalog access!
+      setActivated(ALL_SUPPLIER_IDS);
+      localStorage.setItem('decolashop_activated_suppliers', JSON.stringify(ALL_SUPPLIER_IDS));
+    } catch {
+      // ignore
+    }
+  }, []);
 
   useEffect(() => {
     const checkBump = () => {
@@ -52,84 +196,39 @@ export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
   };
 
   const toggleActivate = (id: string, name: string) => {
+    let updated: string[];
     if (activated.includes(id)) {
-      setActivated(activated.filter(i => i !== id));
+      updated = activated.filter(i => i !== id);
       toast(`${name} desativado`);
     } else {
-      setActivated([...activated, id]);
+      updated = [...activated, id];
       toast.success(`🎉 ${name} ativado com sucesso! Estoque sincronizado.`);
+    }
+    setActivated(updated);
+    try {
+      localStorage.setItem('decolashop_activated_suppliers', JSON.stringify(updated));
+    } catch {
+      // ignore
     }
   };
 
-  const suppliers = [
-    {
-      id: 'sportsfull',
-      name: 'SportsFull Distribuidora Oficial - SP',
-      address: 'Rua Doutor Luís da Fonseca Galvão, 231 - São Paulo - SP',
-      category: 'ESPORTES',
-      verified: true,
-      productsCount: '+2.850 produtos',
-      description: 'Maior polo de fardamentos esportivos, camisas de time dry-fit personalizáveis, artigos de treino e acessórios para futebol com envio imediato.',
-      mainImage: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=300',
-      highlights: [
-        { name: 'Jogo de Camisas De Jogo 53P', image: 'https://images.unsplash.com/photo-1518091043644-c1d4457512c6?auto=format&fit=crop&q=80&w=150' },
-        { name: 'Camiseta Oversized Streetwear', image: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&q=80&w=150' },
-        { name: 'Kit Uniforme Futebol Amador', image: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&q=80&w=150' },
-      ],
-    },
-    {
-      id: 'innova',
-      name: 'Innova Partners Tech Hub - SP',
-      address: 'Rua Barão Ladislau, 670 - Brás, São Paulo - SP',
-      category: 'ELETRÔNICOS',
-      verified: true,
-      productsCount: '+3.840 produtos',
-      description: 'Eletrônicos inteligentes, smartwatches serie 8 e 9, fones bluetooth ANC e projetores 4K de alta conversão importados com nota fiscal.',
-      mainImage: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&q=80&w=300',
-      highlights: [
-        { name: 'Mini Projetor Portátil 4K', image: 'https://images.unsplash.com/photo-1535016120720-40c646bebbdc?auto=format&fit=crop&q=80&w=150' },
-        { name: 'Smartwatch Serie 8 Ultra Pro', image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&q=80&w=150' },
-        { name: 'Fone Bluetooth Pro Wireless', image: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&q=80&w=150' },
-      ],
-    },
-    {
-      id: 'lumina',
-      name: 'Lumina Beauty Cosméticos & Skincare',
-      address: 'Av. Paulista, 1078 - Bela Vista, São Paulo - SP',
-      category: 'COSMÉTICOS',
-      verified: true,
-      productsCount: '+1.420 produtos',
-      description: 'Linha completa de perfumes, body splash virais, escovas alisadoras e produtos de estética certificados pela ANVISA prontos para o TikTok Shop.',
-      mainImage: 'https://images.unsplash.com/photo-1522338242992-e1a54906a8da?auto=format&fit=crop&q=80&w=300',
-      highlights: [
-        { name: 'Escova Alisadora 3 em 1 Ionizada', image: 'https://images.unsplash.com/photo-1522338242992-e1a54906a8da?auto=format&fit=crop&q=80&w=150' },
-        { name: 'Kit Body Splash Obsession', image: 'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?auto=format&fit=crop&q=80&w=150' },
-        { name: 'Sérum Facial Vitamina C Ultra', image: 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&q=80&w=150' },
-      ],
-    },
-    {
-      id: 'hometech',
-      name: 'HomeTech Prime Casa & Decoração',
-      address: 'Rua das Flores, 450 - Mooca, São Paulo - SP',
-      category: 'CASA & JARDIM',
-      verified: true,
-      productsCount: '+2.100 produtos',
-      description: 'Painéis ripados autocolantes, fitas de LED inteligentes, organizadores e luminárias de monitor para setup gamer e home office.',
-      mainImage: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&q=80&w=300',
-      highlights: [
-        { name: 'Kit Painel Ripado Decoração', image: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&q=80&w=150' },
-        { name: 'Lâmpada Barra LED Monitor RGB', image: 'https://images.unsplash.com/photo-1547082299-de196ea013d6?auto=format&fit=crop&q=80&w=150' },
-        { name: 'Umidificador Ultrassônico Flame', image: 'https://images.unsplash.com/photo-1585771724684-38269d6639fd?auto=format&fit=crop&q=80&w=150' },
-      ],
-    },
-  ];
+  const handleActivateAll = () => {
+    setActivated(ALL_SUPPLIER_IDS);
+    try {
+      localStorage.setItem('decolashop_activated_suppliers', JSON.stringify(ALL_SUPPLIER_IDS));
+    } catch {}
+    toast.success('🎉 Todos os 8 fornecedores homologados foram ativados!');
+  };
+
+  const suppliers = ALL_SUPPLIERS;
 
   const isSecretTab = filter.includes('Lista Secreta');
 
   const filteredSuppliers = suppliers.filter((s) => {
     const matchFilter = filter === 'Todos (8)' || 
       (filter === 'Meus Ativos' && activated.includes(s.id)) ||
-      s.category.toLowerCase() === filter.toLowerCase();
+      s.category.toLowerCase().includes(filter.toLowerCase()) ||
+      filter.toLowerCase().includes(s.category.toLowerCase());
     const matchSearch = s.name.toLowerCase().includes(search.toLowerCase()) || 
       s.description.toLowerCase().includes(search.toLowerCase()) ||
       s.address.toLowerCase().includes(search.toLowerCase());
@@ -268,6 +367,10 @@ export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
             'Eletrônicos',
             'Cosméticos',
             'Casa & Jardim',
+            'Moda',
+            'Automotivo',
+            'Pet Shop',
+            'Gamer',
           ].map((cat) => (
             <button
               key={cat}
@@ -421,16 +524,29 @@ export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
       ) : (
         /* STANDARD SUPPLIERS VIEW */
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <h2 className="text-base font-black text-white flex items-center gap-2">
               <span>Fornecedores Verificados Padrão</span>
-              <span className="text-xs text-[#22c55e] bg-[#22c55e]/15 px-2 py-0.5 rounded-full border border-[#22c55e]/30">
-                {filteredSuppliers.length} ativos
+              <span className="text-xs text-[#22c55e] bg-[#22c55e]/15 px-2.5 py-0.5 rounded-full border border-[#22c55e]/30 font-bold">
+                {activated.length} de {suppliers.length} ativados
               </span>
             </h2>
-            <span className="text-[11px] text-slate-400 font-medium">
-              Estoque sincronizado em tempo real via API
-            </span>
+            <div className="flex items-center gap-2">
+              {activated.length < suppliers.length ? (
+                <button
+                  type="button"
+                  onClick={handleActivateAll}
+                  className="text-xs font-bold text-[#4ade80] hover:text-[#22c55e] bg-[#22c55e]/10 border border-[#22c55e]/30 px-3 py-1 rounded-xl transition-all hover:bg-[#22c55e]/20 cursor-pointer flex items-center gap-1.5"
+                >
+                  <CheckCircle2 size={13} />
+                  <span>Ativar Todos ({suppliers.length})</span>
+                </button>
+              ) : (
+                <span className="text-[11px] text-emerald-400 font-bold flex items-center gap-1">
+                  <CheckCircle2 size={13} /> Todos os fornecedores conectados
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
