@@ -79,18 +79,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const requestedPlan = credentials.demoPlan as string | undefined;
         let userPlan = requestedPlan || (isAdmin || email.includes("vip") || email.includes("pro") || !!purchaseCode ? "yearly" : "free");
 
+        let userBumps: string[] = [];
+
         // Try checking in Supabase next_auth.users table
         try {
           const supabaseAdmin = getSupabaseAdmin();
           if (supabaseAdmin) {
             const { data: dbUser } = await supabaseAdmin
               .from("users")
-              .select("plan, plan_expires_at, name")
+              .select("plan, plan_expires_at, name, order_bumps")
               .eq("email", email)
               .single();
 
             if (dbUser?.plan) {
               userPlan = dbUser.plan;
+            }
+            if (dbUser?.order_bumps) {
+              userBumps = dbUser.order_bumps;
             }
           }
         } catch {
@@ -100,8 +105,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const displayName = isAdmin 
           ? "Administrador DecolaShop"
           : email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-
-        const userBumps = (dbUser as any)?.order_bumps || [];
 
         return {
           id: email,

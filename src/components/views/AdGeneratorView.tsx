@@ -77,7 +77,7 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
       const rawPrice = typeof selectedProduct.price === 'string'
         ? parseFloat(selectedProduct.price.replace('R$', '').replace('.', '').replace(',', '.').trim()) || 99.90
         : (selectedProduct.price || 99.90);
-      addSale(selectedProduct.name || selectedProduct.title, rawPrice, rawPrice * 0.25);
+      addSale(selectedProduct, rawPrice);
     }, 2400);
   };
 

@@ -16,6 +16,8 @@ export interface Product {
   title?: string;
   score?: number;
   supplier?: string;
+  evidence?: any;
+  [key: string]: any;
 }
 
 export const mockProducts: Product[] = [

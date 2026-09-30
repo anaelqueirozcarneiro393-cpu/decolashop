@@ -20,6 +20,7 @@ import {
   Eye
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import SafeImage from '@/components/SafeImage';
 import { mockProducts } from '@/lib/mockData';
 import { useSession } from 'next-auth/react';
 import { hasOrderBump } from '@/lib/orderBumps';

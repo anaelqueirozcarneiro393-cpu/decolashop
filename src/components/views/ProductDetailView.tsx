@@ -139,7 +139,7 @@ export default function ProductDetailView({ product, isSaved, onSave, onNavigate
 
               <div className="space-y-2 pt-4 border-t border-border/30">
                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Top Vídeos:</p>
-                {product.evidence.youtube.topVideos.map((video, i) => (
+                {product.evidence.youtube.topVideos.map((video: any, i: number) => (
                   <div key={i} className="flex justify-between items-center text-[11px] bg-secondary/20 p-2 rounded-lg">
                     <span className="truncate max-w-[150px] font-medium italic">"{video.title}"</span>
                     <span className="font-bold text-primary">{video.views} views</span>
@@ -186,7 +186,7 @@ export default function ProductDetailView({ product, isSaved, onSave, onNavigate
 
               <div className="space-y-2 pt-4 border-t border-border/30 text-[11px]">
                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Exemplos de conversas:</p>
-                {product.evidence.communities.examples.map((ex, i) => (
+                {product.evidence.communities.examples.map((ex: any, i: number) => (
                   <div key={i} className="flex gap-2 bg-secondary/20 p-2 rounded-lg">
                     <span className="text-primary">•</span>
                     <span className="text-muted-foreground">{ex}</span>
