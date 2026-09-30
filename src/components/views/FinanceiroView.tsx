@@ -327,12 +327,15 @@ export default function FinanceiroView() {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-300 mb-1.5">Valor do Saque (R$)</label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-bold text-slate-300">Valor do Saque (R$)</label>
+              <span className="text-[10px] text-[#22c55e] font-extrabold uppercase tracking-wide">Mínimo: R$ 2.000,00</span>
+            </div>
             <input
               type="text"
               value={withdrawAmount}
               onChange={(e) => setWithdrawAmount(e.target.value)}
-              placeholder="0,00"
+              placeholder="Mínimo R$ 2.000,00"
               className="w-full bg-black/40 border border-white/10 rounded-2xl py-3 px-4 text-xs font-medium text-white focus:outline-none focus:border-[#22c55e]"
             />
           </div>
@@ -341,27 +344,25 @@ export default function FinanceiroView() {
         <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4">
           <span className="text-[11px] text-slate-400 flex items-center gap-1.5">
             <Lock size={12} className="text-[#22c55e]" />
-            <span>Transferências protegidas por criptografia de ponta a ponta BACEN.</span>
+            <span>Transferências protegidas por criptografia de ponta a ponta BACEN • Saque mínimo de R$ 2.000,00.</span>
           </span>
 
-          <button
-            onClick={() => {
-              const val = parseFloat(withdrawAmount.replace('.', '').replace(',', '.'));
-              if (isNaN(val) || val <= 0) {
-                toast.error('Informe um valor válido para solicitar o saque');
-                return;
-              }
-              if (!isAnticipated) {
-                toast.error('Saldo em carência de 30 dias. Clique em Antecipar Saldo para liberar via Pix.');
-                handleAntecipacao();
-                return;
-              }
-              toast.success(`🎉 Saque PIX de R$ ${val.toFixed(2).replace('.', ',')} solicitado com sucesso para a chave ${pixKey}!`);
-            }}
-            className="w-full sm:w-auto py-3 px-6 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-extrabold text-xs uppercase tracking-wider transition-all cursor-pointer"
-          >
-            SOLICITAR SAQUE NORMAL
-          </button>
+          {/* O botão NÃO aparece antes de pagar a taxa. Só aparece após antecipar e NÃO é clicável / não funcional */}
+          {isAnticipated ? (
+            <button
+              type="button"
+              disabled
+              className="w-full sm:w-auto py-3 px-6 rounded-2xl bg-white/10 border border-white/10 text-slate-400 font-extrabold text-xs uppercase tracking-wider cursor-not-allowed opacity-50 select-none pointer-events-none"
+              title="Aguardando liberação do sistema"
+            >
+              SOLICITAR SAQUE PIX (MÍN. R$ 2.000,00)
+            </button>
+          ) : (
+            <div className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/[0.02] border border-white/10 text-slate-400 text-xs font-semibold">
+              <Lock size={13} className="text-amber-400" />
+              <span>Saque liberado após antecipação</span>
+            </div>
+          )}
         </div>
       </div>
 
