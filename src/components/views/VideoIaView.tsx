@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Sparkles, 
   Play, 
@@ -14,13 +14,15 @@ import {
   Mic, 
   Music, 
   Cpu, 
-  ShieldCheck
+  ShieldCheck,
+  Lock,
+  Flame,
+  Eye
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { mockProducts } from '@/lib/mockData';
 import { useSession } from 'next-auth/react';
 import { hasOrderBump } from '@/lib/orderBumps';
-import { Lock, Flame, Eye } from 'lucide-react';
 
 interface VideoIaViewProps {
   product?: any;
