@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { signIn } from "next-auth/react";
 import { Mail, Lock, Key, ExternalLink, ShieldCheck, Sparkles, Crown, Rocket, X, Check, ArrowRight } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import CnpayCheckoutModal from '@/components/checkout/CnpayCheckoutModal';
 
 export default function LoginView() {
   const [email, setEmail] = useState('');
@@ -253,89 +254,16 @@ export default function LoginView() {
 
       </div>
 
-      {/* Modal de Compra / Planos (Aberto ao clicar nos cards de preço) */}
-      {selectedPlanModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="max-w-md w-full bg-[#111726] border border-[#22c55e]/30 rounded-3xl p-6 sm:p-8 shadow-2xl relative">
-            <button
-              onClick={() => setSelectedPlanModal(null)}
-              className="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
-            >
-              <X size={18} />
-            </button>
-
-            <div className="text-center mb-6">
-              <span className="inline-flex items-center gap-1 text-xs font-black uppercase tracking-wider text-[#4ade80] bg-[#22c55e]/15 px-3 py-1 rounded-full border border-[#22c55e]/30 mb-2">
-                {selectedPlanModal === 'lifetime' ? '👑 Plano Vitalício' : '⚡ Plano Mensal'}
-              </span>
-              <h3 className="text-2xl font-black text-white">
-                {selectedPlanModal === 'lifetime' ? 'Acesso Definitivo DecolaShop' : 'Assinatura Mensal DecolaShop'}
-              </h3>
-              <div className="flex items-center justify-center gap-2 mt-2">
-                {selectedPlanModal === 'lifetime' && (
-                  <span className="text-sm text-slate-500 line-through">R$ 297,00</span>
-                )}
-                <span className="text-3xl font-black text-[#22c55e]">
-                  {selectedPlanModal === 'lifetime' ? 'R$ 179,90' : 'R$ 89,90'}
-                </span>
-                <span className="text-xs text-slate-400">
-                  {selectedPlanModal === 'lifetime' ? 'pagamento único' : '/ mês'}
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-2.5 mb-6 text-xs text-slate-300">
-              <div className="flex items-center gap-2">
-                <Check size={16} className="text-[#22c55e] shrink-0" />
-                <span>Mineração ao vivo de produtos Shopee e Mercado Livre</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Check size={16} className="text-[#22c55e] shrink-0" />
-                <span>Fornecedores validados com despacho em 24h</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Check size={16} className="text-[#22c55e] shrink-0" />
-                <span>Gerador de Anúncios e Roteiros virais com IA</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Check size={16} className="text-[#22c55e] shrink-0" />
-                <span>
-                  {selectedPlanModal === 'lifetime' ? '250% de créditos diários para sempre' : '100% de créditos diários'}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Check size={16} className="text-[#22c55e] shrink-0" />
-                <span>Código de compra enviado imediatamente por e-mail</span>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <button
-                type="button"
-                onClick={() => {
-                  toast.success('Redirecionando para o checkout seguro...');
-                  // Em produção pode abrir o checkout Ironpay / Kiwify
-                  window.open('https://decolashop.com.br', '_blank');
-                }}
-                className="w-full py-3.5 bg-[#22c55e] hover:bg-[#16a34a] text-[#080c14] font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg shadow-[#22c55e]/25 flex items-center justify-center gap-2 transition-all"
-              >
-                Comprar Agora com Desconto <ArrowRight size={14} />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedPlanModal(null);
-                  toast('Preencha seu e-mail e código de compra para entrar.', { icon: '🔑' });
-                }}
-                className="w-full py-2.5 text-xs text-slate-400 hover:text-white transition-colors text-center font-medium"
-              >
-                Já possui código? Voltar ao login
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Checkout Nativo Transparente com Order Bumps & CN Pay Pix */}
+      <CnpayCheckoutModal
+        isOpen={!!selectedPlanModal}
+        onClose={() => setSelectedPlanModal(null)}
+        defaultPlan={selectedPlanModal || 'lifetime'}
+        onSuccess={() => {
+          setSelectedPlanModal(null);
+          toast.success('Acesso liberado! Digite seu e-mail para acessar o painel.');
+        }}
+      />
 
     </div>
   );

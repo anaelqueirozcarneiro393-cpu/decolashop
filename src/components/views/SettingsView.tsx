@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Settings, Shield, User, CreditCard, Sparkles, Check, ExternalLink, RefreshCw, Key } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { toast } from 'react-hot-toast';
+import CnpayCheckoutModal from '@/components/checkout/CnpayCheckoutModal';
 
 export default function SettingsView() {
   const { data: session, update } = useSession();
@@ -12,6 +13,7 @@ export default function SettingsView() {
   const isVip = plan !== 'free';
 
   const [isUpdating, setIsUpdating] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const toggleTestPlan = async () => {
     setIsUpdating(true);
@@ -84,7 +86,7 @@ export default function SettingsView() {
             </div>
             <div>
               <h3 className="font-bold text-white">Status da Assinatura</h3>
-              <p className="text-xs text-muted-foreground">Processamento automático via IronPay</p>
+              <p className="text-xs text-muted-foreground">Processamento instantâneo via CN Pay (Pix & Order Bumps)</p>
             </div>
           </div>
 
@@ -98,7 +100,7 @@ export default function SettingsView() {
         <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-3">
           <div className="flex justify-between text-xs">
             <span className="text-muted-foreground">Plano Atual:</span>
-            <span className="font-bold text-white capitalize">{isVip ? 'VIP Anual (Acesso Ilimitado)' : 'Gratuito (Limitado)'}</span>
+            <span className="font-bold text-white capitalize">{isVip ? 'VIP Vitalício (Acesso Ilimitado)' : 'Gratuito (Limitado)'}</span>
           </div>
           <div className="flex justify-between text-xs">
             <span className="text-muted-foreground">Minerador Live em Tempo Real:</span>
@@ -112,14 +114,13 @@ export default function SettingsView() {
 
         <div className="flex flex-col sm:flex-row gap-3 pt-2">
           {!isVip ? (
-            <a
-              href="https://go.ironpayapp.com.br/evspnrga7y"
-              target="_blank"
-              rel="noreferrer"
-              className="flex-1 flex items-center justify-center gap-2 py-3 px-6 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] text-black font-extrabold text-xs hover:from-[#4ade80] hover:to-[#22c55e] transition-all shadow-lg shadow-[#22c55e]/25"
+            <button
+              type="button"
+              onClick={() => setShowUpgradeModal(true)}
+              className="flex-1 flex items-center justify-center gap-2 py-3 px-6 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] text-black font-extrabold text-xs hover:from-[#4ade80] hover:to-[#22c55e] transition-all shadow-lg shadow-[#22c55e]/25 active:scale-95"
             >
-              <Sparkles size={16} /> Fazer Upgrade para VIP Anual (R$ 249/ano)
-            </a>
+              <Sparkles size={16} /> Fazer Upgrade com Order Bumps (CN Pay Pix)
+            </button>
           ) : (
             <div className="flex-1 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold flex items-center gap-2">
               <Check size={16} /> Você já possui todos os recursos premium liberados!
@@ -137,6 +138,13 @@ export default function SettingsView() {
           </button>
         </div>
       </div>
+
+      {/* CN Pay Native Checkout Modal with Order Bumps */}
+      <CnpayCheckoutModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        defaultPlan="lifetime"
+      />
 
       {/* Connected AI Models Status */}
       <div className="glass rounded-3xl p-6 md:p-8 border-border/50 space-y-4">

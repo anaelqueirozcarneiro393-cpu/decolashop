@@ -48,7 +48,7 @@ export default function ReembolsoView({ onNavigate }: ReembolsoViewProps) {
           Central de <span className="apex-gradient-text">Garantia & Reembolso</span>
         </h1>
         <p className="text-muted-foreground text-sm">
-          Sua satisfação ou seu dinheiro de volta. Processamento seguro e automático via IronPay.
+          Sua satisfação ou seu dinheiro de volta. Processamento seguro e automático via CN Pay.
         </p>
       </div>
 

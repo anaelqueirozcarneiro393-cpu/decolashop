@@ -24,9 +24,11 @@ O **DecolaShop** (powered by **Apex Intelligence**) é uma plataforma SaaS full-
    - Lista curada de fornecedores diretos de fábrica (Mega Polo Brás, 25 de Março, Dropshipping Nacional com estoque no Brasil, Importação Direta AliExpress Choice).
    - Acesso a grupos VIP no WhatsApp, canais de alertas no Telegram e Mastermind.
 
-5. **💳 Paywall Dinâmico & Integração IronPay**
-   - Planos: **Gratuito**, **Pro Mensal (R$ 147/mês)** e **VIP Anual (R$ 249/ano)**.
-   - Webhook automático com IronPay (`/api/webhooks/ironpay`) que atualiza status no banco e libera acesso imediatamente.
+5. **💳 Checkout Transparente CN Pay (Pix & Order Bumps)**
+   - Integração direta e nativa via API CN Pay (`/api/cnpay/pix`) sem redirecionamento para checkout externo.
+   - **Order Bumps irresistíveis** no modal com recálculo em tempo real (Lista de Fornecedores, Pack de Vídeos Virais, Robô Espião Telegram).
+   - Geração dinâmica de QR Code Pix e Chave Copia e Cola instantâneos.
+   - Webhook automático CN Pay (`/api/webhooks/cnpay`) que atualiza status no banco e libera acesso imediatamente.
    - Gating visual com efeito de desfoque elegante e modal de conversão.
 
 6. **🔐 Autenticação Híbrida (NextAuth v5 + Supabase + 1-Clique Demo)**
@@ -96,5 +98,6 @@ GROQ_API_KEY="..."
 1. Suba o repositório para o GitHub ou GitLab.
 2. Importe no [Vercel](https://vercel.com).
 3. Adicione as variáveis de ambiente descritas acima.
-4. No painel da **IronPay**, cadastre a URL do webhook apontando para:
-   `https://seu-dominio.com.br/api/webhooks/ironpay`
+4. No painel da **CN Pay** (ou IronPay), cadastre a URL do webhook apontando para:
+   `https://seu-dominio.com.br/api/webhooks/cnpay`
+5. Adicione no ambiente Vercel a variável `CNPAY_API_KEY` com o token gerado na sua conta CN Pay.
