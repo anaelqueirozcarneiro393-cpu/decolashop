@@ -175,45 +175,179 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
       });
   }, []);
 
-  // 1. Carrega dados persistidos do localStorage no mount + Catch-up de vendas offline
+  // 1. Carrega dados persistidos do localStorage no mount + Catch-up de vendas offline cronológico
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (typeof parsed.vendasTotais === 'number') setVendasTotais(parsed.vendasTotais);
-        if (typeof parsed.saldoDisponivel === 'number') setSaldoDisponivel(parsed.saldoDisponivel);
-        if (typeof parsed.visitas === 'number') setVisitas(parsed.visitas);
-        if (typeof parsed.cliques === 'number') setCliques(parsed.cliques);
-        if (typeof parsed.pedidos === 'number') setPedidos(parsed.pedidos);
-        if (typeof parsed.unidades === 'number') setUnidades(parsed.unidades);
-        if (Array.isArray(parsed.hourlyData)) setHourlyData(parsed.hourlyData);
-        if (Array.isArray(parsed.recentSales)) setRecentSales(parsed.recentSales);
+        let currVendasTotais = typeof parsed.vendasTotais === 'number' ? parsed.vendasTotais : 0;
+        let currSaldoDisponivel = typeof parsed.saldoDisponivel === 'number' ? parsed.saldoDisponivel : 0;
+        let currVisitas = typeof parsed.visitas === 'number' ? parsed.visitas : 0;
+        let currCliques = typeof parsed.cliques === 'number' ? parsed.cliques : 0;
+        let currPedidos = typeof parsed.pedidos === 'number' ? parsed.pedidos : 0;
+        let currUnidades = typeof parsed.unidades === 'number' ? parsed.unidades : 0;
+        let currHourlyData: ChartHour[] = Array.isArray(parsed.hourlyData) ? [...parsed.hourlyData] : [...CLEAN_HOURLY];
+        let currRecentSales: SaleItem[] = Array.isArray(parsed.recentSales) ? [...parsed.recentSales] : [];
+
         if (parsed.intervalMode) setIntervalMode(parsed.intervalMode);
         if (parsed.minSeconds) setMinSeconds(parsed.minSeconds);
         if (parsed.maxSeconds) setMaxSeconds(parsed.maxSeconds);
         if (parsed.fixedSeconds) setFixedSeconds(parsed.fixedSeconds);
         if (parsed.selectedProductId) setSelectedProductId(parsed.selectedProductId);
 
-        // Sistema Inteligente de Vendas Offline:
-        // Se o usuário ficou fora por mais de 4 minutos (240s), calcula vendas acumuladas enquanto esteve fora
+        // Sistema Inteligente Cronológico de Vendas Offline:
+        // Se o usuário ficou fora por mais de 4 minutos (240s), reconstrói a linha do tempo com datas/horas exatas
         if (parsed.lastActiveTimestamp && typeof parsed.lastActiveTimestamp === 'number') {
           const nowMs = Date.now();
           const elapsedMs = nowMs - parsed.lastActiveTimestamp;
-          if (elapsedMs >= 240_000) { // 4 minutos
-            // Média de 1 venda a cada ~8 minutos (480s), limitado a no máximo 4 vendas por retorno
-            const offlineSales = Math.min(4, Math.max(1, Math.floor(elapsedMs / (8 * 60 * 1000))));
-            setTimeout(() => {
-              for (let i = 0; i < offlineSales; i++) {
-                addSale();
+
+          if (elapsedMs >= 240_000) { // pelo menos 4 minutos
+            const elapsedMinutes = Math.floor(elapsedMs / 60_000);
+            
+            // Quantidade de vendas realista baseada no tempo fora
+            let count = 0;
+            if (elapsedMinutes < 60) {
+              // 4 a 60 min: média de 1 venda a cada 8 a 12 min
+              count = Math.max(1, Math.min(5, Math.floor(elapsedMinutes / 9)));
+            } else if (elapsedMinutes < 360) {
+              // 1 a 6 horas: 3 a 10 vendas
+              count = Math.max(3, Math.min(10, Math.floor(elapsedMinutes / 28)));
+            } else if (elapsedMinutes < 1440) {
+              // 6 a 24 horas: 10 a 18 vendas (dia de operação saudável)
+              count = Math.max(8, Math.min(18, Math.floor(elapsedMinutes / 75)));
+            } else {
+              // Mais de 24 horas (dias): teto balanceado de 16 a 22 vendas
+              count = Math.floor(16 + Math.random() * 6);
+            }
+
+            if (count > 0) {
+              const catalog = mockProducts.length > 0 ? mockProducts : [];
+              const timeWindow = elapsedMs - 120_000; // até 2 min antes do momento presente
+              const step = Math.max(60_000, timeWindow / count);
+
+              let offlineGrossTotal = 0;
+              let offlineCommissionTotal = 0;
+              const generatedSales: SaleItem[] = [];
+
+              for (let i = 0; i < count; i++) {
+                // Intervalo natural com jitter aleatório para evitar horas perfeitamente lineares
+                const jitter = (Math.random() - 0.5) * 0.4 * step;
+                const saleTimestamp = parsed.lastActiveTimestamp + (i + 0.5) * step + jitter;
+                const saleDate = new Date(Math.min(nowMs - 60_000, Math.max(parsed.lastActiveTimestamp + 60_000, saleTimestamp)));
+                
+                // Escolhe produto variado do catálogo
+                const product = catalog[Math.floor(Math.random() * catalog.length)] || {
+                  name: 'Smartwatch W9 Pro Ultra Series 9',
+                  price: 149.90,
+                  image_url: 'https://images.unsplash.com/photo-1579586337278-3befd40fd17a?auto=format&fit=crop&q=80&w=800'
+                };
+                
+                let rawPrice = 149.90;
+                if (typeof product.price === 'number') {
+                  rawPrice = product.price;
+                } else if (typeof product.price === 'string') {
+                  const clean = product.price.replace('R$', '').replace(/\s/g, '').replace('.', '').replace(',', '.').trim();
+                  rawPrice = parseFloat(clean) || 149.90;
+                }
+                const comm = Math.round(rawPrice * 0.32 * 100) / 100;
+
+                offlineGrossTotal += rawPrice;
+                offlineCommissionTotal += comm;
+
+                // Formatação exata de data e hora do passado
+                const isToday = saleDate.toDateString() === new Date(nowMs).toDateString();
+                const isYesterday = saleDate.toDateString() === new Date(nowMs - 86400000).toDateString();
+                
+                let formattedTime = '';
+                const hh = String(saleDate.getHours()).padStart(2, '0');
+                const mm = String(saleDate.getMinutes()).padStart(2, '0');
+
+                if (isToday) {
+                  formattedTime = `Hoje, ${hh}:${mm}`;
+                } else if (isYesterday) {
+                  formattedTime = `Ontem, ${hh}:${mm}`;
+                } else {
+                  const dd = String(saleDate.getDate()).padStart(2, '0');
+                  const mo = String(saleDate.getMonth() + 1).padStart(2, '0');
+                  formattedTime = `${dd}/${mo}, ${hh}:${mm}`;
+                }
+
+                generatedSales.push({
+                  id: `TX-${Math.floor(1000 + Math.random() * 9000)}`,
+                  product: product.name || (product as any).title || 'Produto DecolaShop',
+                  value: rawPrice,
+                  commission: comm,
+                  time: formattedTime,
+                  image: product.image_url,
+                });
+
+                // Alimenta o gráfico horário no bloco de horas correto
+                const bracketHour = String(Math.floor(saleDate.getHours() / 2) * 2).padStart(2, '0');
+                currHourlyData = currHourlyData.map(h => {
+                  if (h.hour === bracketHour) {
+                    if (isToday) {
+                      return { ...h, valHoje: Math.round(((h.valHoje || 0) + rawPrice) * 100) / 100 };
+                    } else if (isYesterday) {
+                      return { ...h, valOntem: Math.round(((h.valOntem || 0) + rawPrice) * 100) / 100 };
+                    }
+                  }
+                  return h;
+                });
               }
-              toast.success(`🔥 Enquanto você esteve fora, sua loja gerou ${offlineSales} ${offlineSales === 1 ? 'nova venda' : 'novas vendas'} no piloto automático!`, {
-                duration: 6000,
-                icon: '🚀'
-              });
-            }, 1800);
+
+              // Organiza extrato do mais recente para o mais antigo
+              currRecentSales = [...generatedSales.reverse(), ...currRecentSales].slice(0, 30);
+              currVendasTotais = Math.round((currVendasTotais + offlineGrossTotal) * 100) / 100;
+              currSaldoDisponivel = Math.round((currSaldoDisponivel + offlineCommissionTotal) * 100) / 100;
+              currPedidos = currPedidos + count;
+              currUnidades = currUnidades + count;
+              currCliques = currCliques + count * 6;
+              currVisitas = currVisitas + count * 4;
+
+              // Notificação Única Consolidada de Ausência (sem poluição sonora de 10 bips repetidos)
+              setTimeout(() => {
+                if (isSoundEnabledRef.current) {
+                  playCashChime();
+                }
+                toast.custom((t) => (
+                  <div className={`p-4 rounded-2xl bg-[#0c1220]/95 border border-[#22c55e]/50 shadow-2xl shadow-[#22c55e]/20 text-white max-w-sm backdrop-blur-xl transition-all ${
+                    t.visible ? 'animate-in slide-in-from-top-3 duration-300' : 'animate-out fade-out duration-200'
+                  }`}>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-[#22c55e] bg-[#22c55e]/15 px-2 py-0.5 rounded-full border border-[#22c55e]/30 flex items-center gap-1">
+                        <span>🚀</span> Relatório de Ausência
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-mono">Piloto Automático</span>
+                    </div>
+                    <p className="text-xs font-bold text-slate-100 leading-snug">
+                      Enquanto você esteve fora, sua loja realizou <strong className="text-[#4ade80] font-black">{count} novas vendas</strong>!
+                    </p>
+                    <div className="mt-2.5 pt-2 border-t border-white/10 flex items-center justify-between text-xs">
+                      <div>
+                        <span className="text-[10px] text-slate-400 block">Faturamento</span>
+                        <strong className="text-white font-mono">R$ {offlineGrossTotal.toFixed(2).replace('.', ',')}</strong>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] text-slate-400 block">Lucro Líquido</span>
+                        <strong className="text-[#22c55e] font-mono text-sm">+R$ {offlineCommissionTotal.toFixed(2).replace('.', ',')}</strong>
+                      </div>
+                    </div>
+                  </div>
+                ), { duration: 7500 });
+              }, 1200);
+            }
           }
         }
+
+        setVendasTotais(currVendasTotais);
+        setSaldoDisponivel(currSaldoDisponivel);
+        setVisitas(currVisitas);
+        setCliques(currCliques);
+        setPedidos(currPedidos);
+        setUnidades(currUnidades);
+        setHourlyData(currHourlyData);
+        setRecentSales(currRecentSales);
       }
     } catch {
       // ignore
