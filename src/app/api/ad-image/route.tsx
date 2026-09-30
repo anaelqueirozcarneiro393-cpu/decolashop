@@ -72,13 +72,16 @@ export async function GET(req: NextRequest) {
           localFilename = 'bandeira_brasil_2026.png';
         } else if (fetchUrl.includes('/images/')) {
           isLocalBypass = true;
-          localFilename = fetchUrl.split('/images/')[1]?.split('?')[0] || '';
+          const rawName = fetchUrl.split('/images/')[1]?.split('?')[0] || '';
+          localFilename = path.basename(rawName); // Strips directory traversal (../, ..\)
         }
         
         if (isLocalBypass && localFilename) {
-          const localPath = path.join(process.cwd(), 'public', 'images', localFilename);
-          console.log(`Checking local bypass path: ${localPath}`);
-          if (fs.existsSync(localPath)) {
+          const imagesDir = path.resolve(process.cwd(), 'public', 'images');
+          const localPath = path.resolve(imagesDir, localFilename);
+          
+          // Strict Path Traversal Defense: Ensure file strictly resides inside public/images
+          if (localPath.startsWith(imagesDir) && fs.existsSync(localPath)) {
             const buffer = fs.readFileSync(localPath);
             const base64 = buffer.toString('base64');
             

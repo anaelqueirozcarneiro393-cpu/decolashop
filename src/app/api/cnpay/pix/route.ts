@@ -110,9 +110,9 @@ export async function POST(req: Request) {
     const transactionId = `DECOLA-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://decolashop.vercel.app';
 
-    // CN Pay Keys
-    const cnpayPublicKey = process.env.CNPAY_PUBLIC_KEY || process.env.CNPAY_API_KEY || 'iamironman2001m_xfa4zgezewf6mnqk';
-    const cnpaySecretKey = process.env.CNPAY_SECRET_KEY || '319bngqwoe9ggd3p4vafnhgf26g6dkvd8ikkl5jsvirjmten7mu1d2q63cbpui6w';
+    // CN Pay Keys (read strictly from environment variables)
+    const cnpayPublicKey = process.env.CNPAY_PUBLIC_KEY || process.env.CNPAY_API_KEY || '';
+    const cnpaySecretKey = process.env.CNPAY_SECRET_KEY || '';
     const cnpayBaseUrl = process.env.CNPAY_BASE_URL || process.env.CNPAY_API_URL || 'https://painel.appcnpay.com/api/v1';
 
     console.log(`[CN Pay Pix Request] Total: R$ ${total} - Cliente: ${customer.email} - CPF: ${cleanCpf}`);
@@ -268,8 +268,8 @@ export async function POST(req: Request) {
 
 // Quick health check to test if CN Pay has approved the seller account
 export async function GET() {
-  const cnpayPublicKey = process.env.CNPAY_PUBLIC_KEY || process.env.CNPAY_API_KEY || 'iamironman2001m_xfa4zgezewf6mnqk';
-  const cnpaySecretKey = process.env.CNPAY_SECRET_KEY || '319bngqwoe9ggd3p4vafnhgf26g6dkvd8ikkl5jsvirjmten7mu1d2q63cbpui6w';
+  const cnpayPublicKey = process.env.CNPAY_PUBLIC_KEY || process.env.CNPAY_API_KEY || '';
+  const cnpaySecretKey = process.env.CNPAY_SECRET_KEY || '';
   const cnpayBaseUrl = process.env.CNPAY_BASE_URL || process.env.CNPAY_API_URL || 'https://painel.appcnpay.com/api/v1';
 
   try {
