@@ -43,7 +43,7 @@ const navItems = [
 
 export default function Sidebar({ currentView, onNavigate, isOpen, setIsOpen }: SidebarProps) {
   const { data: session } = useSession();
-  const userEmail = session?.user?.email || 'nextshopsaas@gmail.com';
+  const userEmail = session?.user?.email || 'admin@decolashop.com';
 
   return (
     <aside className={cn(
@@ -53,16 +53,20 @@ export default function Sidebar({ currentView, onNavigate, isOpen, setIsOpen }: 
       <div className="flex flex-col h-full px-4 py-6 overflow-y-auto">
         {/* Brand Header */}
         <div className="flex items-center justify-between mb-8 px-2 flex-shrink-0">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => onNavigate('dashboard')}>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#22c55e] to-[#15803d] flex items-center justify-center shadow-lg shadow-[#22c55e]/30 text-black">
-              <Zap className="w-6 h-6 fill-current" />
+          <div className="flex items-center gap-3 cursor-pointer group" onClick={() => onNavigate('dashboard')}>
+            <div className="relative w-10 h-10 rounded-xl overflow-hidden border border-[#22c55e]/40 shadow-lg shadow-[#22c55e]/25 flex-shrink-0 bg-black group-hover:border-[#22c55e] transition-all group-hover:scale-105">
+              <img 
+                src="/images/decolashop-icon.jpg" 
+                alt="DecolaShop Logo" 
+                className="w-full h-full object-cover"
+              />
             </div>
             <div>
               <span className="text-xl font-black tracking-tight text-white block leading-tight">
                 Decola<span className="text-transparent bg-clip-text bg-gradient-to-r from-[#22c55e] to-[#4ade80]">Shop</span>
               </span>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
-                NextShop SaaS
+                Escala & Vendas IA
               </span>
             </div>
           </div>

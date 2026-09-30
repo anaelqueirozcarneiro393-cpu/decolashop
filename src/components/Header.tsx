@@ -18,13 +18,21 @@ export default function Header({ onMenuClick, session: propSession }: HeaderProp
   
   return (
     <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between px-4 md:px-8 bg-[#090d16]/90 backdrop-blur-xl border-b border-white/10 text-white">
-      <div className="flex items-center gap-4 md:hidden">
+      <div className="flex items-center gap-3 md:hidden">
         <button 
           onClick={onMenuClick}
           className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 transition-colors"
         >
           <Menu className="w-5 h-5" />
         </button>
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg overflow-hidden border border-[#22c55e]/40 shadow-sm flex-shrink-0 bg-black">
+            <img src="/images/decolashop-icon.jpg" alt="DecolaShop" className="w-full h-full object-cover" />
+          </div>
+          <span className="font-black text-sm text-white">
+            Decola<span className="text-[#22c55e]">Shop</span>
+          </span>
+        </div>
       </div>
 
       <div className="flex-1 max-w-xl hidden md:block">
@@ -60,17 +68,17 @@ export default function Header({ onMenuClick, session: propSession }: HeaderProp
           <div className="flex items-center gap-3 pl-1 cursor-pointer group">
             <div className="flex flex-col items-end hidden sm:flex">
               <span className="text-xs font-bold text-slate-200 group-hover:text-[#4ade80] transition-colors">
-                {session.user?.name || 'nextshopsaas@gmail.com'}
+                {session.user?.name || session.user?.email || 'admin@decolashop.com'}
               </span>
               <span className="text-[10px] font-black uppercase tracking-wider text-[#22c55e]">
                 Admin Master
               </span>
             </div>
-            <div className="w-8 h-8 rounded-xl border border-[#22c55e]/40 overflow-hidden bg-black/50 flex items-center justify-center p-0.5">
+            <div className="w-8 h-8 rounded-xl border border-[#22c55e]/40 overflow-hidden bg-black/50 flex items-center justify-center p-0.5 shadow-md shadow-[#22c55e]/15">
               {session.user?.image ? (
                 <img src={session.user.image} alt="Avatar" className="w-full h-full object-cover rounded-lg" />
               ) : (
-                <User className="w-4 h-4 text-slate-400" />
+                <img src="/images/decolashop-icon.jpg" alt="DecolaShop" className="w-full h-full object-cover rounded-lg" />
               )}
             </div>
           </div>

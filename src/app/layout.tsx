@@ -32,11 +32,12 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   icons: {
     icon: [
+      { url: "/images/decolashop-icon.jpg", type: "image/jpeg" },
       { url: "/favicon.png", type: "image/png" },
       { url: "/icon-512x512.png", sizes: "512x512", type: "image/png" }
     ],
-    shortcut: "/favicon.png",
-    apple: "/icon-512x512.png",
+    shortcut: "/images/decolashop-icon.jpg",
+    apple: "/images/decolashop-icon.jpg",
   },
 };
 

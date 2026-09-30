@@ -64,10 +64,14 @@ export default function LoginView() {
         
         {/* Brand Header */}
         <div className="flex flex-col items-center text-center mb-6">
-          <div className="flex items-center gap-2.5 mb-1.5">
-            {/* DecolaShop Rocket Icon */}
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#22c55e] to-[#4ade80] flex items-center justify-center shadow-lg shadow-[#22c55e]/25 text-[#080c14]">
-              <Rocket className="w-5 h-5 fill-current stroke-[2.5]" />
+          <div className="flex items-center gap-3 mb-2">
+            {/* DecolaShop Official Logo */}
+            <div className="relative w-12 h-12 rounded-2xl overflow-hidden border border-[#22c55e]/40 shadow-xl shadow-[#22c55e]/25 flex-shrink-0 bg-black">
+              <img 
+                src="/images/decolashop-icon.jpg" 
+                alt="DecolaShop Logo" 
+                className="w-full h-full object-cover"
+              />
             </div>
             <h1 className="text-3xl font-black tracking-tight text-white">
               Decola<span className="text-[#22c55e]">Shop</span>
