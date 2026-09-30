@@ -226,10 +226,10 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     selectedProductId
   ]);
 
-  // Taxa de Antecipação: Sobe junto com o faturamento (7% do faturamento), com limite máximo de R$ 150,00
-  const taxaAntecipacao = vendasTotais <= 0 
+  // Taxa de Antecipação: Começa em R$ 50,00 e sobe dinamicamente somando 7% em cima do saldo disponível acumulado, com limite máximo de R$ 150,00
+  const taxaAntecipacao = saldoDisponivel <= 0 
     ? 50 
-    : Math.min(150, Math.max(50, Math.round(vendasTotais * 0.07 * 100) / 100));
+    : Math.min(150, Math.round((50 + saldoDisponivel * 0.07) * 100) / 100);
 
   const addSale = (targetProduct?: Partial<Product>, customPrice?: number) => {
     // Escolhe produto alvo, ou o selecionado no admin, ou aleatório do catálogo
