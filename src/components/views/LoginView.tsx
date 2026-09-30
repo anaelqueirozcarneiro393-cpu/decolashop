@@ -96,10 +96,10 @@ export default function LoginView() {
           <button 
             type="button"
             onClick={() => setSelectedPlanModal('lifetime')}
-            className="flex items-center gap-1 text-[11px] font-black uppercase text-[#22c55e] hover:text-[#4ade80] tracking-wider transition-colors pt-0.5"
-            title="Escolha um plano para se cadastrar"
+            className="flex items-center gap-1 text-[11px] font-black uppercase text-[#22c55e] hover:text-[#4ade80] tracking-wider transition-colors pt-0.5 cursor-pointer"
+            title="Cadastre-se e ative seu acesso"
           >
-            CADASTRE-SE <ExternalLink size={12} className="stroke-[2.5]" />
+            CADASTRE-SE <ArrowRight size={12} className="stroke-[2.5]" />
           </button>
         </div>
 
@@ -176,6 +176,17 @@ export default function LoginView() {
               'ENTRAR NA DECOLASHOP'
             )}
           </button>
+
+          {/* Direct Cadastre-se Link */}
+          <div className="text-center pt-1">
+            <button
+              type="button"
+              onClick={() => setSelectedPlanModal('lifetime')}
+              className="text-xs text-slate-300 hover:text-[#4ade80] transition-colors cursor-pointer font-medium"
+            >
+              Não tem uma conta? <strong className="text-[#22c55e] underline underline-offset-4">Cadastre-se aqui</strong>
+            </button>
+          </div>
         </form>
 
         {/* Separator / Plans Header */}

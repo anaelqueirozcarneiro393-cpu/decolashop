@@ -62,7 +62,7 @@ export default function PaywallOverlay() {
                 <div className="w-full bg-black/40 border border-white/10 hover:border-[#22c55e]/40 transition-all rounded-2xl p-5 cursor-pointer group hover:bg-black/60">
                   <div className="flex justify-between items-center mb-1">
                     <h3 className="text-base font-bold text-white group-hover:text-[#4ade80] transition-colors">Plano Mensal</h3>
-                    <span className="text-lg font-black text-white">R$ 49,90<span className="text-xs text-slate-400 font-normal">/mês</span></span>
+                    <span className="text-lg font-black text-white">R$ 89,90<span className="text-xs text-slate-400 font-normal">/mês</span></span>
                   </div>
                   <p className="text-slate-400 text-xs">Acesso completo mensal com cancelamento a qualquer momento.</p>
                 </div>
@@ -81,7 +81,7 @@ export default function PaywallOverlay() {
                     <h3 className="text-base font-black text-black">Plano Vitalício VIP</h3>
                     <div className="text-right">
                       <span className="block text-[11px] text-black/60 line-through">R$ 297,00</span>
-                      <span className="text-xl font-black text-black">R$ 149,90<span className="text-xs text-black/80 font-bold"> único</span></span>
+                      <span className="text-xl font-black text-black">R$ 179,90<span className="text-xs text-black/80 font-bold"> único</span></span>
                     </div>
                   </div>
                   <p className="text-black/80 text-xs font-semibold">Acesso definitivo sem mensalidades.</p>

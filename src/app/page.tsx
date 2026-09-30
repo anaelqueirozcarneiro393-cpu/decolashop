@@ -121,6 +121,9 @@ export default function AppContainer() {
   }
 
   if (status === "unauthenticated") {
+    if (typeof window !== 'undefined' && window.location.pathname !== '/') {
+      window.history.replaceState(null, '', '/');
+    }
     return <LoginView />;
   }
 
