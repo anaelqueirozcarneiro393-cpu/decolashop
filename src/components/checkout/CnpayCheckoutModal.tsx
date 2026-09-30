@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { signIn } from 'next-auth/react';
+import { unlockOrderBumpsLocally } from '@/lib/orderBumps';
 
 export interface OrderBump {
   id: string;
@@ -274,6 +275,11 @@ export default function CnpayCheckoutModal({
       const confirmData = await confirmRes.json();
 
       if (confirmData.success) {
+        // Unlock order bumps locally for immediate client-side access
+        if (selectedBumps && selectedBumps.length > 0) {
+          unlockOrderBumpsLocally(selectedBumps);
+        }
+
         // 2. Automatically log the user in via NextAuth
         try {
           await signIn('credentials', {

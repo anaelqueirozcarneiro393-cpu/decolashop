@@ -16,9 +16,11 @@ import {
   Cpu, 
   ShieldCheck
 } from 'lucide-react';
-import SafeImage from '@/components/SafeImage';
 import { toast } from 'react-hot-toast';
 import { mockProducts } from '@/lib/mockData';
+import { useSession } from 'next-auth/react';
+import { hasOrderBump } from '@/lib/orderBumps';
+import { Lock, Flame, Eye } from 'lucide-react';
 
 interface VideoIaViewProps {
   product?: any;
@@ -26,6 +28,7 @@ interface VideoIaViewProps {
 }
 
 export default function VideoIaView({ product, onNavigate }: VideoIaViewProps) {
+  const { data: session } = useSession();
   const [selectedProduct, setSelectedProduct] = useState<any>(product || mockProducts[0]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [activeAngle, setActiveAngle] = useState(1);
@@ -34,6 +37,22 @@ export default function VideoIaView({ product, onNavigate }: VideoIaViewProps) {
   const [selectedScriptType, setSelectedScriptType] = useState('achadinho');
   const [selectedModel, setSelectedModel] = useState('viral_velocity');
   const [activeViewMode, setActiveViewMode] = useState<'limpo' | 'social'>('limpo');
+  const [isUnlockedCreatives, setIsUnlockedCreatives] = useState(false);
+
+  useEffect(() => {
+    const checkBump = () => {
+      setIsUnlockedCreatives(hasOrderBump('bump_criativos', session));
+    };
+    checkBump();
+    window.addEventListener('decolashop_bumps_updated', checkBump);
+    return () => window.removeEventListener('decolashop_bumps_updated', checkBump);
+  }, [session]);
+
+  const openBumpModal = () => {
+    window.dispatchEvent(new CustomEvent('decolashop_open_bump_modal', { 
+      detail: { bumpId: 'bump_criativos' } 
+    }));
+  };
 
   const angles = [
     { id: 1, label: '01', title: 'Ângulo 1 - Visão Frontal' },
@@ -597,25 +616,159 @@ export default function VideoIaView({ product, onNavigate }: VideoIaViewProps) {
         </div>
       </div>
 
-      {/* Bottom Distribution Info Card */}
-      <div className="bg-[#0d121f]/90 rounded-3xl p-6 border border-white/10 shadow-xl backdrop-blur-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <h3 className="text-sm font-extrabold text-white">
-            Distribuição Inteligente Ativada
-          </h3>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Nossos vídeos com IA são formatados nativamente com aspect ratio 9:16 vertical, prontos para impulsionar o algoritmo orgânico do TikTok, Shorts e Reels e converter telespectadores em compradores.
-          </p>
+      {/* ================= ORDER BUMP: PACK 120+ CRIATIVOS VIRAIS ================= */}
+      <div className="bg-[#0d121f] rounded-3xl p-6 md:p-8 border border-[#22c55e]/30 shadow-2xl backdrop-blur-xl space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-black uppercase tracking-wider mb-2">
+              <Flame size={12} className="text-amber-400" />
+              <span>ORDER BUMP EXCLUSIVO</span>
+            </div>
+            <h2 className="text-xl md:text-2xl font-black text-white">
+              Pack 120+ Vídeos & Criativos Virais Prontos
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Vídeos gravados em alta definição prontos para rodar no TikTok Shop, Reels e Shopee sem marca d'água.
+            </p>
+          </div>
+
+          {!isUnlockedCreatives ? (
+            <button
+              type="button"
+              onClick={openBumpModal}
+              className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-400 to-[#22c55e] text-black font-black text-xs uppercase tracking-wider hover:brightness-110 active:scale-95 shadow-md shadow-amber-500/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+            >
+              <Sparkles size={14} />
+              <span>DESBLOQUEAR POR R$ 14,90</span>
+            </button>
+          ) : (
+            <span className="px-3 py-1 rounded-full bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/40 text-xs font-black shrink-0 flex items-center gap-1">
+              <Check size={13} /> ACERVO LIBERADO (120/120)
+            </span>
+          )}
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
-          <span className="px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-xs font-semibold text-slate-300">
-            ✓ Renderização 60FPS
-          </span>
-          <span className="px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-xs font-semibold text-slate-300">
-            ✓ Voz Neural Ativa
-          </span>
-        </div>
+        {!isUnlockedCreatives ? (
+          /* GATED LOCK VIEW FOR PACK CRIATIVOS */
+          <div className="relative rounded-2xl overflow-hidden border border-amber-500/30 bg-black/40 p-6 sm:p-10 text-center">
+            {/* Blurred background preview */}
+            <div className="absolute inset-0 opacity-25 filter blur-sm pointer-events-none p-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { title: 'Fragrância Golden Virgínia', views: '1.8M' },
+                { title: 'Mini Projetor Portátil 4K', views: '2.4M' },
+                { title: 'Escova Alisadora 3 em 1', views: '950K' },
+                { title: 'Luminária Flame Difusor', views: '3.1M' }
+              ].map((v, i) => (
+                <div key={i} className="aspect-[9/16] rounded-xl bg-slate-800 p-2 flex flex-col justify-end text-left border border-white/10">
+                  <div className="text-[10px] font-bold text-white">{v.title}</div>
+                  <div className="text-[9px] text-[#4ade80]">{v.views} views</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Foreground Lock Message */}
+            <div className="relative z-10 max-w-md mx-auto space-y-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/50 flex items-center justify-center mx-auto text-amber-400 shadow-xl shadow-amber-500/20">
+                <Lock size={24} />
+              </div>
+
+              <div>
+                <h3 className="text-lg font-black text-white">
+                  Acesso Restrito ao Order Bump
+                </h3>
+                <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                  Desbloqueie o download imediato de mais de 120 criativos virais sem marca d'água, com os ganchos mais assistidos do TikTok e Shopee Brasil.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={openBumpModal}
+                className="w-full max-w-sm mx-auto py-3 rounded-xl bg-gradient-to-r from-amber-400 via-[#22c55e] to-emerald-400 text-black font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-500/25 hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Sparkles size={14} />
+                <span>DESBLOQUEAR PACK POR R$ 14,90 VIA PIX</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* UNLOCKED VIRAL CREATIVES GRID */
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              {
+                id: 'c1',
+                title: 'Viral 01: Hook Achadinho WePink',
+                views: '2.4M visualizações',
+                hook: '"Eu não acredito que estão vendendo por esse preço..."',
+                duration: '0:34',
+                thumb: 'https://images.unsplash.com/photo-1522338242992-e1a54906a8da?auto=format&fit=crop&q=80&w=300'
+              },
+              {
+                id: 'c2',
+                title: 'Viral 02: Unboxing Mini Projetor 4K',
+                views: '3.1M visualizações',
+                hook: '"Transformei meu quarto em cinema gastando menos de 100 reais..."',
+                duration: '0:42',
+                thumb: 'https://images.unsplash.com/photo-1535016120720-40c646bebbdc?auto=format&fit=crop&q=80&w=300'
+              },
+              {
+                id: 'c3',
+                title: 'Viral 03: Escova Alisadora 3 em 1',
+                views: '1.9M visualizações',
+                hook: '"Minha mãe nunca mais foi no salão depois disso..."',
+                duration: '0:29',
+                thumb: 'https://images.unsplash.com/photo-1522338242992-e1a54906a8da?auto=format&fit=crop&q=80&w=300'
+              },
+              {
+                id: 'c4',
+                title: 'Viral 04: Difusor Flame Ultrassônico',
+                views: '4.2M visualizações',
+                hook: '"O achadinho da Shopee mais hypado do momento..."',
+                duration: '0:38',
+                thumb: 'https://images.unsplash.com/photo-1585771724684-38269d6639fd?auto=format&fit=crop&q=80&w=300'
+              }
+            ].map((item) => (
+              <div key={item.id} className="bg-black/40 border border-[#22c55e]/30 rounded-2xl p-3 flex flex-col justify-between group hover:border-[#22c55e] transition-all">
+                <div>
+                  <div className="relative aspect-[9/16] rounded-xl overflow-hidden mb-2.5 bg-slate-900">
+                    <img src={item.thumb} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    <div className="absolute top-2 right-2 bg-black/70 px-2 py-0.5 rounded text-[10px] font-mono text-white">
+                      {item.duration}
+                    </div>
+                    <div className="absolute bottom-2 left-2 bg-[#22c55e]/90 text-black text-[10px] font-black px-2 py-0.5 rounded-full">
+                      {item.views}
+                    </div>
+                  </div>
+
+                  <h4 className="text-xs font-bold text-white leading-snug truncate">{item.title}</h4>
+                  <p className="text-[10px] text-slate-400 mt-1 line-clamp-2 italic">{item.hook}</p>
+                </div>
+
+                <div className="pt-2.5 mt-2.5 border-t border-white/10 flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(item.hook);
+                      toast.success('Roteiro e Gancho copiado!');
+                    }}
+                    className="flex-1 py-1.5 px-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[10px] font-bold cursor-pointer transition-colors text-center"
+                  >
+                    Copiar Roteiro
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => toast.success(`📥 Baixando ${item.title} (MP4 HD sem marca d'água)...`)}
+                    className="py-1.5 px-2.5 rounded-lg bg-[#22c55e] hover:bg-[#16a34a] text-black text-[10px] font-black flex items-center gap-1 cursor-pointer transition-colors"
+                  >
+                    <Download size={11} />
+                    <span>Baixar</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

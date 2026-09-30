@@ -42,6 +42,8 @@ export async function POST(req: Request) {
           .maybeSingle();
 
         if (existingUser) {
+          const existingBumps = Array.isArray(existingUser.order_bumps) ? existingUser.order_bumps : [];
+          const newBumps = Array.from(new Set([...existingBumps, ...(bumps || [])]));
           await supabase
             .from('users')
             .update({
@@ -49,7 +51,7 @@ export async function POST(req: Request) {
               plan: userPlan,
               plan_expires_at: expiresAt.toISOString(),
               status: 'active',
-              order_bumps: bumps || [],
+              order_bumps: newBumps,
               phone: phone || null,
               cpf: cpf || null,
               password: password || existingUser.password || 'decola123'

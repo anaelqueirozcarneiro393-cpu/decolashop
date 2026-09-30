@@ -14,7 +14,14 @@ import {
   Flame,
   Award,
   Sparkles,
-  ShoppingBag
+  ShoppingBag,
+  Bot,
+  Send,
+  Lock,
+  Radio,
+  ExternalLink,
+  Copy,
+  Clock
 } from 'lucide-react';
 import { Product } from '@/lib/mockData';
 import { cn } from '@/lib/utils';
@@ -24,6 +31,58 @@ import SafeImage from '@/components/SafeImage';
 import FindGroupsButton from '@/components/FindGroupsButton';
 import { useSession } from 'next-auth/react';
 import PaywallOverlay from './PaywallOverlay';
+import { hasOrderBump } from '@/lib/orderBumps';
+
+const VIP_BOT_ALERTS = [
+  {
+    id: 'alert-1',
+    time: 'Há 4 min',
+    source: 'TIKTOK SHOP BRASIL',
+    badge: '🔥 VIRAL ACELERANDO',
+    badgeColor: 'bg-red-500/20 text-red-400 border-red-500/40',
+    title: 'Mini Seladora Térmica Portátil Recarregável USB',
+    category: 'Cozinha / Utilidades',
+    hypeScore: 98,
+    searchesGrowth: '+460% em 24h',
+    wholesalePrice: 'R$ 8,90',
+    suggestedPrice: 'R$ 49,90',
+    estimatedProfit: 'R$ 41,00/venda',
+    supplier: 'Innova Distribuidora Brás (Despacho 24h)',
+    reason: 'Vídeo orgânico no TikTok bateu 2.8M de views nas últimas 12 horas. Estoque nos fornecedores nacionais disponível.',
+  },
+  {
+    id: 'alert-2',
+    time: 'Há 18 min',
+    source: 'SHOPEE ADS & META',
+    badge: '⚡ PICO DE VENDAS',
+    badgeColor: 'bg-amber-500/20 text-amber-400 border-amber-500/40',
+    title: 'Kit Body Splash Obsession WePink Inspired 200ml',
+    category: 'Beleza & Perfumaria',
+    hypeScore: 95,
+    searchesGrowth: '+320% hoje',
+    wholesalePrice: 'R$ 18,50',
+    suggestedPrice: 'R$ 79,90',
+    estimatedProfit: 'R$ 61,40/venda',
+    supplier: 'Lumina Cosméticos SC (Envio Imediato)',
+    reason: 'Volume de busca explodindo após reviews de influencers no Reels. CPA médio de apenas R$ 12,50.',
+  },
+  {
+    id: 'alert-3',
+    time: 'Há 42 min',
+    source: 'GOOGLE TRENDS BR',
+    badge: '📈 BREAKOUT CONFIRMADO',
+    badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40',
+    title: 'Difusor Ultrassônico Chama Flame com LED 3D',
+    category: 'Casa & Decoração',
+    hypeScore: 92,
+    searchesGrowth: '+510% este mês',
+    wholesalePrice: 'R$ 29,00',
+    suggestedPrice: 'R$ 99,90',
+    estimatedProfit: 'R$ 70,90/venda',
+    supplier: 'MegaTech Import SP (Santa Ifigênia)',
+    reason: 'Tendência forte de inverno e decoração para setup gamer. Margem acima de 240% em vendas diretas.',
+  }
+];
 
 interface MineradorLiveViewProps {
   onNavigate: (view: any, product?: any) => void;
@@ -44,6 +103,22 @@ export default function MineradorLiveView({ onNavigate, savedProducts, onSave }:
   const [sortBy, setSortBy] = useState<'hype' | 'sales' | 'price_desc'>('hype');
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUnlockedBot, setIsUnlockedBot] = useState(false);
+
+  useEffect(() => {
+    const checkBump = () => {
+      setIsUnlockedBot(hasOrderBump('bump_bot_telegram', session));
+    };
+    checkBump();
+    window.addEventListener('decolashop_bumps_updated', checkBump);
+    return () => window.removeEventListener('decolashop_bumps_updated', checkBump);
+  }, [session]);
+
+  const openBumpModal = () => {
+    window.dispatchEvent(new CustomEvent('decolashop_open_bump_modal', { 
+      detail: { bumpId: 'bump_bot_telegram' } 
+    }));
+  };
 
   const fetchProducts = async () => {
     setIsLoading(true);
@@ -137,6 +212,212 @@ export default function MineradorLiveView({ onNavigate, savedProducts, onSave }:
             <RefreshCw size={20} />
           </button>
         </div>
+      </div>
+
+      {/* ROBÔ ESPIÃO VIP: ALERTAS NO TELEGRAM (ORDER BUMP GATED) */}
+      <div className={cn(
+        "rounded-3xl border transition-all duration-500 overflow-hidden relative backdrop-blur-xl p-5 sm:p-7",
+        isUnlockedBot 
+          ? "bg-gradient-to-br from-[#0d1624]/95 via-[#0a101b]/95 to-[#080c14] border-[#22c55e]/40 shadow-2xl shadow-[#22c55e]/10" 
+          : "bg-gradient-to-br from-[#16130b]/95 via-[#0f1118]/95 to-[#080c14] border-amber-500/35 shadow-2xl shadow-amber-500/10"
+      )}>
+        {/* Top ambient glow */}
+        <div className={cn(
+          "absolute top-0 left-0 right-0 h-1",
+          isUnlockedBot 
+            ? "bg-gradient-to-r from-transparent via-[#22c55e] to-transparent shadow-[0_0_15px_#22c55e]" 
+            : "bg-gradient-to-r from-transparent via-amber-400 to-transparent shadow-[0_0_15px_#f59e0b]"
+        )} />
+
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5 pb-5 border-b border-white/10">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border shadow-md",
+                isUnlockedBot
+                  ? "bg-[#22c55e]/15 text-[#4ade80] border-[#22c55e]/40 shadow-[#22c55e]/20"
+                  : "bg-amber-500/15 text-amber-300 border-amber-500/40 shadow-amber-500/20"
+              )}>
+                {isUnlockedBot ? (
+                  <>
+                    <span className="w-2 h-2 rounded-full bg-[#22c55e] animate-ping" />
+                    <span>ROBÔ ATIVO • CANAL VIP TELEGRAM</span>
+                  </>
+                ) : (
+                  <>
+                    <Lock size={12} className="text-amber-400" />
+                    <span>UPGRADE VIP • ORDER BUMP EXCLUSIVO</span>
+                  </>
+                )}
+              </span>
+
+              <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
+                <Radio size={13} className={isUnlockedBot ? "text-[#22c55e] animate-pulse" : "text-amber-400"} />
+                Varredura a cada 15s • Shopee, TikTok Shop & Google Trends
+              </span>
+            </div>
+
+            <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2.5">
+              <Bot className={cn("w-6 h-6", isUnlockedBot ? "text-[#22c55e]" : "text-amber-400")} />
+              <span>Robô Espião DecolaShop</span>
+              <span className="text-xs px-2 py-0.5 rounded-md bg-white/10 text-slate-300 font-mono">v3.4 Live</span>
+            </h2>
+
+            <p className="text-xs text-slate-300 max-w-3xl leading-relaxed">
+              {isUnlockedBot 
+                ? "Você possui acesso vitalício ao Canal VIP de Alertas no Telegram. Todos os produtos que atingem Hype Score acima de 90 e crescimento acelerado de buscas são enviados instantaneamente para você."
+                : "Receba notificações em tempo real direto no seu celular antes que o produto viralize para todo o Brasil e a concorrência dispute o mesmo público."
+              }
+            </p>
+          </div>
+
+          <div className="flex-shrink-0 flex items-center gap-3 w-full lg:w-auto">
+            {isUnlockedBot ? (
+              <a
+                href="https://t.me/+DecolaShopVipBotAlerts"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full lg:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-[#22c55e] to-emerald-400 hover:from-emerald-400 hover:to-[#22c55e] text-black font-black text-xs uppercase tracking-wider shadow-lg shadow-[#22c55e]/25 hover:scale-[1.02] active:scale-95 transition-all"
+              >
+                <Send size={15} />
+                <span>Abrir Canal VIP Telegram</span>
+                <ExternalLink size={13} />
+              </a>
+            ) : (
+              <button
+                type="button"
+                onClick={openBumpModal}
+                className="w-full lg:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-[#22c55e] hover:from-amber-300 hover:to-[#22c55e] text-black font-black text-xs uppercase tracking-wider shadow-xl shadow-amber-500/20 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer"
+              >
+                <Zap size={16} />
+                <span>Desbloquear Robô VIP (+ R$ 27,90)</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* FEED / TEASER SECTION */}
+        {isUnlockedBot ? (
+          /* UNLOCKED: LIVE STREAM OF REAL-TIME VIP ALERTS */
+          <div className="mt-5 space-y-3">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-extrabold text-[#4ade80] flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#22c55e] animate-ping" />
+                Alertas Recentes Sincronizados com o Canal do Telegram:
+              </span>
+              <span className="text-[11px] text-slate-400 font-mono">Atualizado agora mesmo</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+              {VIP_BOT_ALERTS.map((alert) => (
+                <div 
+                  key={alert.id}
+                  className="bg-[#0b101b]/90 border border-[#22c55e]/25 hover:border-[#22c55e]/60 rounded-2xl p-4 flex flex-col justify-between transition-all group hover:shadow-lg hover:shadow-[#22c55e]/10"
+                >
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={cn(
+                        "text-[9px] font-black uppercase px-2 py-0.5 rounded-md border",
+                        alert.badgeColor
+                      )}>
+                        {alert.badge}
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
+                        <Clock size={11} /> {alert.time}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h4 className="text-sm font-black text-white group-hover:text-[#4ade80] transition-colors line-clamp-1">
+                        {alert.title}
+                      </h4>
+                      <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1.5">
+                        <span>🏷️ {alert.category}</span>
+                        <span>•</span>
+                        <span className="text-emerald-400 font-bold">{alert.searchesGrowth}</span>
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 p-2.5 rounded-xl bg-black/40 border border-white/5 text-[11px]">
+                      <div>
+                        <span className="text-[9px] text-slate-400 uppercase block font-bold">Atacado / Venda</span>
+                        <span className="font-bold text-white">{alert.wholesalePrice} ➔ {alert.suggestedPrice}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[9px] text-[#22c55e] uppercase block font-bold">Lucro Líquido</span>
+                        <span className="font-black text-[#4ade80]">{alert.estimatedProfit}</span>
+                      </div>
+                    </div>
+
+                    <p className="text-[11px] text-slate-300 italic line-clamp-2">
+                      &quot;{alert.reason}&quot;
+                    </p>
+                  </div>
+
+                  <div className="pt-3 mt-3 border-t border-white/10 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${alert.title}\nAtacado: ${alert.wholesalePrice} | Venda: ${alert.suggestedPrice}\nFornecedor: ${alert.supplier}`);
+                        toast.success('Detalhes do produto copiados!');
+                      }}
+                      className="flex-1 py-1.5 px-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[10px] font-bold transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                    >
+                      <Copy size={11} />
+                      <span>Copiar Dados</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onNavigate('anuncio', { name: alert.title, price: alert.suggestedPrice })}
+                      className="py-1.5 px-3 rounded-lg bg-[#22c55e] hover:bg-emerald-400 text-black text-[10px] font-black transition-colors flex items-center gap-1 cursor-pointer"
+                    >
+                      <Sparkles size={11} />
+                      <span>Anúncio IA</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          /* LOCKED: TEASER WITH SNEAK PEEK & VALUE PROP */
+          <div className="mt-5 relative rounded-2xl overflow-hidden border border-amber-500/20 bg-black/40 p-4 sm:p-5">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 filter blur-[4px] opacity-40 pointer-events-none select-none">
+              {VIP_BOT_ALERTS.map((alert) => (
+                <div key={alert.id} className="bg-[#111726] border border-white/10 rounded-2xl p-4 space-y-2">
+                  <div className="flex justify-between text-[10px] text-amber-400 font-bold">
+                    <span>{alert.badge}</span>
+                    <span>{alert.time}</span>
+                  </div>
+                  <h4 className="text-sm font-black text-white">{alert.title}</h4>
+                  <div className="h-6 bg-white/10 rounded-lg" />
+                  <p className="text-[11px] text-slate-400">{alert.reason}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Lock Overlay with CTA */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center bg-black/60 backdrop-blur-[2px]">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 mb-2 shadow-lg shadow-amber-500/20">
+                <Lock size={22} />
+              </div>
+              <h3 className="text-base sm:text-lg font-black text-white mb-1">
+                Feed de Alertas em Tempo Real Bloqueado
+              </h3>
+              <p className="text-xs text-slate-300 max-w-md mb-4">
+                Desbloqueie o Robô Espião VIP por pagamento único de <strong className="text-amber-400 font-black">R$ 27,90</strong> e receba os alertas mais quentes diretamente no seu Telegram.
+              </p>
+              <button
+                type="button"
+                onClick={openBumpModal}
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-[#22c55e] text-black font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-400/25 hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center gap-2"
+              >
+                <Zap size={14} />
+                <span>Quero Desbloquear Acesso VIP</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Filters & Sorting */}

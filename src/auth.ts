@@ -101,12 +101,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           ? "Administrador DecolaShop"
           : email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
+        const userBumps = (dbUser as any)?.order_bumps || [];
+
         return {
           id: email,
           name: displayName,
           email: email,
           image: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(email)}`,
           plan: userPlan,
+          order_bumps: userBumps,
         };
       },
     }),
@@ -124,22 +127,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user, trigger, session }) {
       if (user) {
         token.plan = (user as any).plan || "free";
+        token.order_bumps = (user as any).order_bumps || [];
       }
-      if (trigger === "update" && session?.plan) {
-        token.plan = session.plan;
+      if (trigger === "update") {
+        if (session?.plan) token.plan = session.plan;
+        if (session?.order_bumps) token.order_bumps = session.order_bumps;
       }
-      // Refresh plan from Supabase occasionally
+      // Refresh plan and order_bumps from Supabase occasionally
       if (token.email) {
         try {
           const supabaseAdmin = getSupabaseAdmin();
           if (supabaseAdmin) {
             const { data: dbUser } = await supabaseAdmin
               .from("users")
-              .select("plan")
+              .select("plan, order_bumps")
               .eq("email", token.email)
               .single();
             if (dbUser?.plan) {
               token.plan = dbUser.plan;
+            }
+            if (dbUser?.order_bumps) {
+              token.order_bumps = dbUser.order_bumps;
             }
           }
         } catch {
@@ -155,6 +163,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
         // @ts-ignore
         session.user.plan = token.plan || "free";
+        // @ts-ignore
+        session.user.order_bumps = (token.order_bumps as string[]) || [];
       }
       return session;
     },

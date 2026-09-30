@@ -25,6 +25,7 @@ import { Product } from '@/lib/mockData';
 import { Toaster, toast } from 'react-hot-toast';
 
 import LoginView from '@/components/views/LoginView';
+import OrderBumpUpsellModal from '@/components/checkout/OrderBumpUpsellModal';
 
 export type ViewType = 
   | 'dashboard' 
@@ -156,6 +157,9 @@ export default function AppContainer() {
           }}
         />
       )}
+
+      {/* Automatic Non-Spam Order Bump Upsell for Logged In Users */}
+      <OrderBumpUpsellModal />
 
       <div className="flex relative">
         {/* Mobile Backdrop */}
