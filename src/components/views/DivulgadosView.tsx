@@ -490,19 +490,19 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
 
       {/* Campaign Details Modal */}
       {selectedCampaign && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="relative w-full max-w-2xl bg-[#0d121f] border border-white/10 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg bg-[#0d121f] border border-white/10 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-2xl space-y-4 max-h-[88vh] overflow-y-auto">
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-white/10 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#22c55e]/15 border border-[#22c55e]/30 flex items-center justify-center text-[#22c55e]">
-                  <Megaphone size={20} />
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-[#22c55e]/15 border border-[#22c55e]/30 flex items-center justify-center text-[#22c55e]">
+                  <Megaphone size={18} />
                 </div>
                 <div>
-                  <h3 className="text-base sm:text-lg font-bold text-white">
+                  <h3 className="text-base font-bold text-white">
                     Detalhes da Divulgação
                   </h3>
-                  <span className="text-[11px] text-slate-400">
+                  <span className="text-[10px] text-slate-400">
                     ID da Campanha: {selectedCampaign.id}
                   </span>
                 </div>

@@ -230,7 +230,7 @@ export default function OrderBumpUpsellModal() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="max-w-md w-full bg-[#0d121f] border border-[#22c55e]/40 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-2xl relative my-auto text-white">
+      <div className="max-w-md w-full bg-[#0d121f] border border-[#22c55e]/40 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-2xl relative my-auto text-white">
         
         {/* Close / Dismiss */}
         <button
@@ -243,35 +243,35 @@ export default function OrderBumpUpsellModal() {
 
         {/* ================= STEP 1: OFFER MISSING BUMPS ================= */}
         {step === 'offer' && (
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div className="text-center pr-6 pl-1">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-black uppercase tracking-wider mb-1.5">
-                <Flame size={12} className="text-amber-400" />
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-black uppercase tracking-wider mb-1">
+                <Flame size={11} className="text-amber-400" />
                 <span>Oportunidade Única de Upgrade</span>
               </div>
-              <h2 className="text-lg sm:text-xl font-black text-white leading-tight">
+              <h2 className="text-base sm:text-lg font-black text-white leading-tight">
                 Complete seu Arsenal de Vendas
               </h2>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-[11px] text-slate-400 mt-0.5">
                 Você ainda não desbloqueou estes aceleradores. Aproveite a taxa de parceiro agora:
               </p>
             </div>
 
             {/* Missing Bumps List */}
-            <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1 scrollbar-none">
+            <div className="space-y-1.5 max-h-[46vh] overflow-y-auto pr-1 scrollbar-none">
               {missingBumps.map((bump) => {
                 const isSelected = selectedBumps.includes(bump.id);
                 return (
                   <div
                     key={bump.id}
                     onClick={() => toggleBump(bump.id)}
-                    className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start gap-3 ${
+                    className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-start gap-2.5 ${
                       isSelected
                         ? 'bg-[#22c55e]/10 border-[#22c55e]/60 shadow-sm shadow-[#22c55e]/15'
                         : 'bg-white/[0.02] border-white/10 hover:border-white/20 opacity-85'
                     }`}
                   >
-                    <div className="mt-1">
+                    <div className="mt-0.5">
                       <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
                         isSelected ? 'bg-[#22c55e] border-[#22c55e]' : 'border-white/30 bg-black/40'
                       }`}>
@@ -280,7 +280,7 @@ export default function OrderBumpUpsellModal() {
                     </div>
 
                     {bump.image && (
-                      <div className="w-12 h-12 rounded-lg overflow-hidden bg-black/50 border border-[#22c55e]/30 shrink-0">
+                      <div className="w-10 h-10 rounded-lg overflow-hidden bg-black/50 border border-[#22c55e]/30 shrink-0">
                         <img
                           src={bump.image}
                           alt={bump.title}
@@ -290,8 +290,8 @@ export default function OrderBumpUpsellModal() {
                     )}
 
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-1 mb-1">
-                        <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300">
+                      <div className="flex items-center justify-between gap-1 mb-0.5">
+                        <span className="text-[8px] font-black px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300">
                           {bump.tag}
                         </span>
                         <div className="text-right">
@@ -309,7 +309,7 @@ export default function OrderBumpUpsellModal() {
                         <span>{bump.title}</span>
                       </h4>
 
-                      <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                      <p className="text-[10px] text-slate-400 mt-0.5 leading-tight line-clamp-2">
                         {bump.shortDesc}
                       </p>
                     </div>
@@ -322,17 +322,17 @@ export default function OrderBumpUpsellModal() {
             <div className="pt-2 border-t border-white/10 space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-slate-400">Total a desbloquear:</span>
-                <span className="text-xl font-black text-[#22c55e]">
+                <span className="text-lg font-black text-[#22c55e]">
                   R$ {totalPrice.toFixed(2).replace('.', ',')}
                 </span>
               </div>
 
               {apiError && (
-                <div className="p-3.5 rounded-xl bg-amber-500/15 border border-amber-500/35 text-amber-200 text-xs leading-relaxed flex items-start gap-2.5 animate-in fade-in">
-                  <AlertTriangle size={18} className="text-amber-400 shrink-0 mt-0.5" />
+                <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/35 text-amber-200 text-xs leading-relaxed flex items-start gap-2.5 animate-in fade-in">
+                  <AlertTriangle size={16} className="text-amber-400 shrink-0 mt-0.5" />
                   <div>
                     <p className="font-bold text-amber-300">Aviso do Gateway CN Pay</p>
-                    <p className="text-[11px] text-amber-200/90 mt-0.5 leading-snug">{apiError}</p>
+                    <p className="text-[10px] text-amber-200/90 mt-0.5 leading-snug">{apiError}</p>
                   </div>
                 </div>
               )}
@@ -341,7 +341,7 @@ export default function OrderBumpUpsellModal() {
                 type="button"
                 disabled={isLoading || selectedBumps.length === 0}
                 onClick={handleGeneratePix}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-black font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-[#22c55e]/25 transition-all active:scale-95 disabled:opacity-40 cursor-pointer"
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-black font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-[#22c55e]/25 transition-all active:scale-95 disabled:opacity-40 cursor-pointer"
               >
                 {isLoading ? (
                   <div className="flex items-center gap-2">
@@ -350,7 +350,7 @@ export default function OrderBumpUpsellModal() {
                   </div>
                 ) : (
                   <>
-                    <QrCode size={16} />
+                    <QrCode size={15} />
                     <span>DESBLOQUEAR VIA PIX • R$ {totalPrice.toFixed(2).replace('.', ',')}</span>
                   </>
                 )}
@@ -381,17 +381,17 @@ export default function OrderBumpUpsellModal() {
             </div>
 
             <div className="flex flex-col items-center justify-center">
-              <div className="p-2.5 bg-white rounded-2xl shadow-xl shadow-[#22c55e]/20 border-2 border-[#22c55e]">
+              <div className="p-2 bg-white rounded-xl shadow-lg shadow-[#22c55e]/20 border-2 border-[#22c55e]">
                 <img 
                   src={pixData.qrCodeImage} 
                   alt="QR Code Pix"
-                  className="w-36 h-36 sm:w-44 sm:h-44 object-contain"
+                  className="w-28 h-28 sm:w-32 sm:h-32 object-contain"
                 />
               </div>
 
-              <div className="mt-2 flex items-center gap-1 text-xs text-slate-300">
+              <div className="mt-1.5 flex items-center gap-1 text-xs text-slate-300">
                 <span>Valor do Pix:</span>
-                <strong className="text-base text-[#4ade80] font-black">
+                <strong className="text-sm text-[#4ade80] font-black">
                   R$ {totalPrice.toFixed(2).replace('.', ',')}
                 </strong>
               </div>
@@ -406,12 +406,12 @@ export default function OrderBumpUpsellModal() {
                   type="text"
                   readOnly
                   value={pixData.qrCodeText}
-                  className="flex-1 bg-[#111726] border border-white/15 rounded-lg py-2 px-2.5 text-[11px] text-slate-300 font-mono select-all focus:outline-none truncate"
+                  className="flex-1 bg-[#111726] border border-white/15 rounded-lg py-1.5 px-2.5 text-[11px] text-slate-300 font-mono select-all focus:outline-none truncate"
                 />
                 <button
                   type="button"
                   onClick={copyPixCode}
-                  className="py-2 px-3 rounded-lg bg-[#22c55e] hover:bg-[#16a34a] text-black font-black text-xs uppercase flex items-center gap-1 shrink-0 shadow-md shadow-[#22c55e]/20 transition-all active:scale-95 cursor-pointer"
+                  className="py-1.5 px-3 rounded-lg bg-[#22c55e] hover:bg-[#16a34a] text-black font-black text-xs uppercase flex items-center gap-1 shrink-0 shadow-md shadow-[#22c55e]/20 transition-all active:scale-95 cursor-pointer"
                 >
                   {copied ? <Check size={13} /> : <Copy size={13} />}
                   <span>{copied ? 'Copiado!' : 'Copiar'}</span>
@@ -419,12 +419,12 @@ export default function OrderBumpUpsellModal() {
               </div>
             </div>
 
-            <div className="space-y-2 pt-1">
+            <div className="space-y-1.5 pt-1">
               <button
                 type="button"
                 disabled={isConfirming}
                 onClick={handleConfirmPix}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-black font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-[#22c55e]/25 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-black font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-[#22c55e]/25 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
               >
                 {isConfirming ? (
                   <div className="flex items-center gap-2">

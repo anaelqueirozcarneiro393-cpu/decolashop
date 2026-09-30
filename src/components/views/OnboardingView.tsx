@@ -10,78 +10,92 @@ interface OnboardingViewProps {
 
 export default function OnboardingView({ onClose, onStart }: OnboardingViewProps) {
   return (
-    <div className="fixed inset-0 z-[100] flex items-start md:items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-500 overflow-y-auto">
-      <div className="relative w-full max-w-2xl my-auto bg-[#111726] rounded-3xl border border-white/10 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-500">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-300">
+      <div className="relative w-full max-w-md my-auto bg-[#111726] rounded-2xl sm:rounded-3xl border border-white/10 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 p-5 sm:p-6 text-center">
+        {/* Close button */}
         <button 
           onClick={onClose}
-          className="absolute top-6 right-6 p-2 text-slate-400 hover:text-white rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
+          className="absolute top-3.5 right-3.5 p-1.5 text-slate-400 hover:text-white rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
         >
-          <X size={20} />
+          <X size={18} />
         </button>
 
-        <div className="p-8 md:p-12 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#22c55e] to-[#4ade80] mb-6 shadow-xl shadow-[#22c55e]/25 text-[#080c14]">
-            <Rocket className="w-8 h-8 fill-current stroke-[2.5]" />
-          </div>
+        {/* Icon & Title */}
+        <div className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-tr from-[#22c55e] to-[#4ade80] mb-3 shadow-lg shadow-[#22c55e]/25 text-[#080c14]">
+          <Rocket className="w-5 h-5 fill-current stroke-[2.5]" />
+        </div>
 
-          <h2 className="text-3xl md:text-4xl font-black mb-4 text-white tracking-tight">
-            🔥 BEM-VINDO AO <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#22c55e] to-[#4ade80]">DECOLA SHOP</span>! 🔥
-          </h2>
-          
-          <p className="text-base md:text-lg text-slate-400 mb-10 max-w-lg mx-auto leading-relaxed">
-            "Você descobrirá produtos que estão <strong className="text-slate-100 font-black">VIRALIZANDO AGORA</strong> para vender no Shopee e Mercado Livre."
-          </p>
+        <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight">
+          Bem-vindo ao <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#22c55e] to-[#4ade80]">DecolaShop</span>!
+        </h2>
+        
+        <p className="text-xs text-slate-300 mt-1 max-w-xs mx-auto leading-relaxed">
+          Descubra produtos que estão <strong className="text-white font-bold">viralizando agora</strong> para vender no Shopee e Mercado Livre.
+        </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 text-left mb-10">
-            <div className="space-y-3 p-4 rounded-2xl bg-[#0d131f] border border-white/10">
-              <div className="w-8 h-8 rounded-lg bg-[#22c55e]/20 flex items-center justify-center text-[#22c55e] font-black text-sm">1</div>
-              <h3 className="font-bold flex items-center gap-2 text-white text-sm">
-                <Zap size={16} className="text-[#22c55e]" /> ABRE MINERADOR
-              </h3>
-              <p className="text-xs text-slate-400">Vê lista de produtos em trend em tempo real.</p>
+        {/* 3 Step Mini Cards */}
+        <div className="grid grid-cols-3 gap-2 text-left my-4">
+          <div className="p-2.5 rounded-xl bg-[#0d131f] border border-white/10 flex flex-col justify-between">
+            <div className="w-5 h-5 rounded bg-[#22c55e]/20 flex items-center justify-center text-[#22c55e] font-black text-[10px] mb-1.5">
+              1
             </div>
-
-            <div className="space-y-3 p-4 rounded-2xl bg-[#0d131f] border border-white/10">
-              <div className="w-8 h-8 rounded-lg bg-[#22c55e]/20 flex items-center justify-center text-[#22c55e] font-black text-sm">2</div>
-              <h3 className="font-bold flex items-center gap-2 text-white text-sm">
-                <TrendingUp size={16} className="text-[#22c55e]" /> ESCOLHE O PRODUTO
-              </h3>
-              <p className="text-xs text-slate-400">O que está subindo no Google e YouTube agora.</p>
-            </div>
-
-            <div className="space-y-3 p-4 rounded-2xl bg-[#0d131f] border border-white/10">
-              <div className="w-8 h-8 rounded-lg bg-[#22c55e]/20 flex items-center justify-center text-[#22c55e] font-black text-sm">3</div>
-              <h3 className="font-bold flex items-center gap-2 text-white text-sm">
-                <MessageSquare size={16} className="text-[#22c55e]" /> GERA ANÚNCIO
-              </h3>
-              <p className="text-xs text-slate-400">Nossa IA escreve a copy que converte pra você.</p>
-            </div>
-          </div>
-
-          <div className="bg-[#22c55e]/5 border border-[#22c55e]/20 rounded-2xl p-6 mb-10 text-center">
-            <h4 className="flex items-center justify-center gap-2 font-bold text-[#22c55e] mb-2 italic text-sm">
-              <Target size={18} /> O RESULTADO?
-            </h4>
-            <p className="text-sm text-slate-300">
-              Você vende algo com <strong className="text-white font-bold">DEMANDA COMPROVADA</strong>. <br className="hidden md:block" />
-              Não no escuro. Não por sorte. <strong className="text-[#22c55e] font-bold">Por dados.</strong>
+            <h3 className="font-bold flex items-center gap-1 text-white text-[11px] leading-tight">
+              <Zap size={12} className="text-[#22c55e] shrink-0" />
+              <span>Minerador</span>
+            </h3>
+            <p className="text-[10px] text-slate-400 mt-1 leading-snug">
+              Produtos em trend em tempo real.
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <button 
-              onClick={onStart}
-              className="w-full sm:w-auto px-10 py-4 bg-[#22c55e] hover:bg-[#16a34a] active:scale-95 text-[#080c14] rounded-2xl font-black text-base transition-all shadow-lg shadow-[#22c55e]/25 cursor-pointer"
-            >
-              VAMOS COMEÇAR →
-            </button>
-            <button 
-              onClick={onClose}
-              className="w-full sm:w-auto px-8 py-4 text-slate-400 hover:text-white font-medium text-sm transition-colors cursor-pointer"
-            >
-              Pular por agora
-            </button>
+          <div className="p-2.5 rounded-xl bg-[#0d131f] border border-white/10 flex flex-col justify-between">
+            <div className="w-5 h-5 rounded bg-[#22c55e]/20 flex items-center justify-center text-[#22c55e] font-black text-[10px] mb-1.5">
+              2
+            </div>
+            <h3 className="font-bold flex items-center gap-1 text-white text-[11px] leading-tight">
+              <TrendingUp size={12} className="text-[#22c55e] shrink-0" />
+              <span>Garimpo</span>
+            </h3>
+            <p className="text-[10px] text-slate-400 mt-1 leading-snug">
+              Alta busca no Google e YouTube.
+            </p>
           </div>
+
+          <div className="p-2.5 rounded-xl bg-[#0d131f] border border-white/10 flex flex-col justify-between">
+            <div className="w-5 h-5 rounded bg-[#22c55e]/20 flex items-center justify-center text-[#22c55e] font-black text-[10px] mb-1.5">
+              3
+            </div>
+            <h3 className="font-bold flex items-center gap-1 text-white text-[11px] leading-tight">
+              <MessageSquare size={12} className="text-[#22c55e] shrink-0" />
+              <span>Anúncio IA</span>
+            </h3>
+            <p className="text-[10px] text-slate-400 mt-1 leading-snug">
+              Copy e vídeos que convertem.
+            </p>
+          </div>
+        </div>
+
+        {/* Result highlight */}
+        <div className="bg-[#22c55e]/10 border border-[#22c55e]/25 rounded-xl p-2.5 mb-4 text-center">
+          <p className="text-xs text-slate-200 leading-snug">
+            <strong className="text-[#4ade80]">🎯 Demanda Comprovada:</strong> Venda baseado em dados reais, não em sorte.
+          </p>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center justify-center gap-2 pt-1">
+          <button 
+            onClick={onStart}
+            className="flex-1 py-2.5 px-4 bg-[#22c55e] hover:bg-[#16a34a] active:scale-95 text-[#080c14] rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-md shadow-[#22c55e]/20 cursor-pointer"
+          >
+            Vamos Começar →
+          </button>
+          <button 
+            onClick={onClose}
+            className="py-2.5 px-3.5 text-slate-400 hover:text-white font-bold text-xs rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
+          >
+            Pular
+          </button>
         </div>
       </div>
     </div>

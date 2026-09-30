@@ -134,13 +134,13 @@ export default function AdminQuickActions() {
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200 overflow-y-auto">
-      <div className="relative w-full max-w-xl bg-[#0d131f] border border-[#22c55e]/40 rounded-3xl p-5 sm:p-7 shadow-2xl shadow-[#22c55e]/15 text-white animate-in zoom-in-95 duration-200 max-h-[92vh] overflow-y-auto">
+      <div className="relative w-full max-w-lg bg-[#0d131f] border border-[#22c55e]/40 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-2xl shadow-[#22c55e]/15 text-white animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
         
         {/* Header */}
-        <div className="flex items-start justify-between pb-4 border-b border-white/10 mb-5 sticky top-0 bg-[#0d131f] z-10 pt-1">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#22c55e] to-[#15803d] flex items-center justify-center text-[#080c14] shadow-lg shadow-[#22c55e]/25 flex-shrink-0">
-              <ShieldCheck className="w-5 h-5 stroke-[2.5]" />
+        <div className="flex items-start justify-between pb-3 border-b border-white/10 mb-4 sticky top-0 bg-[#0d131f] z-10 pt-1">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#22c55e] to-[#15803d] flex items-center justify-center text-[#080c14] shadow-md shadow-[#22c55e]/25 flex-shrink-0">
+              <ShieldCheck className="w-4 h-4 stroke-[2.5]" />
             </div>
             <div>
               <div className="flex items-center gap-2">

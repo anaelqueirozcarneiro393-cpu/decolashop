@@ -50,25 +50,25 @@ export default function FindGroupsButton({ className, productName }: { className
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-dark-bg border border-border/50 w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-[#0d121f] border border-white/10 w-full max-w-lg rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
             
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-border/50 bg-secondary/20">
-              <h3 className="text-xl font-bold flex items-center gap-2 text-foreground">
-                <Users className="text-[#1877F2]" />
+            <div className="flex items-center justify-between p-4 sm:p-5 border-b border-white/10 bg-white/[0.02]">
+              <h3 className="text-base sm:text-lg font-bold flex items-center gap-2 text-white">
+                <Users className="text-[#1877F2]" size={18} />
                 Grupos de Divulgação
               </h3>
               <button 
                 onClick={() => setIsOpen(false)}
-                className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                className="p-1.5 hover:bg-white/10 rounded-xl transition-colors text-slate-400 hover:text-white"
               >
-                <X size={20} className="text-muted-foreground" />
+                <X size={18} />
               </button>
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 overflow-y-auto flex-1">
+            <div className="p-4 sm:p-5 overflow-y-auto flex-1">
               {isLoading ? (
                 <div className="flex flex-col items-center justify-center py-20 space-y-4">
                   <Loader2 size={48} className="text-[#1877F2] animate-spin" />
