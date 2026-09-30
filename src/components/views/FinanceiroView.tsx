@@ -55,6 +55,11 @@ export default function FinanceiroView() {
   const averageCommission = pedidos > 0 ? (saldoDisponivel / pedidos).toFixed(2).replace('.', ',') : '0,00';
 
   const handleAntecipacao = async () => {
+    if (saldoDisponivel <= 0 || taxaAntecipacao <= 0) {
+      toast.error('Você ainda não possui saldo disponível para antecipar.');
+      return;
+    }
+
     setIsProcessing(true);
     
     const userCpf = 
@@ -256,7 +261,13 @@ export default function FinanceiroView() {
               className="flex-shrink-0 flex items-center gap-2 py-3 px-5 rounded-2xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-black font-black text-xs uppercase tracking-wider shadow-lg shadow-[#22c55e]/25 transition-all active:scale-95 disabled:opacity-70 cursor-pointer"
             >
               <Zap size={14} fill="currentColor" />
-              <span>{isProcessing ? 'GERANDO PIX...' : `ANTECIPAR SALDO AGORA (TAXA R$ ${taxaAntecipacao.toFixed(2).replace('.', ',')})`}</span>
+              <span>
+                {isProcessing 
+                  ? 'GERANDO PIX...' 
+                  : taxaAntecipacao <= 0
+                    ? 'ANTECIPAR SALDO AGORA (TAXA 7%)'
+                    : `ANTECIPAR SALDO AGORA (TAXA R$ ${taxaAntecipacao.toFixed(2).replace('.', ',')})`}
+              </span>
             </button>
           )}
         </div>
