@@ -40,17 +40,37 @@ export default function FinanceiroView() {
   const [isConfirming, setIsConfirming] = useState(false);
   const [isAnticipated, setIsAnticipated] = useState(false);
 
-  // Carrega status de antecipação salvo
+  const userEmail = session?.user?.email?.toLowerCase().trim() || 'cliente@decolashop.com';
+  const cleanEmailKey = userEmail.replace(/[^a-z0-9]/g, '_');
+
+  // Carrega status de antecipação salvo (localStorage isolado por e-mail + cloud sync)
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('decolashop_saldo_antecipado');
-      if (saved === 'true') {
+      const savedUser = localStorage.getItem(`decolashop_saldo_antecipado_${cleanEmailKey}`);
+      const savedGeneric = localStorage.getItem('decolashop_saldo_antecipado');
+      const sessionBumps = (session?.user as any)?.order_bumps || [];
+
+      if (savedUser === 'true' || savedGeneric === 'true' || sessionBumps.includes('taxa_antecipacao')) {
         setIsAnticipated(true);
+        return;
       }
+
+      // Consulta na nuvem se a taxa já foi paga em outro dispositivo
+      fetch(`/api/user/sync-state?email=${encodeURIComponent(userEmail)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data?.data?.isAnticipated) {
+            setIsAnticipated(true);
+            try {
+              localStorage.setItem(`decolashop_saldo_antecipado_${cleanEmailKey}`, 'true');
+            } catch {}
+          }
+        })
+        .catch(() => {});
     } catch {
       // ignore
     }
-  }, []);
+  }, [userEmail, cleanEmailKey, session]);
 
   const averageCommission = pedidos > 0 ? (saldoDisponivel / pedidos).toFixed(2).replace('.', ',') : '0,00';
 
@@ -123,8 +143,20 @@ export default function FinanceiroView() {
 
       setIsAnticipated(true);
       try {
+        localStorage.setItem(`decolashop_saldo_antecipado_${cleanEmailKey}`, 'true');
         localStorage.setItem('decolashop_saldo_antecipado', 'true');
       } catch {}
+
+      // Sincroniza liberação com a nuvem para valer imediatamente no celular ou PC
+      fetch('/api/user/sync-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: userEmail,
+          state: { isAnticipated: true, lastActiveTimestamp: Date.now() }
+        })
+      }).catch(() => {});
+
       setShowPixModal(false);
       toast.success('🎉 Pagamento da taxa confirmado! Seu saldo de comissões foi liberado imediatamente para saque.');
     } catch {

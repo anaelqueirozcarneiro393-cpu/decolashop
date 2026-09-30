@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import { useSession } from 'next-auth/react';
 import { toast } from 'react-hot-toast';
 import { mockProducts, Product } from './mockData';
+import { getDeterministicBaseline } from './deterministicSales';
 
 export interface SaleItem {
   id: string;
@@ -113,6 +114,22 @@ function playCashChime() {
 const STORAGE_KEY = 'decolashop_sales_state_v3';
 
 export function SalesProvider({ children }: { children: React.ReactNode }) {
+  const { data: session } = useSession();
+  const userEmail = session?.user?.email?.toLowerCase().trim() || 'usuario@decolashop.com';
+  const cleanEmailKey = userEmail.replace(/[^a-z0-9]/g, '_');
+  const userStorageKey = `decolashop_sales_state_${cleanEmailKey}`;
+
+  const isNormalUser = userEmail === 'usuario@decolashop.com' || userEmail === 'cliente@decolashop.com' || userEmail === 'user@decolashop.com';
+  const isAdmin = !isNormalUser && (
+    userEmail === 'admin@decolashop.com' || 
+    userEmail === 'admin@newshop.com' || 
+    userEmail === 'gerente@decolashop.com' ||
+    userEmail.includes('admin') || 
+    userEmail.includes('gerente') ||
+    (session?.user as any)?.role === 'gerente' ||
+    (session?.user as any)?.role === 'admin'
+  );
+
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [vendasTotais, setVendasTotais] = useState<number>(0);
   const [saldoDisponivel, setSaldoDisponivel] = useState<number>(0);
@@ -175,12 +192,46 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
       });
   }, []);
 
-  // 1. Carrega dados persistidos do localStorage no mount + Catch-up de vendas offline cronológico
+  // 1. Carrega dados persistidos do localStorage no mount + Sincronização Nuvem + Fallback Determinístico
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
+    let isCancelled = false;
+
+    async function initializeSalesState() {
+      try {
+        let saved = localStorage.getItem(userStorageKey);
+        // Fallback para chave anterior geral se a do usuário não existir
+        if (!saved && userEmail === 'usuario@decolashop.com') {
+          saved = localStorage.getItem(STORAGE_KEY);
+        }
+
+        let parsed: any = null;
+        if (saved) {
+          try {
+            parsed = JSON.parse(saved);
+          } catch {}
+        }
+
+        // Se o localStorage estiver vazio (novo dispositivo, cache limpo ou aba anônima):
+        if (!parsed || typeof parsed.vendasTotais !== 'number') {
+          // 1. Tenta buscar da nuvem (API de sincronização)
+          try {
+            const syncRes = await fetch(`/api/user/sync-state?email=${encodeURIComponent(userEmail)}`);
+            const syncJson = await syncRes.json();
+            if (syncJson?.success && syncJson?.data && typeof syncJson.data.vendasTotais === 'number') {
+              parsed = syncJson.data;
+            }
+          } catch {}
+
+          // 2. Se a nuvem não tiver dados (primeiro acesso da conta):
+          // Executa a Maracutaia da Semente Determinística (Seed Temporal):
+          // Gera um histórico 100% consistente que será IDÊNTICO em qualquer dispositivo que logar com esse e-mail!
+          if (!parsed || typeof parsed.vendasTotais !== 'number') {
+            parsed = getDeterministicBaseline(userEmail, Date.now());
+          }
+        }
+
+        if (isCancelled) return;
+
         let currVendasTotais = typeof parsed.vendasTotais === 'number' ? parsed.vendasTotais : 0;
         let currSaldoDisponivel = typeof parsed.saldoDisponivel === 'number' ? parsed.saldoDisponivel : 0;
         let currVisitas = typeof parsed.visitas === 'number' ? parsed.visitas : 0;
@@ -196,8 +247,7 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         if (parsed.fixedSeconds) setFixedSeconds(parsed.fixedSeconds);
         if (parsed.selectedProductId) setSelectedProductId(parsed.selectedProductId);
 
-        // Sistema Inteligente Cronológico de Vendas Offline:
-        // Se o usuário ficou fora por mais de 4 minutos (240s), reconstrói a linha do tempo com datas/horas exatas
+        // Se o usuário já tinha registros salvos e ficou fora por mais de 4 minutos, calcula vendas cronológicas retroativas
         if (parsed.lastActiveTimestamp && typeof parsed.lastActiveTimestamp === 'number') {
           const nowMs = Date.now();
           const elapsedMs = nowMs - parsed.lastActiveTimestamp;
@@ -208,22 +258,18 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
             // Quantidade de vendas realista baseada no tempo fora
             let count = 0;
             if (elapsedMinutes < 60) {
-              // 4 a 60 min: média de 1 venda a cada 8 a 12 min
               count = Math.max(1, Math.min(5, Math.floor(elapsedMinutes / 9)));
             } else if (elapsedMinutes < 360) {
-              // 1 a 6 horas: 3 a 10 vendas
               count = Math.max(3, Math.min(10, Math.floor(elapsedMinutes / 28)));
             } else if (elapsedMinutes < 1440) {
-              // 6 a 24 horas: 10 a 18 vendas (dia de operação saudável)
               count = Math.max(8, Math.min(18, Math.floor(elapsedMinutes / 75)));
             } else {
-              // Mais de 24 horas (dias): teto balanceado de 16 a 22 vendas
               count = Math.floor(16 + Math.random() * 6);
             }
 
             if (count > 0) {
               const catalog = mockProducts.length > 0 ? mockProducts : [];
-              const timeWindow = elapsedMs - 120_000; // até 2 min antes do momento presente
+              const timeWindow = elapsedMs - 120_000;
               const step = Math.max(60_000, timeWindow / count);
 
               let offlineGrossTotal = 0;
@@ -231,12 +277,10 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
               const generatedSales: SaleItem[] = [];
 
               for (let i = 0; i < count; i++) {
-                // Intervalo natural com jitter aleatório para evitar horas perfeitamente lineares
                 const jitter = (Math.random() - 0.5) * 0.4 * step;
                 const saleTimestamp = parsed.lastActiveTimestamp + (i + 0.5) * step + jitter;
                 const saleDate = new Date(Math.min(nowMs - 60_000, Math.max(parsed.lastActiveTimestamp + 60_000, saleTimestamp)));
                 
-                // Escolhe produto variado do catálogo
                 const product = catalog[Math.floor(Math.random() * catalog.length)] || {
                   name: 'Smartwatch W9 Pro Ultra Series 9',
                   price: 149.90,
@@ -255,7 +299,6 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
                 offlineGrossTotal += rawPrice;
                 offlineCommissionTotal += comm;
 
-                // Formatação exata de data e hora do passado
                 const isToday = saleDate.toDateString() === new Date(nowMs).toDateString();
                 const isYesterday = saleDate.toDateString() === new Date(nowMs - 86400000).toDateString();
                 
@@ -282,7 +325,6 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
                   image: product.image_url,
                 });
 
-                // Alimenta o gráfico horário no bloco de horas correto
                 const bracketHour = String(Math.floor(saleDate.getHours() / 2) * 2).padStart(2, '0');
                 currHourlyData = currHourlyData.map(h => {
                   if (h.hour === bracketHour) {
@@ -296,7 +338,6 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
                 });
               }
 
-              // Organiza extrato do mais recente para o mais antigo
               currRecentSales = [...generatedSales.reverse(), ...currRecentSales].slice(0, 30);
               currVendasTotais = Math.round((currVendasTotais + offlineGrossTotal) * 100) / 100;
               currSaldoDisponivel = Math.round((currSaldoDisponivel + offlineCommissionTotal) * 100) / 100;
@@ -305,7 +346,6 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
               currCliques = currCliques + count * 6;
               currVisitas = currVisitas + count * 4;
 
-              // Notificação Única Consolidada de Ausência (sem poluição sonora de 10 bips repetidos)
               setTimeout(() => {
                 if (isSoundEnabledRef.current) {
                   playCashChime();
@@ -348,15 +388,21 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         setUnidades(currUnidades);
         setHourlyData(currHourlyData);
         setRecentSales(currRecentSales);
+      } catch {
+        // ignore
+      } finally {
+        setIsLoaded(true);
       }
-    } catch {
-      // ignore
-    } finally {
-      setIsLoaded(true);
     }
-  }, []);
 
-  // 2. Salva no localStorage sempre que algum valor do dashboard mudar
+    initializeSalesState();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [userEmail, userStorageKey]);
+
+  // 2. Salva no localStorage isolado por usuário e sincroniza com a nuvem silenciosamente
   useEffect(() => {
     if (!isLoaded) return;
     try {
@@ -376,7 +422,16 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         selectedProductId,
         lastActiveTimestamp: Date.now()
       };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+      localStorage.setItem(userStorageKey, JSON.stringify(dataToSave));
+
+      // Sincronização em nuvem leve (Background)
+      if (typeof window !== 'undefined' && userEmail) {
+        fetch('/api/user/sync-state', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: userEmail, state: dataToSave })
+        }).catch(() => {});
+      }
     } catch {
       // ignore
     }
@@ -394,7 +449,9 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     minSeconds,
     maxSeconds,
     fixedSeconds,
-    selectedProductId
+    selectedProductId,
+    userStorageKey,
+    userEmail
   ]);
 
   // Taxa de Antecipação: Começa em R$ 0,00 e sobe de acordo com o saldo disponível (7% sobre o saldo), com limite máximo de R$ 150,00
@@ -596,20 +653,6 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(timeoutId);
     };
   }, [autoSimulate, intervalMode, minSeconds, maxSeconds, fixedSeconds, selectedProductId, availableProducts]);
-
-  // Identificação de Admin / Gerente vs Usuário Comum
-  const { data: session } = useSession();
-  const userEmail = session?.user?.email?.toLowerCase().trim() || '';
-  const isNormalUser = userEmail === 'usuario@decolashop.com' || userEmail === 'cliente@decolashop.com' || userEmail === 'user@decolashop.com';
-  const isAdmin = !isNormalUser && (
-    userEmail === 'admin@decolashop.com' || 
-    userEmail === 'admin@newshop.com' || 
-    userEmail === 'gerente@decolashop.com' ||
-    userEmail.includes('admin') || 
-    userEmail.includes('gerente') ||
-    (session?.user as any)?.role === 'gerente' ||
-    (session?.user as any)?.role === 'admin'
-  );
 
   // Auto-geração contínua de vendas para TODOS os usuários comuns (não-admin) entre 4 a 15 minutos (240s a 900s)
   useEffect(() => {
