@@ -82,6 +82,7 @@ export default function CnpayCheckoutModal({
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [cpf, setCpf] = useState('');
+  const [phone, setPhone] = useState('');
   
   // Pix Data from API
   const [pixData, setPixData] = useState<{
@@ -134,6 +135,20 @@ export default function CnpayCheckoutModal({
     setCpf(formatted);
   };
 
+  // Format Phone helper: (00) 00000-0000
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/\D/g, '').slice(0, 11);
+    let formatted = raw;
+    if (raw.length > 10) {
+      formatted = `(${raw.slice(0, 2)}) ${raw.slice(2, 7)}-${raw.slice(7)}`;
+    } else if (raw.length > 6) {
+      formatted = `(${raw.slice(0, 2)}) ${raw.slice(2, 6)}-${raw.slice(6)}`;
+    } else if (raw.length > 2) {
+      formatted = `(${raw.slice(0, 2)}) ${raw.slice(2)}`;
+    }
+    setPhone(formatted);
+  };
+
   const handleGeneratePix = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -164,7 +179,8 @@ export default function CnpayCheckoutModal({
           customer: {
             name: name.trim(),
             email: email.trim().toLowerCase(),
-            cpf: cpf.replace(/\D/g, '')
+            cpf: cpf.replace(/\D/g, ''),
+            phone: phone.replace(/\D/g, '') || '11999999999'
           }
         })
       });
@@ -286,6 +302,32 @@ export default function CnpayCheckoutModal({
                 </div>
 
                 <div>
+                  <label className="text-[11px] font-bold text-slate-300 block mb-1">WhatsApp / Celular</label>
+                  <input
+                    type="tel"
+                    required
+                    value={phone}
+                    onChange={handlePhoneChange}
+                    placeholder="(11) 99999-9999"
+                    className="w-full bg-[#111726] border border-white/15 rounded-xl py-2 px-3 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-[#22c55e]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-300 block mb-1">E-mail para Acesso à Plataforma</label>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="seuemail@gmail.com"
+                    className="w-full bg-[#111726] border border-white/15 rounded-xl py-2 px-3 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-[#22c55e]"
+                  />
+                </div>
+
+                <div>
                   <label className="text-[11px] font-bold text-slate-300 block mb-1">CPF (Exigência Banco Central)</label>
                   <input
                     type="text"
@@ -296,18 +338,6 @@ export default function CnpayCheckoutModal({
                     className="w-full bg-[#111726] border border-white/15 rounded-xl py-2 px-3 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-[#22c55e]"
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-300 block mb-1">E-mail para Acesso à Plataforma</label>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="seuemail@gmail.com"
-                  className="w-full bg-[#111726] border border-white/15 rounded-xl py-2 px-3 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-[#22c55e]"
-                />
               </div>
             </div>
 
