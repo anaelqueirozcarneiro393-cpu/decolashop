@@ -57,30 +57,39 @@ export default function AdminQuickActions() {
   const userRole = (session?.user as any)?.role || '';
   const isNormalUser = userEmail === 'usuario@decolashop.com' || userEmail === 'cliente@decolashop.com' || userEmail === 'user@decolashop.com';
   const isAdmin = !isNormalUser && (
+    userEmail === 'gerente@decolashop.com' || 
     userEmail === 'admin@decolashop.com' || 
     userEmail === 'admin@newshop.com' || 
-    userEmail === 'gerente@decolashop.com' || 
     userEmail.includes('admin') || 
     userEmail.includes('gerente') || 
     userRole === 'admin' ||
-    userRole === 'gerente'
+    userRole === 'gerente' ||
+    (typeof window !== 'undefined' && (
+      localStorage.getItem('decolashop_sales_state_gerente_decolashop_com') !== null ||
+      localStorage.getItem('decolashop_sales_state_admin_decolashop_com') !== null
+    ))
   );
 
-  // Atalho secreto do teclado: [Alt + A] ou [Ctrl + Shift + A]
+  // Atalho secreto do teclado: [Alt + A] ou [Ctrl + Shift + A] ou [Alt + V] ou [Alt + R]
   useEffect(() => {
-    if (!isAdmin) return;
-
     const handleKeyDown = (e: KeyboardEvent) => {
-      const isAltA = e.altKey && (e.key === 'a' || e.key === 'A');
-      const isCtrlShiftA = e.ctrlKey && e.shiftKey && (e.key === 'a' || e.key === 'A');
-      const isCtrlAltA = e.ctrlKey && e.altKey && (e.key === 'a' || e.key === 'A');
+      // Compatibilidade universal (e.key, e.code e layouts internacionais/Mac)
+      const isKeyA = e.key === 'a' || e.key === 'A' || e.code === 'KeyA' || e.key === 'å';
+      const isKeyV = e.key === 'v' || e.key === 'V' || e.code === 'KeyV' || e.key === '√';
+      const isKeyR = e.key === 'r' || e.key === 'R' || e.code === 'KeyR' || e.key === '®';
 
-      if (isAltA || isCtrlShiftA || isCtrlAltA) {
+      const isA_Shortcut = 
+        (e.altKey && isKeyA) || 
+        (e.ctrlKey && e.shiftKey && isKeyA) || 
+        (e.ctrlKey && e.altKey && isKeyA) ||
+        (e.metaKey && e.altKey && isKeyA);
+
+      if (isA_Shortcut) {
         e.preventDefault();
         setIsOpen((prev) => {
           const next = !prev;
           if (next) {
-            toast('🛡️ Painel do Gerente DecolaShop aberto!', {
+            toast('🛡️ Painel do Gerente DecolaShop', {
               icon: '⚡',
               style: {
                 background: '#111726',
@@ -93,22 +102,33 @@ export default function AdminQuickActions() {
         });
       }
 
-      if (e.altKey && (e.key === 'v' || e.key === 'V')) {
+      const isV_Shortcut = 
+        (e.altKey && isKeyV) || 
+        (e.ctrlKey && e.shiftKey && isKeyV) || 
+        (e.ctrlKey && e.altKey && isKeyV);
+
+      if (isV_Shortcut) {
         e.preventDefault();
         addSale();
+        toast.success('⚡ Venda forçada via atalho manual!');
       }
-      if (e.altKey && (e.key === 'r' || e.key === 'R')) {
+
+      const isR_Shortcut = 
+        (e.altKey && isKeyR) || 
+        (e.ctrlKey && e.shiftKey && isKeyR);
+
+      if (isR_Shortcut) {
         e.preventDefault();
         resetData();
+        toast.success('🔄 Dados resetados com sucesso!');
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isAdmin, addSale, resetData]);
+  }, [addSale, resetData]);
 
   if (!isAdmin) return null;
-  if (!isOpen) return null;
 
   const handleResetOnboarding = () => {
     localStorage.removeItem('decolashop_seen_onboarding');
@@ -133,7 +153,29 @@ export default function AdminQuickActions() {
   );
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200 overflow-y-auto">
+    <>
+      {/* Botão Flutuante Discreto do Gerente (permite abrir tanto pelo atalho Alt+A quanto pelo clique) */}
+      {!isOpen && (
+        <button
+          onClick={() => setIsOpen(true)}
+          className="fixed bottom-20 md:bottom-5 right-4 z-40 flex items-center gap-2 px-3 py-2 rounded-2xl bg-[#111726]/90 hover:bg-[#111726] border border-[#22c55e]/40 shadow-xl shadow-[#22c55e]/15 text-white text-xs font-bold transition-all hover:scale-105 backdrop-blur-xl group cursor-pointer"
+          title="Abrir Painel do Gerente (Atalho: Alt + A)"
+        >
+          <div className="w-5 h-5 rounded-lg bg-[#22c55e] flex items-center justify-center text-black font-black text-[10px] shadow-sm">
+            ⚡
+          </div>
+          <span className="hidden sm:inline text-slate-200 group-hover:text-white">
+            Painel Gerente
+          </span>
+          <kbd className="hidden md:inline-block px-1.5 py-0.5 text-[9px] font-mono bg-black/50 border border-white/10 rounded text-[#4ade80]">
+            Alt + A
+          </kbd>
+        </button>
+      )}
+
+      {/* Modal Principal do Gerente */}
+      {isOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200 overflow-y-auto">
       <div className="relative w-full max-w-lg bg-[#0d131f] border border-[#22c55e]/40 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-2xl shadow-[#22c55e]/15 text-white animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
         
         {/* Header */}
@@ -440,5 +482,7 @@ export default function AdminQuickActions() {
 
       </div>
     </div>
+      )}
+    </>
   );
 }
