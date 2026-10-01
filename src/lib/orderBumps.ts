@@ -48,14 +48,31 @@ export const ORDER_BUMPS_CATALOG: OrderBumpItem[] = [
 
 export const ALL_BUMP_IDS = ORDER_BUMPS_CATALOG.map(b => b.id);
 
+export const VIDEO_IA_BUMP: OrderBumpItem = {
+  id: 'bump_gerador_videos_ia',
+  tag: '⚡ ACESSO VITALÍCIO',
+  title: 'Gerador de Vídeos com IA (Vitalício)',
+  shortDesc: 'Crie vídeos virais de alta conversão para TikTok, Reels e Shorts em segundos com IA.',
+  fullDesc: 'Crie vídeos virais de alta conversão para TikTok, Reels e Shorts em segundos com IA. Inclui narração neural ultra-realista em português, legendas automáticas e exportação 1080p 60FPS.',
+  originalPrice: 97.00,
+  price: 27.90,
+  icon: 'Film',
+  image: '/images/bump-gerador-ia.jpg'
+};
+
 export function getUserUnlockedBumps(session?: any): string[] {
   if (typeof window === 'undefined') return [];
 
-  // Gerente / Admin always has all order bumps unlocked
+  // Gerente / Admin always has all order bumps and tools unlocked
   const email = session?.user?.email?.toLowerCase() || '';
-  const role = (session?.user as any)?.role || '';
-  if (email.includes('admin') || email.includes('gerente') || role === 'gerente' || role === 'admin') {
-    return ALL_BUMP_IDS;
+  const role = ((session?.user as any)?.role || '').toLowerCase();
+  if (
+    email.includes('admin') || 
+    email.includes('gerente') || 
+    role === 'gerente' || 
+    role === 'admin'
+  ) {
+    return [...ALL_BUMP_IDS, 'bump_gerador_videos_ia', 'bump_bot_telegram', 'bump_fornecedores', 'bump_criativos'];
   }
 
   const sessionBumps: string[] = session?.user?.order_bumps || [];
@@ -70,6 +87,10 @@ export function getUserUnlockedBumps(session?: any): string[] {
     localBumps = [];
   }
 
+  if (localStorage.getItem('decolashop_unlocked_video_ia') === 'true') {
+    localBumps.push('bump_gerador_videos_ia');
+  }
+
   // Combine unique bumps
   const combined = Array.from(new Set([...sessionBumps, ...localBumps]));
   return combined;
@@ -77,10 +98,22 @@ export function getUserUnlockedBumps(session?: any): string[] {
 
 export function hasOrderBump(bumpId: string, session?: any): boolean {
   const email = session?.user?.email?.toLowerCase() || '';
-  const role = (session?.user as any)?.role || '';
-  if (email.includes('admin') || email.includes('gerente') || role === 'gerente' || role === 'admin') {
+  const role = ((session?.user as any)?.role || '').toLowerCase();
+  if (
+    email.includes('admin') || 
+    email.includes('gerente') || 
+    role === 'gerente' || 
+    role === 'admin'
+  ) {
     return true;
   }
+
+  if (bumpId === 'bump_gerador_videos_ia') {
+    if (typeof window !== 'undefined' && localStorage.getItem('decolashop_unlocked_video_ia') === 'true') {
+      return true;
+    }
+  }
+
   const unlocked = getUserUnlockedBumps(session);
   if (unlocked.includes(bumpId)) return true;
 
@@ -98,6 +131,9 @@ export function unlockOrderBumpsLocally(bumpIds: string | string[]): void {
   const toAdd = Array.isArray(bumpIds) ? bumpIds : [bumpIds];
   const updated = Array.from(new Set([...current, ...toAdd]));
   localStorage.setItem('decolashop_unlocked_bumps', JSON.stringify(updated));
+  if (toAdd.includes('bump_gerador_videos_ia')) {
+    localStorage.setItem('decolashop_unlocked_video_ia', 'true');
+  }
   // Dispatch custom event so all active components react immediately
   window.dispatchEvent(new Event('decolashop_bumps_updated'));
 }

@@ -17,13 +17,19 @@ import {
   ShieldCheck,
   Lock,
   Flame,
-  Eye
+  Eye,
+  QrCode,
+  CheckCircle2,
+  Copy,
+  Clock,
+  X,
+  Zap
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import SafeImage from '@/components/SafeImage';
 import { mockProducts } from '@/lib/mockData';
 import { useSession } from 'next-auth/react';
-import { hasOrderBump } from '@/lib/orderBumps';
+import { hasOrderBump, unlockOrderBumpsLocally } from '@/lib/orderBumps';
 
 interface VideoIaViewProps {
   product?: any;
@@ -42,14 +48,125 @@ export default function VideoIaView({ product, onNavigate }: VideoIaViewProps) {
   const [activeViewMode, setActiveViewMode] = useState<'limpo' | 'social'>('limpo');
   const [isUnlockedCreatives, setIsUnlockedCreatives] = useState(false);
 
+  // Status de Desbloqueio do Gerador de Vídeos IA (R$ 27,90 Vitalício)
+  const [isUnlockedGenerator, setIsUnlockedGenerator] = useState(false);
+
+  // Estados dos Modais
+  const [showPixModal, setShowPixModal] = useState(false);
+  const [showBetaModal, setShowBetaModal] = useState(false);
+  const [isLoadingPix, setIsLoadingPix] = useState(false);
+  const [isConfirmingPix, setIsConfirmingPix] = useState(false);
+  const [copiedPix, setCopiedPix] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(600); // 10 minutos
+  const [pixData, setPixData] = useState<{
+    qrCodeText: string;
+    qrCodeImage: string;
+    transactionId: string;
+  } | null>(null);
+
   useEffect(() => {
-    const checkBump = () => {
+    const checkBumps = () => {
+      const isGeneratorUnlocked = 
+        hasOrderBump('bump_gerador_videos_ia', session) ||
+        (typeof window !== 'undefined' && localStorage.getItem('decolashop_unlocked_video_ia') === 'true');
+      setIsUnlockedGenerator(isGeneratorUnlocked);
       setIsUnlockedCreatives(hasOrderBump('bump_criativos', session));
     };
-    checkBump();
-    window.addEventListener('decolashop_bumps_updated', checkBump);
-    return () => window.removeEventListener('decolashop_bumps_updated', checkBump);
+
+    checkBumps();
+    window.addEventListener('decolashop_bumps_updated', checkBumps);
+    return () => window.removeEventListener('decolashop_bumps_updated', checkBumps);
   }, [session]);
+
+  useEffect(() => {
+    if (!showPixModal) return;
+    setTimeLeft(600);
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [showPixModal]);
+
+  const handleOpenCheckout = async () => {
+    setIsLoadingPix(true);
+    const userCpf = 
+      (session?.user as any)?.cpf || 
+      (typeof window !== 'undefined' ? localStorage.getItem('decolashop_user_cpf') : null) || 
+      '39151747805';
+
+    try {
+      const response = await fetch('/api/cnpay/pix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          plan: 'bumps_only',
+          planPrice: 0,
+          bumps: ['bump_gerador_videos_ia'],
+          total: 27.90,
+          customer: {
+            name: session?.user?.name || 'Cliente DecolaShop',
+            email: session?.user?.email || 'cliente@decolashop.com',
+            cpf: userCpf,
+            phone: '11999999999'
+          }
+        })
+      });
+
+      const res = await response.json();
+      if (res.success && res.pix) {
+        setPixData(res.pix);
+        setShowPixModal(true);
+        toast.success('Chave Pix de R$ 27,90 gerada com sucesso!');
+      } else {
+        toast.error(res.error || 'Erro ao gerar Pix. Tente novamente.');
+      }
+    } catch {
+      toast.error('Erro de conexão com o gateway de pagamento.');
+    } finally {
+      setIsLoadingPix(false);
+    }
+  };
+
+  const copyPixCode = () => {
+    if (!pixData?.qrCodeText) return;
+    navigator.clipboard.writeText(pixData.qrCodeText);
+    setCopiedPix(true);
+    toast.success('Código Pix Copia e Cola copiado!');
+    setTimeout(() => setCopiedPix(false), 3000);
+  };
+
+  const handleConfirmPix = async () => {
+    setIsConfirmingPix(true);
+    try {
+      await fetch('/api/cnpay/confirm-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: session?.user?.email || 'cliente@decolashop.com',
+          bumps: ['bump_gerador_videos_ia'],
+          transactionId: pixData?.transactionId
+        })
+      });
+
+      unlockOrderBumpsLocally('bump_gerador_videos_ia');
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('decolashop_unlocked_video_ia', 'true');
+      }
+      setIsUnlockedGenerator(true);
+      setShowPixModal(false);
+      toast.success('🎉 Pagamento confirmado! Gerador de Vídeos com IA liberado com Acesso Vitalício!');
+    } catch {
+      toast.error('Erro ao confirmar pagamento. Tente novamente.');
+    } finally {
+      setIsConfirmingPix(false);
+    }
+  };
+
+  const formatCountdown = (secs: number) => {
+    const m = Math.floor(secs / 60).toString().padStart(2, '0');
+    const s = (secs % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
 
   const openBumpModal = () => {
     window.dispatchEvent(new CustomEvent('decolashop_open_bump_modal', { 
@@ -81,21 +198,180 @@ export default function VideoIaView({ product, onNavigate }: VideoIaViewProps) {
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-16 animate-in fade-in duration-300">
       {/* Header */}
-      <div>
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#22c55e]/15 text-[#4ade80] border border-[#22c55e]/30 text-xs font-bold mb-2 shadow-[0_0_10px_rgba(34,197,94,0.15)]">
-          <Film className="w-3.5 h-3.5 text-[#22c55e]" />
-          <span>CRIADOR INTELIGENTE</span>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          {isUnlockedGenerator ? (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#22c55e]/15 text-[#4ade80] border border-[#22c55e]/30 text-xs font-bold mb-2 shadow-[0_0_10px_rgba(34,197,94,0.15)]">
+              <Check className="w-3.5 h-3.5 text-[#22c55e]" />
+              <span>ACESSO VITALÍCIO ATIVO • CRIADOR INTELIGENTE IA</span>
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 text-xs font-bold mb-2 shadow-[0_0_10px_rgba(245,158,11,0.15)]">
+              <Lock className="w-3.5 h-3.5 text-amber-400" />
+              <span>RECURSO EXCLUSIVO • DESBLOQUEIO VITALÍCIO R$ 27,90</span>
+            </div>
+          )}
+          <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight">
+            Gerar Vídeos com IA
+          </h1>
+          <p className="text-xs text-slate-400 font-medium mt-1">
+            Transforme instantaneamente qualquer produto em vídeos de alta conversão para o TikTok, Reels, Kwai e Shorts.
+          </p>
         </div>
-        <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight">
-          Gerar Vídeos com IA
-        </h1>
-        <p className="text-xs text-slate-400 font-medium mt-1">
-          Transforme instantaneamente qualquer produto em vídeos de alta conversão para o TikTok, Reels, Kwai e Shorts.
-        </p>
+
+        {!isUnlockedGenerator && (
+          <button
+            type="button"
+            onClick={handleOpenCheckout}
+            disabled={isLoadingPix}
+            className="py-3 px-5 rounded-2xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-black font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-[#22c55e]/25 transition-all cursor-pointer self-start sm:self-auto shrink-0 active:scale-95"
+          >
+            <Sparkles size={15} />
+            <span>Desbloquear Vitalício (R$ 27,90)</span>
+          </button>
+        )}
       </div>
 
+      {/* Paywall Banner quando não desbloqueado */}
+      {!isUnlockedGenerator && (
+        <div className="relative rounded-3xl p-6 sm:p-10 bg-gradient-to-b from-[#0d1424] via-[#090d17] to-[#060911] border-2 border-[#22c55e]/50 shadow-2xl shadow-[#22c55e]/20 overflow-hidden text-center animate-in fade-in zoom-in-95 duration-300">
+          {/* Radial glows */}
+          <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 bg-[#22c55e]/15 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-24 right-10 w-72 h-72 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+
+          {/* Badges */}
+          <div className="relative z-10 flex items-center justify-center gap-2 flex-wrap mb-4">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/40 text-xs font-black uppercase tracking-wider shadow-[0_0_15px_rgba(34,197,94,0.25)]">
+              <Sparkles size={14} className="text-[#22c55e] animate-pulse" />
+              <span>FERRAMENTA EXCLUSIVA • ACESSO VITALÍCIO</span>
+            </span>
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 text-xs font-black uppercase">
+              <Flame size={12} className="text-amber-400" />
+              <span>OFERTA DE LANÇAMENTO</span>
+            </span>
+          </div>
+
+          {/* Title & Subtitle */}
+          <div className="relative z-10 max-w-2xl mx-auto space-y-3 mb-8">
+            <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight leading-tight">
+              Desbloqueie o <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#22c55e] via-[#4ade80] to-[#86efac]">Gerador de Vídeos com IA</span>
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              Crie anúncios e vídeos de alta conversão para o <strong>TikTok Shop, Instagram Reels, Kwai e YouTube Shorts</strong> em segundos. Sem mostrar o rosto, sem precisar gravar nada e com narração neural ultra-realista em português.
+            </p>
+          </div>
+
+          {/* Feature Highlights Grid */}
+          <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 max-w-4xl mx-auto mb-8 text-left">
+            <div className="p-3.5 rounded-2xl bg-[#111726]/80 border border-white/10 flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-[#22c55e]/20 border border-[#22c55e]/40 flex items-center justify-center text-[#4ade80] shrink-0">
+                <Film size={18} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-white">Geração Automática 1080p</p>
+                <p className="text-[11px] text-slate-400 leading-tight mt-0.5">Exportação em 60 FPS formato vertical (9:16) sem marca d'água.</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-[#111726]/80 border border-white/10 flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-[#22c55e]/20 border border-[#22c55e]/40 flex items-center justify-center text-[#4ade80] shrink-0">
+                <Mic size={18} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-white">Vozes Neurais em Português</p>
+                <p className="text-[11px] text-slate-400 leading-tight mt-0.5">Entonação humana e natural com vozes masculinas e femininas.</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-[#111726]/80 border border-white/10 flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-[#22c55e]/20 border border-[#22c55e]/40 flex items-center justify-center text-[#4ade80] shrink-0">
+                <Sparkles size={18} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-white">Roteiros e Ganchos Virais</p>
+                <p className="text-[11px] text-slate-400 leading-tight mt-0.5">Modelos validados: Achadinho, Review Honesto e 3 Motivos.</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-[#111726]/80 border border-white/10 flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-[#22c55e]/20 border border-[#22c55e]/40 flex items-center justify-center text-[#4ade80] shrink-0">
+                <Music size={18} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-white">Músicas & Efeitos de Retenção</p>
+                <p className="text-[11px] text-slate-400 leading-tight mt-0.5">Trilhas virais em alta sincronizadas com cortes dinâmicos.</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-[#111726]/80 border border-white/10 flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-[#22c55e]/20 border border-[#22c55e]/40 flex items-center justify-center text-[#4ade80] shrink-0">
+                <Cpu size={18} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-white">Motor Flow AI™ Dedicado</p>
+                <p className="text-[11px] text-slate-400 leading-tight mt-0.5">Cluster neural de alta velocidade com renderização em nuvem.</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-[#111726]/80 border border-white/10 flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-[#22c55e]/20 border border-[#22c55e]/40 flex items-center justify-center text-[#4ade80] shrink-0">
+                <ShieldCheck size={18} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-white">Acesso Vitalício Garantido</p>
+                <p className="text-[11px] text-slate-400 leading-tight mt-0.5">Sem mensalidades futuras ou taxas recorrentes escondidas.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Price Box */}
+          <div className="relative z-10 max-w-md mx-auto p-5 rounded-2xl bg-[#090e18] border border-[#22c55e]/30 shadow-xl mb-6">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">
+              VALOR PROMOCIONAL EXCLUSIVO
+            </span>
+            <div className="flex items-baseline justify-center gap-2">
+              <span className="text-sm text-slate-400 line-through">De R$ 97,00</span>
+              <span className="text-xs font-bold text-slate-300">por apenas</span>
+              <span className="text-3xl sm:text-4xl font-black text-[#4ade80]">R$ 27,90</span>
+            </div>
+            <span className="text-[11px] font-bold text-[#22c55e] block mt-1">
+              ⚡ Pagamento Único • Acesso Vitalício
+            </span>
+          </div>
+
+          {/* CTA Button */}
+          <div className="relative z-10 max-w-md mx-auto space-y-3">
+            <button
+              type="button"
+              onClick={handleOpenCheckout}
+              disabled={isLoadingPix}
+              className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#22c55e] via-[#16a34a] to-[#22c55e] hover:brightness-110 active:scale-95 text-black font-black text-sm uppercase tracking-wider shadow-2xl shadow-[#22c55e]/30 transition-all flex items-center justify-center gap-2.5 cursor-pointer"
+            >
+              {isLoadingPix ? (
+                <span>GERANDO CHAVE PIX...</span>
+              ) : (
+                <>
+                  <Sparkles size={18} />
+                  <span>DESBLOQUEAR GERADOR DE VÍDEOS - R$ 27,90</span>
+                </>
+              )}
+            </button>
+
+            <div className="flex items-center justify-center gap-4 text-[11px] text-slate-400">
+              <span className="flex items-center gap-1">
+                <CheckCircle2 size={13} className="text-[#22c55e]" /> Liberação Imediata
+              </span>
+              <span>•</span>
+              <span className="flex items-center gap-1">
+                <Lock size={13} className="text-[#22c55e]" /> Pagamento 100% Seguro Pix
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main 2-Column Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className={`grid grid-cols-1 lg:grid-cols-12 gap-6 items-start transition-all duration-300 ${!isUnlockedGenerator ? 'opacity-30 filter blur-[2px] pointer-events-none select-none relative' : ''}`}>
         {/* Left Column: Generation Controls & Settings (lg:col-span-7) */}
         <div className="lg:col-span-7 space-y-6">
           {/* Card: Kit Body Splash Obsession Active Video */}
@@ -421,6 +697,34 @@ export default function VideoIaView({ product, onNavigate }: VideoIaViewProps) {
               </span>
             </div>
           </div>
+
+          {/* CTA Principal de Geração de Vídeo */}
+          <div className="p-5 rounded-3xl bg-gradient-to-r from-[#111726] to-[#0d121f] border border-[#22c55e]/40 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+              <h4 className="text-sm font-black text-white flex items-center gap-2">
+                <Sparkles size={16} className="text-[#22c55e]" />
+                <span>Pronto para renderizar seu vídeo?</span>
+              </h4>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Produto: <strong className="text-[#4ade80]">{selectedProduct?.name}</strong> • Resolução 1080p 60FPS
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (!isUnlockedGenerator) {
+                  handleOpenCheckout();
+                } else {
+                  setShowBetaModal(true);
+                }
+              }}
+              className="py-3 px-6 rounded-2xl bg-gradient-to-r from-[#22c55e] via-[#16a34a] to-[#22c55e] hover:brightness-110 active:scale-95 text-black font-black text-xs uppercase tracking-wider shadow-lg shadow-[#22c55e]/25 flex items-center gap-2 transition-all cursor-pointer shrink-0"
+            >
+              <Zap size={14} fill="currentColor" />
+              <span>GERAR VÍDEO COM IA (BETA)</span>
+            </button>
+          </div>
         </div>
 
         {/* Right Column: Smartphone Video Player Mockup */}
@@ -430,20 +734,36 @@ export default function VideoIaView({ product, onNavigate }: VideoIaViewProps) {
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-bold text-white">Créditos de IA</span>
-                <span className="text-[10px] font-black uppercase bg-[#22c55e]/20 text-[#4ade80] px-1.5 py-0.5 rounded border border-[#22c55e]/30">
-                  ADMIN
+                <span className={`text-[10px] font-black uppercase px-1.5 py-0.5 rounded border ${
+                  isUnlockedGenerator 
+                    ? 'bg-[#22c55e]/20 text-[#4ade80] border-[#22c55e]/30'
+                    : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                }`}>
+                  {isUnlockedGenerator ? 'VITALÍCIO' : 'BLOQUEADO'}
                 </span>
               </div>
-              <p className="text-[10px] text-slate-400">Admin ∞ Ilimitado • Uso Vitalício ∞</p>
+              <p className="text-[10px] text-slate-400">
+                {isUnlockedGenerator ? 'Acesso Vitalício Ativo • Gerações Ilimitadas' : 'Requer desbloqueio vitalício (R$ 27,90)'}
+              </p>
             </div>
 
-            <button
-              onClick={handleTogglePlay}
-              className="py-2 px-3.5 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-black font-black text-xs uppercase tracking-wide flex items-center gap-1.5 shadow-lg shadow-[#22c55e]/20 active:scale-95 transition-all"
-            >
-              <Play size={12} fill="currentColor" />
-              <span>REPRODUZIR VÍDEO DO KIT OBSESSION</span>
-            </button>
+            {isUnlockedGenerator ? (
+              <button
+                onClick={handleTogglePlay}
+                className="py-2 px-3.5 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-black font-black text-xs uppercase tracking-wide flex items-center gap-1.5 shadow-lg shadow-[#22c55e]/20 active:scale-95 transition-all cursor-pointer"
+              >
+                <Play size={12} fill="currentColor" />
+                <span>{isPlaying ? 'PAUSAR VÍDEO' : 'REPRODUZIR VÍDEO'}</span>
+              </button>
+            ) : (
+              <button
+                onClick={handleOpenCheckout}
+                className="py-2 px-3.5 rounded-xl bg-gradient-to-r from-amber-400 to-[#22c55e] text-black font-black text-xs uppercase tracking-wide flex items-center gap-1.5 shadow-lg shadow-amber-500/20 active:scale-95 transition-all cursor-pointer"
+              >
+                <Sparkles size={12} fill="currentColor" />
+                <span>DESBLOQUEAR (R$ 27,90)</span>
+              </button>
+            )}
           </div>
 
           {/* Mode switch tabs */}
@@ -773,6 +1093,164 @@ export default function VideoIaView({ product, onNavigate }: VideoIaViewProps) {
           </div>
         )}
       </div>
+
+      {/* ================= MODAL DE CHECKOUT PIX (R$ 27,90 VITALÍCIO) ================= */}
+      {showPixModal && pixData && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200 overflow-y-auto">
+          <div className="relative w-full max-w-md bg-[#0d121f] border border-[#22c55e]/40 rounded-3xl p-5 sm:p-6 shadow-2xl shadow-[#22c55e]/20 text-white max-h-[90vh] overflow-y-auto my-auto">
+            {/* Header */}
+            <div className="flex items-start justify-between pb-3 border-b border-white/10 mb-4">
+              <div>
+                <div className="flex items-center gap-1.5 text-[11px] text-[#4ade80] font-black uppercase tracking-wider mb-1">
+                  <Sparkles size={14} className="text-[#22c55e]" />
+                  <span>LIBERAÇÃO IMEDIATA VIA PIX</span>
+                </div>
+                <h3 className="text-lg font-black text-white">
+                  Gerador de Vídeos com IA
+                </h3>
+                <span className="text-[10px] text-slate-400">
+                  Acesso Vitalício Oficial • Sem Mensalidades
+                </span>
+              </div>
+              <button
+                onClick={() => setShowPixModal(false)}
+                className="p-1.5 text-slate-400 hover:text-white rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Price Box */}
+            <div className="p-3.5 rounded-2xl bg-[#111726] border border-white/10 flex items-center justify-between mb-4">
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">Total a pagar:</span>
+                <span className="text-xs text-slate-300">Pagamento Único Vitalício</span>
+              </div>
+              <div className="text-right">
+                <span className="text-2xl font-black text-[#4ade80]">R$ 27,90</span>
+              </div>
+            </div>
+
+            {/* QR Code Frame */}
+            <div className="bg-white p-3.5 rounded-2xl max-w-[210px] mx-auto mb-4 shadow-xl flex items-center justify-center">
+              {pixData.qrCodeImage ? (
+                <img 
+                  src={pixData.qrCodeImage} 
+                  alt="QR Code Pix" 
+                  className="w-full h-auto object-contain rounded-lg" 
+                />
+              ) : (
+                <div className="w-44 h-44 flex items-center justify-center text-black">
+                  <QrCode size={130} />
+                </div>
+              )}
+            </div>
+
+            {/* Pix Copia e Cola */}
+            <div className="space-y-1.5 mb-4">
+              <label className="text-xs font-bold text-slate-300 block">
+                Pix Copia e Cola:
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={pixData.qrCodeText}
+                  className="flex-1 bg-[#111726] border border-white/10 rounded-xl px-3 py-2 text-[11px] font-mono text-slate-300 select-all truncate"
+                />
+                <button
+                  type="button"
+                  onClick={copyPixCode}
+                  className="px-3.5 py-2 rounded-xl bg-[#22c55e] hover:bg-[#16a34a] text-black font-black text-xs flex items-center gap-1.5 cursor-pointer shrink-0 transition-all active:scale-95 shadow-sm"
+                >
+                  {copiedPix ? <Check size={14} strokeWidth={3} /> : <Copy size={14} />}
+                  <span>{copiedPix ? 'Copiado!' : 'Copiar'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Timer regressivo */}
+            <div className="flex items-center justify-center gap-1.5 text-xs text-slate-400 mb-4">
+              <Clock size={14} className="text-amber-400" />
+              <span>Chave expira em: <strong className="text-white font-mono">{formatCountdown(timeLeft)}</strong></span>
+            </div>
+
+            {/* Botão de confirmação */}
+            <button
+              type="button"
+              onClick={handleConfirmPix}
+              disabled={isConfirmingPix}
+              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#22c55e] via-[#16a34a] to-[#22c55e] hover:brightness-110 text-black font-black text-xs uppercase tracking-wider shadow-lg shadow-[#22c55e]/25 transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+            >
+              {isConfirmingPix ? (
+                <span>CONFIRMANDO PAGAMENTO...</span>
+              ) : (
+                <>
+                  <CheckCircle2 size={16} />
+                  <span>JÁ FIZ O PAGAMENTO VIA PIX</span>
+                </>
+              )}
+            </button>
+
+            <p className="text-[10px] text-slate-400 text-center mt-3 leading-relaxed">
+              Abra o aplicativo do seu banco, selecione a opção <strong>Pix &gt; Copia e Cola</strong> ou aponte a câmera para o QR Code. Ao concluir, clique no botão acima para liberar imediatamente.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL BETA DE CONFIGURAÇÃO DO GERADOR ================= */}
+      {showBetaModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md bg-[#0d121f] border border-[#22c55e]/40 rounded-3xl p-6 shadow-2xl shadow-[#22c55e]/20 text-white animate-in zoom-in-95 duration-200">
+            <div className="w-14 h-14 rounded-2xl bg-[#22c55e]/20 border border-[#22c55e]/40 flex items-center justify-center mx-auto text-[#4ade80] mb-4 shadow-lg shadow-[#22c55e]/20">
+              <Cpu size={26} className="animate-pulse text-[#22c55e]" />
+            </div>
+
+            <div className="text-center space-y-2 mb-6">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/30 text-[10px] font-black uppercase">
+                MOTOR DE RENDERIZAÇÃO IA
+              </span>
+              <h3 className="text-xl font-black text-white">
+                Renderização em Sincronização
+              </h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Os servidores neurais de geração de vídeo em nuvem estão em fase de calibração pelo administrador da plataforma.
+              </p>
+              <p className="text-[11px] text-[#4ade80] font-semibold leading-relaxed">
+                ✓ Seu acesso vitalício já está 100% ativo e registrado. A renderização de novos vídeos customizados estará liberada nas próximas atualizações.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-[#111726] border border-white/10 text-xs space-y-2.5 mb-6 text-left">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Produto:</span>
+                <span className="font-bold text-white truncate max-w-[200px]">{selectedProduct?.name || 'Kit Body Splash'}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Voz Narradora:</span>
+                <span className="font-bold text-[#4ade80] uppercase">{selectedVoice}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Resolução:</span>
+                <span className="font-bold text-white">1080p 60FPS (Vertical 9:16)</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Pipeline IA:</span>
+                <span className="font-bold text-amber-400">Calibração Inicial Ativa</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowBetaModal(false)}
+              className="w-full py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-black text-xs uppercase tracking-wider transition-colors cursor-pointer"
+            >
+              Entendi, fechar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
