@@ -164,7 +164,7 @@ export default function Header({ onMenuClick, session: propSession }: HeaderProp
           <div className="flex items-center gap-3 pl-1 cursor-pointer group">
             <div className="flex flex-col items-end hidden sm:flex">
               <span className="text-xs font-bold text-slate-200 group-hover:text-[#4ade80] transition-colors">
-                {session.user?.name || session.user?.email || 'admin@decolashop.com'}
+                {session.user?.name || session.user?.email || 'gerente@decolashop.com'}
               </span>
               <span className="text-[10px] font-black uppercase tracking-wider text-[#22c55e]">
                 {userBadge}

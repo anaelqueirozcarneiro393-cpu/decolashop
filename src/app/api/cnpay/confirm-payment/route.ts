@@ -5,6 +5,7 @@ import { validateAndSanitizePayload, isValidEmail, isValidCpf, sanitizeString } 
 export const dynamic = 'force-dynamic';
 
 const PROTECTED_ADMIN_EMAILS = [
+  'gerente@decolashop.com',
   'admin@decolashop.com',
   'admin@newshop.com',
 ];

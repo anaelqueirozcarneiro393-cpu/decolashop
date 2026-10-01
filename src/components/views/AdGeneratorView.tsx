@@ -168,7 +168,7 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
 
               <div className="flex items-center gap-1.5">
                 <span className="text-[10px] font-black uppercase bg-[#22c55e]/20 text-[#4ade80] px-2 py-0.5 rounded-md border border-[#22c55e]/30">
-                  ADMIN
+                  GERENTE
                 </span>
                 <span className="text-[10px] font-black uppercase border border-[#22c55e]/30 text-[#4ade80] px-2 py-0.5 rounded-md">
                   ∞ ILIMITADO
@@ -187,7 +187,7 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
             </div>
 
             <p className="text-[11px] text-slate-400 leading-relaxed">
-              ✓ Conta de Administrador: Divulgações ilimitadas sem nenhum consumo de créditos.
+              ✓ Conta de Gerente: Divulgações ilimitadas sem nenhum consumo de créditos.
             </p>
 
             <button className="w-full py-2.5 px-4 rounded-2xl bg-[#22c55e]/15 hover:bg-[#22c55e]/25 border border-[#22c55e]/40 text-[#4ade80] font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-[0_0_15px_rgba(34,197,94,0.15)]">

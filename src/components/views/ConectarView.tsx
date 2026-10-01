@@ -282,11 +282,11 @@ export default function ConectarView() {
             <div className="bg-black/40 rounded-2xl p-5 border border-white/10 max-w-md mx-auto text-left text-xs space-y-2.5 shadow-inner">
               <div className="flex justify-between items-center text-slate-400 pb-2 border-b border-white/5">
                 <span className="font-medium">Responsável:</span>
-                <span className="font-bold text-white">{currentChannel?.name || 'Administrador'}</span>
+                <span className="font-bold text-white">{currentChannel?.name || 'Gerente DecolaShop'}</span>
               </div>
               <div className="flex justify-between items-center text-slate-400 pb-2 border-b border-white/5">
                 <span className="font-medium">Email da Conta:</span>
-                <span className="font-bold text-white">{currentChannel?.email || 'admin@decolashop.com'}</span>
+                <span className="font-bold text-white">{currentChannel?.email || 'gerente@decolashop.com'}</span>
               </div>
               <div className="flex justify-between items-center text-slate-400 pb-2 border-b border-white/5">
                 <span className="font-medium">Conectado em:</span>

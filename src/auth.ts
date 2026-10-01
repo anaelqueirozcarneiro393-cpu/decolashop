@@ -55,8 +55,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(credentials) {
         if (!credentials?.email) return null;
         let email = (credentials.email as string).toLowerCase().trim();
-        if (email === "admin") {
-          email = "admin@decolashop.com";
+        if (email === "admin" || email === "gerente" || email === "admin@decolashop.com") {
+          email = "gerente@decolashop.com";
         }
 
         if (BLOCKED_EMAILS.includes(email)) {
