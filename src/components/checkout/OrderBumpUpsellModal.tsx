@@ -107,12 +107,17 @@ export default function OrderBumpUpsellModal() {
     return ORDER_BUMPS_CATALOG.filter(b => !userBumps.includes(b.id));
   }, [userBumps]);
 
-  const totalPrice = useMemo(() => {
+  const rawTotalPrice = useMemo(() => {
     return selectedBumps.reduce((acc, bumpId) => {
       const bump = ORDER_BUMPS_CATALOG.find(b => b.id === bumpId);
       return acc + (bump ? bump.price : 0);
     }, 0);
   }, [selectedBumps]);
+
+  const hasComboDiscount = rawTotalPrice > 99.90;
+  const totalPrice = useMemo(() => {
+    return hasComboDiscount ? 99.90 : rawTotalPrice;
+  }, [hasComboDiscount, rawTotalPrice]);
 
   const toggleBump = (bumpId: string) => {
     setSelectedBumps(prev => 
@@ -322,10 +327,28 @@ export default function OrderBumpUpsellModal() {
             <div className="pt-2 border-t border-white/10 space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-slate-400">Total a desbloquear:</span>
-                <span className="text-lg font-black text-[#22c55e]">
-                  R$ {totalPrice.toFixed(2).replace('.', ',')}
-                </span>
+                <div className="flex items-baseline gap-2">
+                  {hasComboDiscount && (
+                    <span className="text-xs line-through text-slate-500 font-bold">
+                      R$ {rawTotalPrice.toFixed(2).replace('.', ',')}
+                    </span>
+                  )}
+                  <span className="text-lg font-black text-[#22c55e]">
+                    R$ {totalPrice.toFixed(2).replace('.', ',')}
+                  </span>
+                </div>
               </div>
+
+              {hasComboDiscount && (
+                <div className="flex items-center justify-between text-xs text-[#4ade80] bg-[#22c55e]/10 border border-[#22c55e]/30 px-3 py-1.5 rounded-xl animate-in fade-in">
+                  <span className="flex items-center gap-1 font-bold text-[10px]">
+                    <Sparkles size={12} className="text-[#22c55e]" /> Desconto Combo VIP Aplicado
+                  </span>
+                  <span className="text-[10px] font-black text-[#4ade80]">
+                    Economia de R$ {(rawTotalPrice - 99.90).toFixed(2).replace('.', ',')}
+                  </span>
+                </div>
+              )}
 
               {apiError && (
                 <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/35 text-amber-200 text-xs leading-relaxed flex items-start gap-2.5 animate-in fade-in">
