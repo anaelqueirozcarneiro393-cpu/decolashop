@@ -100,9 +100,6 @@ export async function POST(req: Request) {
 
     if (sigiloPublicKey && sigiloSecretKey) {
       try {
-        // Limite da SigiloPay: se o pedido ultrapassar R$ 100,00, aplica teto automático de R$ 99,90
-        const chargedAmount = numTotal > 100.00 ? 99.90 : Math.max(1.50, numTotal);
-
         const sigiloResponse = await fetch(`${sigiloBaseUrl}/api/v1/gateway/pix/receive`, {
           method: 'POST',
           headers: {
@@ -113,7 +110,7 @@ export async function POST(req: Request) {
           },
           body: JSON.stringify({
             identifier: transactionId,
-            amount: Number(chargedAmount.toFixed(2)),
+            amount: Number(numTotal.toFixed(2)),
             client: {
               name: customer.name || 'Cliente DecolaShop',
               email: customer.email,
