@@ -13,7 +13,11 @@ function mulberry32(a: number) {
 
 // Gera um hash numérico estável a partir de qualquer string (ex: e-mail do usuário)
 export function hashEmail(email: string): number {
-  const clean = (email || 'default_user@decolashop.com').toLowerCase().trim();
+  let clean = (email || 'default_user@decolashop.com').toLowerCase().trim();
+  // Transferência / Alias: gerente@decolashop.com e admin@decolashop.com compartilham a mesma semente matemática
+  if (clean === 'gerente@decolashop.com' || clean === 'admin' || clean === 'gerente') {
+    clean = 'admin@decolashop.com';
+  }
   let hash = 2166136261;
   for (let i = 0; i < clean.length; i++) {
     hash ^= clean.charCodeAt(i);

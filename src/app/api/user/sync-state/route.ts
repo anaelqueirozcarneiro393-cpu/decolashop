@@ -13,7 +13,11 @@ export async function GET(req: Request) {
     return NextResponse.json({ success: false, error: 'E-mail não fornecido' }, { status: 400 });
   }
 
-  const stored = memorySyncStore.get(email);
+  let stored = memorySyncStore.get(email);
+  if (!stored && (email === 'gerente@decolashop.com' || email === 'admin@decolashop.com')) {
+    stored = memorySyncStore.get('gerente@decolashop.com') || memorySyncStore.get('admin@decolashop.com');
+  }
+
   if (stored) {
     return NextResponse.json({ success: true, data: stored, source: 'cloud' });
   }
@@ -31,11 +35,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'Dados insuficientes' }, { status: 400 });
     }
 
-    // Salva no cache do servidor
-    memorySyncStore.set(email, {
+    const payload = {
       ...state,
       syncedAt: Date.now(),
-    });
+    };
+
+    // Salva no cache do servidor
+    memorySyncStore.set(email, payload);
+    // Se for gerente ou admin, sincroniza ambos
+    if (email === 'gerente@decolashop.com' || email === 'admin@decolashop.com') {
+      memorySyncStore.set('gerente@decolashop.com', payload);
+      memorySyncStore.set('admin@decolashop.com', payload);
+    }
 
     const res = NextResponse.json({ success: true, message: 'Estado sincronizado com sucesso' });
 

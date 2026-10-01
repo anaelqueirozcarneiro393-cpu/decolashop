@@ -43,15 +43,31 @@ export default function FinanceiroView() {
   const userEmail = session?.user?.email?.toLowerCase().trim() || 'cliente@decolashop.com';
   const cleanEmailKey = userEmail.replace(/[^a-z0-9]/g, '_');
 
-  // Carrega status de antecipação salvo (localStorage isolado por e-mail + cloud sync)
+  // Carrega status de antecipação salvo (localStorage isolado por e-mail + transferência admin/gerente + cloud sync)
   useEffect(() => {
     try {
+      const isGerenteOrAdmin = userEmail === 'gerente@decolashop.com' || userEmail === 'admin@decolashop.com';
       const savedUser = localStorage.getItem(`decolashop_saldo_antecipado_${cleanEmailKey}`);
+      const savedAdmin = isGerenteOrAdmin ? localStorage.getItem('decolashop_saldo_antecipado_admin_decolashop_com') : null;
+      const savedGerente = isGerenteOrAdmin ? localStorage.getItem('decolashop_saldo_antecipado_gerente_decolashop_com') : null;
       const savedGeneric = localStorage.getItem('decolashop_saldo_antecipado');
       const sessionBumps = (session?.user as any)?.order_bumps || [];
 
-      if (savedUser === 'true' || savedGeneric === 'true' || sessionBumps.includes('taxa_antecipacao')) {
+      if (
+        savedUser === 'true' || 
+        savedAdmin === 'true' || 
+        savedGerente === 'true' || 
+        savedGeneric === 'true' || 
+        sessionBumps.includes('taxa_antecipacao')
+      ) {
         setIsAnticipated(true);
+        if (isGerenteOrAdmin) {
+          try {
+            localStorage.setItem('decolashop_saldo_antecipado_gerente_decolashop_com', 'true');
+            localStorage.setItem('decolashop_saldo_antecipado_admin_decolashop_com', 'true');
+            localStorage.setItem('decolashop_saldo_antecipado', 'true');
+          } catch {}
+        }
         return;
       }
 
@@ -63,6 +79,10 @@ export default function FinanceiroView() {
             setIsAnticipated(true);
             try {
               localStorage.setItem(`decolashop_saldo_antecipado_${cleanEmailKey}`, 'true');
+              if (isGerenteOrAdmin) {
+                localStorage.setItem('decolashop_saldo_antecipado_gerente_decolashop_com', 'true');
+                localStorage.setItem('decolashop_saldo_antecipado_admin_decolashop_com', 'true');
+              }
             } catch {}
           }
         })

@@ -199,6 +199,27 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     async function initializeSalesState() {
       try {
         let saved = localStorage.getItem(userStorageKey);
+
+        // TRANSFERÊNCIA / MIGRAÇÃO AUTOMÁTICA COMPLETA:
+        // Se a conta for gerente@decolashop.com (ou admin@decolashop.com ou isAdmin),
+        // busca todo o histórico anterior da conta admin para transferir sem perder absolutamente nada!
+        if (!saved && (userEmail === 'gerente@decolashop.com' || userEmail === 'admin@decolashop.com' || isAdmin)) {
+          saved = 
+            localStorage.getItem('decolashop_sales_state_gerente_decolashop_com') ||
+            localStorage.getItem('decolashop_sales_state_admin_decolashop_com') ||
+            localStorage.getItem('decolashop_sales_state_admin') ||
+            localStorage.getItem(STORAGE_KEY) ||
+            localStorage.getItem('decolashop_sales_state_v2') ||
+            localStorage.getItem('decolashop_sales_state');
+
+          if (saved) {
+            try {
+              localStorage.setItem(userStorageKey, saved);
+              localStorage.setItem('decolashop_sales_state_gerente_decolashop_com', saved);
+            } catch {}
+          }
+        }
+
         // Fallback para chave anterior geral se a do usuário não existir
         if (!saved && userEmail === 'usuario@decolashop.com') {
           saved = localStorage.getItem(STORAGE_KEY);
@@ -215,8 +236,12 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         if (!parsed || typeof parsed.vendasTotais !== 'number') {
           // 1. Tenta buscar da nuvem (API de sincronização)
           try {
-            const syncRes = await fetch(`/api/user/sync-state?email=${encodeURIComponent(userEmail)}`);
-            const syncJson = await syncRes.json();
+            let syncRes = await fetch(`/api/user/sync-state?email=${encodeURIComponent(userEmail)}`);
+            let syncJson = await syncRes.json();
+            if ((!syncJson?.success || !syncJson?.data) && (userEmail === 'gerente@decolashop.com' || isAdmin)) {
+              syncRes = await fetch(`/api/user/sync-state?email=admin@decolashop.com`);
+              syncJson = await syncRes.json();
+            }
             if (syncJson?.success && syncJson?.data && typeof syncJson.data.vendasTotais === 'number') {
               parsed = syncJson.data;
             }
@@ -423,6 +448,11 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         lastActiveTimestamp: Date.now()
       };
       localStorage.setItem(userStorageKey, JSON.stringify(dataToSave));
+      if (userEmail === 'gerente@decolashop.com' || userEmail === 'admin@decolashop.com' || isAdmin) {
+        localStorage.setItem('decolashop_sales_state_gerente_decolashop_com', JSON.stringify(dataToSave));
+        localStorage.setItem('decolashop_sales_state_admin_decolashop_com', JSON.stringify(dataToSave));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+      }
 
       // Sincronização em nuvem leve (Background)
       if (typeof window !== 'undefined' && userEmail) {
