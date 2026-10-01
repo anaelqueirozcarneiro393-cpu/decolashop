@@ -110,7 +110,6 @@ export default function AdminQuickActions() {
       if (isV_Shortcut) {
         e.preventDefault();
         addSale();
-        toast.success('⚡ Venda forçada via atalho!');
         return;
       }
 
