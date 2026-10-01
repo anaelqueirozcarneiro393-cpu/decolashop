@@ -80,21 +80,21 @@ export async function POST(req: Request) {
     const transactionId = `DECOLA-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://decolashop.vercel.app';
 
-    // SigiloPay Gateway Keys
-    const sigiloPublicKey = 
-      process.env.SIGILOPAY_PUBLIC_KEY || 
-      process.env.CNPAY_PUBLIC_KEY || 
-      'kaiofredy2908_1cmq6fd3bmq2s24u';
+    // SigiloPay Gateway Keys (Ignora chaves antigas da CNPay caso ainda estejam setadas na Vercel)
+    const rawPublicKey = process.env.SIGILOPAY_PUBLIC_KEY || process.env.CNPAY_PUBLIC_KEY;
+    const sigiloPublicKey = (rawPublicKey && !rawPublicKey.includes('iamironman'))
+      ? rawPublicKey 
+      : 'kaiofredy2908_1cmq6fd3bmq2s24u';
 
-    const sigiloSecretKey = 
-      process.env.SIGILOPAY_SECRET_KEY || 
-      process.env.CNPAY_SECRET_KEY || 
-      'tzlk0xxe8t4dybi2t0o1udw1ckczp01a4a9hbgptalozcan5hh0r59qw41seo3ze';
+    const rawSecretKey = process.env.SIGILOPAY_SECRET_KEY || process.env.CNPAY_SECRET_KEY;
+    const sigiloSecretKey = (rawSecretKey && !rawSecretKey.startsWith('319bng'))
+      ? rawSecretKey 
+      : 'tzlk0xxe8t4dybi2t0o1udw1ckczp01a4a9hbgptalozcan5hh0r59qw41seo3ze';
 
-    const sigiloBaseUrl = 
-      process.env.SIGILOPAY_BASE_URL || 
-      process.env.CNPAY_BASE_URL || 
-      'https://app.sigilopay.com.br';
+    const rawBaseUrl = process.env.SIGILOPAY_BASE_URL || process.env.CNPAY_BASE_URL;
+    const sigiloBaseUrl = (rawBaseUrl && !rawBaseUrl.includes('appcnpay'))
+      ? rawBaseUrl
+      : 'https://app.sigilopay.com.br';
 
     console.log(`[SigiloPay Pix Request] Total: R$ ${numTotal} - Cliente: ${customer.email} - CPF Seguro: ${safeCpf}`);
 
@@ -213,20 +213,20 @@ export async function POST(req: Request) {
 
 // Quick health check to test if SigiloPay API is online and credentials are active
 export async function GET() {
-  const sigiloPublicKey = 
-    process.env.SIGILOPAY_PUBLIC_KEY || 
-    process.env.CNPAY_PUBLIC_KEY || 
-    'kaiofredy2908_1cmq6fd3bmq2s24u';
+  const rawPublicKey = process.env.SIGILOPAY_PUBLIC_KEY || process.env.CNPAY_PUBLIC_KEY;
+  const sigiloPublicKey = (rawPublicKey && !rawPublicKey.includes('iamironman'))
+    ? rawPublicKey 
+    : 'kaiofredy2908_1cmq6fd3bmq2s24u';
 
-  const sigiloSecretKey = 
-    process.env.SIGILOPAY_SECRET_KEY || 
-    process.env.CNPAY_SECRET_KEY || 
-    'tzlk0xxe8t4dybi2t0o1udw1ckczp01a4a9hbgptalozcan5hh0r59qw41seo3ze';
+  const rawSecretKey = process.env.SIGILOPAY_SECRET_KEY || process.env.CNPAY_SECRET_KEY;
+  const sigiloSecretKey = (rawSecretKey && !rawSecretKey.startsWith('319bng'))
+    ? rawSecretKey 
+    : 'tzlk0xxe8t4dybi2t0o1udw1ckczp01a4a9hbgptalozcan5hh0r59qw41seo3ze';
 
-  const sigiloBaseUrl = 
-    process.env.SIGILOPAY_BASE_URL || 
-    process.env.CNPAY_BASE_URL || 
-    'https://app.sigilopay.com.br';
+  const rawBaseUrl = process.env.SIGILOPAY_BASE_URL || process.env.CNPAY_BASE_URL;
+  const sigiloBaseUrl = (rawBaseUrl && !rawBaseUrl.includes('appcnpay'))
+    ? rawBaseUrl
+    : 'https://app.sigilopay.com.br';
 
   try {
     const res = await fetch(`${sigiloBaseUrl}/api/v1/gateway/pix/receive`, {
