@@ -93,7 +93,7 @@ export default function PaywallOverlay() {
               </button>
 
               <p className="text-center text-[10px] text-slate-400 pt-1 flex items-center justify-center gap-1">
-                <ShieldCheck className="w-3.5 h-3.5 text-[#22c55e]" /> Pagamento Instantâneo via CN Pay (Pix)
+                <ShieldCheck className="w-3.5 h-3.5 text-[#22c55e]" /> Pagamento Instantâneo via Pix Seguro (SigiloPay)
               </p>
             </div>
 

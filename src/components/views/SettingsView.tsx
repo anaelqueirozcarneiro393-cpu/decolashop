@@ -86,7 +86,7 @@ export default function SettingsView() {
             </div>
             <div>
               <h3 className="font-bold text-white">Status da Assinatura</h3>
-              <p className="text-xs text-muted-foreground">Processamento instantâneo via CN Pay (Pix & Order Bumps)</p>
+              <p className="text-xs text-muted-foreground">Processamento instantâneo via Pix Seguro (SigiloPay)</p>
             </div>
           </div>
 
@@ -119,7 +119,7 @@ export default function SettingsView() {
               onClick={() => setShowUpgradeModal(true)}
               className="flex-1 flex items-center justify-center gap-2 py-3 px-6 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] text-black font-extrabold text-xs hover:from-[#4ade80] hover:to-[#22c55e] transition-all shadow-lg shadow-[#22c55e]/25 active:scale-95"
             >
-              <Sparkles size={16} /> Fazer Upgrade com Order Bumps (CN Pay Pix)
+              <Sparkles size={16} /> Fazer Upgrade com Order Bumps (Pix Seguro)
             </button>
           ) : (
             <div className="flex-1 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold flex items-center gap-2">

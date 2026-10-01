@@ -557,7 +557,7 @@ export default function CnpayCheckoutModal({
                 <div className="p-3.5 rounded-xl bg-amber-500/15 border border-amber-500/35 text-amber-200 text-xs leading-relaxed flex items-start gap-2.5 animate-in fade-in">
                   <AlertTriangle size={18} className="text-amber-400 shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-bold text-amber-300">Aviso do Gateway CN Pay</p>
+                    <p className="font-bold text-amber-300">Aviso do Gateway SigiloPay</p>
                     <p className="text-[11px] text-amber-200/90 mt-0.5 leading-snug">{apiError}</p>
                   </div>
                 </div>
@@ -583,7 +583,7 @@ export default function CnpayCheckoutModal({
 
               <div className="flex items-center justify-center gap-2 text-[9px] text-slate-500">
                 <span className="flex items-center gap-1">
-                  <ShieldCheck size={11} className="text-[#22c55e]" /> Pagamento Instantâneo via CN Pay
+                  <ShieldCheck size={11} className="text-[#22c55e]" /> Pagamento Instantâneo via Pix Seguro (SigiloPay)
                 </span>
                 <span>•</span>
                 <span>Liberação Automática</span>

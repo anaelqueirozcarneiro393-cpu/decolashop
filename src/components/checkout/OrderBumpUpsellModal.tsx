@@ -331,7 +331,7 @@ export default function OrderBumpUpsellModal() {
                 <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/35 text-amber-200 text-xs leading-relaxed flex items-start gap-2.5 animate-in fade-in">
                   <AlertTriangle size={16} className="text-amber-400 shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-bold text-amber-300">Aviso do Gateway CN Pay</p>
+                    <p className="font-bold text-amber-300">Aviso do Gateway SigiloPay</p>
                     <p className="text-[10px] text-amber-200/90 mt-0.5 leading-snug">{apiError}</p>
                   </div>
                 </div>
