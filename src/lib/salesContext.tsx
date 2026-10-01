@@ -272,13 +272,26 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
               parsed = syncJson.data;
             }
           } catch {}
+        }
 
-          // 2. Se a nuvem não tiver dados (primeiro acesso da conta):
-          // Executa a Maracutaia da Semente Determinística (Seed Temporal):
-          // Gera um histórico 100% consistente que será IDÊNTICO em qualquer dispositivo que logar com esse e-mail!
-          if (!parsed || typeof parsed.vendasTotais !== 'number') {
-            parsed = getDeterministicBaseline(userEmail, Date.now());
-          }
+        // AUTO-UPGRADE DA CONTA GERENTE (1 Semana Completa entre R$ 3k e 5k por dia!):
+        // Se a conta for de Gerente/Admin e ainda estiver com dados legados (< 15k ou menos de 30 vendas):
+        const isGerenteUser = userEmail === 'gerente@decolashop.com' || userEmail === 'admin@decolashop.com' || isAdmin;
+        if (isGerenteUser && (!parsed || typeof parsed.vendasTotais !== 'number' || parsed.vendasTotais < 15000 || !Array.isArray(parsed.recentSales) || parsed.recentSales.length < 30)) {
+          parsed = getDeterministicBaseline(userEmail, Date.now());
+          try {
+            const str = JSON.stringify(parsed);
+            localStorage.setItem(userStorageKey, str);
+            localStorage.setItem('decolashop_sales_state_gerente_decolashop_com', str);
+            localStorage.setItem('decolashop_sales_state_admin_decolashop_com', str);
+            fetch('/api/user/sync-state', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: userEmail, state: parsed })
+            }).catch(() => {});
+          } catch {}
+        } else if (!parsed || typeof parsed.vendasTotais !== 'number') {
+          parsed = getDeterministicBaseline(userEmail, Date.now());
         }
 
         if (isCancelled) return;

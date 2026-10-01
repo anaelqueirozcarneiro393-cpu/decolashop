@@ -103,12 +103,21 @@ export default function SalesOverviewChart({
         d.setDate(today.getDate() - i);
         const isToday = i === 0;
         const dayLabel = isToday ? 'Hoje' : dayNames[d.getDay()];
-        const fullDayName = isToday ? 'Hoje' : `${dayNames[d.getDay()]}-feira`;
-        days.push({ dayLabel, fullDayName, isToday });
+        const fullDayName = isToday ? 'Hoje' : `${dayNames[d.getDay()]}-feira (${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')})`;
+        days.push({ dayLabel, fullDayName, isToday, daysAgo: i });
       }
 
       const todayTotal = hourlyData.reduce((acc, item) => acc + (item.valHoje || 0), 0);
       const yesterdayTotal = hourlyData.reduce((acc, item) => acc + (item.valOntem || 0), 0);
+
+      // Histórico diário para conta Gerente (faturamento entre R$ 3.000 e R$ 5.000 por dia)
+      const pastDaysValues: Record<number, { val: number; orders: number }> = {
+        6: { val: 3480.00, orders: 23 }, // 6 dias atrás
+        5: { val: 4250.00, orders: 28 }, // 5 dias atrás
+        4: { val: 3790.00, orders: 25 }, // 4 dias atrás
+        3: { val: 4890.00, orders: 33 }, // 3 dias atrás
+        2: { val: 3620.00, orders: 24 }, // 2 dias atrás
+      };
 
       return days.map((item, idx) => {
         let currentVal = 0;
@@ -116,10 +125,20 @@ export default function SalesOverviewChart({
 
         if (item.isToday) {
           currentVal = todayTotal;
-          pointOrders = todayTotal > 0 ? Math.max(1, Math.round(pedidos * 0.4)) : 0;
+          pointOrders = todayTotal > 0 
+            ? Math.max(1, Math.round((todayTotal / (baseTotal || 1)) * pedidos)) 
+            : (baseTotal >= 15000 ? 14 : 0);
         } else if (idx === days.length - 2) {
-          currentVal = yesterdayTotal;
-          pointOrders = yesterdayTotal > 0 ? Math.max(1, Math.round(pedidos * 0.6)) : 0;
+          // Ontem
+          currentVal = yesterdayTotal > 0 ? yesterdayTotal : (baseTotal >= 15000 ? 4380.00 : 0);
+          pointOrders = yesterdayTotal > 0 
+            ? Math.max(1, Math.round((yesterdayTotal / (baseTotal || 1)) * pedidos)) 
+            : (baseTotal >= 15000 ? 29 : 0);
+        } else if (baseTotal >= 15000) {
+          // Dias anteriores da semana para conta Gerente (3k a 5k/dia)
+          const past = pastDaysValues[item.daysAgo] || { val: 3800.00, orders: 25 };
+          currentVal = past.val;
+          pointOrders = past.orders;
         }
 
         return {
@@ -135,10 +154,24 @@ export default function SalesOverviewChart({
 
     if (period === '30d') {
       const buckets = ['D-27', 'D-24', 'D-21', 'D-18', 'D-15', 'D-12', 'D-09', 'D-06', 'D-03', 'Hoje'];
+      const todayTotal = hourlyData.reduce((acc, item) => acc + (item.valHoje || 0), 0);
       return buckets.map((b, i) => {
         const isToday = i === buckets.length - 1;
-        const currentVal = isToday ? baseTotal : 0;
-        const pointOrders = isToday ? pedidos : 0;
+        let currentVal = 0;
+        let pointOrders = 0;
+
+        if (isToday) {
+          currentVal = todayTotal > 0 ? todayTotal : Math.round(baseTotal * 0.15);
+          pointOrders = Math.max(1, Math.round(pedidos * 0.1));
+        } else if (baseTotal >= 15000) {
+          if (b === 'D-03') {
+            currentVal = 12350.00;
+            pointOrders = 82;
+          } else if (b === 'D-06') {
+            currentVal = 11520.00;
+            pointOrders = 76;
+          }
+        }
 
         return {
           label: b,
@@ -155,8 +188,18 @@ export default function SalesOverviewChart({
     const months = ['Out', 'Nov', 'Dez', 'Jan', 'Fev', 'Hoje'];
     return months.map((m, i) => {
       const isCurrent = i === months.length - 1;
-      const currentVal = isCurrent ? baseTotal : 0;
-      const pointOrders = isCurrent ? pedidos : 0;
+      let currentVal = isCurrent ? baseTotal : 0;
+      let pointOrders = isCurrent ? pedidos : 0;
+
+      if (!isCurrent && baseTotal >= 15000) {
+        if (m === 'Fev') {
+          currentVal = Math.round(baseTotal * 0.82);
+          pointOrders = Math.round(pedidos * 0.82);
+        } else if (m === 'Jan') {
+          currentVal = Math.round(baseTotal * 0.60);
+          pointOrders = Math.round(pedidos * 0.60);
+        }
+      }
 
       return {
         label: m,

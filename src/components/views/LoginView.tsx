@@ -47,20 +47,6 @@ export default function LoginView() {
     }
   };
 
-  const fillGerente = () => {
-    setEmail('gerente@decolashop.com');
-    setPassword('admin123');
-    setPurchaseCode('GERENTE-VIP');
-    toast.success('Credenciais de Gerente preenchidas! Clique em Entrar.');
-  };
-
-  const fillUser = () => {
-    setEmail('usuario@decolashop.com');
-    setPassword('user123');
-    setPurchaseCode('');
-    toast.success('Credenciais de Usuário Comum preenchidas! Clique em Entrar.');
-  };
-
   return (
     <div className="min-h-screen bg-[#080c14] flex items-center justify-center p-4 selection:bg-[#22c55e]/30 relative overflow-hidden">
       {/* Background Glows */}
@@ -249,45 +235,6 @@ export default function LoginView() {
             <p className="text-[9px] text-slate-400 font-semibold mt-1">
               Assinatura Mensal • 100% Créditos/dia
             </p>
-          </div>
-        </div>
-
-        {/* Quick Login Helpers (Gerente & Usuário Comum) */}
-        <div className="mt-4 pt-3 border-t border-white/5 space-y-2 text-[11px] text-slate-400 font-medium">
-          {/* Gerente */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <ShieldCheck size={13} className="text-[#22c55e]" />
-              <span className="font-bold text-slate-300">Gerente:</span>
-              <code className="text-[#22c55e] font-mono text-[10px] bg-[#22c55e]/10 px-1.5 py-0.5 rounded border border-[#22c55e]/20">
-                gerente@decolashop.com
-              </code>
-            </div>
-            <button
-              type="button"
-              onClick={fillGerente}
-              className="text-[#22c55e] hover:text-[#4ade80] font-black text-[10px] uppercase cursor-pointer"
-            >
-              Preencher
-            </button>
-          </div>
-
-          {/* Usuário Normal */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <Mail size={13} className="text-cyan-400" />
-              <span className="font-bold text-slate-300">Usuário:</span>
-              <code className="text-cyan-400 font-mono text-[10px] bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20">
-                usuario@decolashop.com
-              </code>
-            </div>
-            <button
-              type="button"
-              onClick={fillUser}
-              className="text-cyan-400 hover:text-cyan-300 font-black text-[10px] uppercase cursor-pointer"
-            >
-              Preencher
-            </button>
           </div>
         </div>
 
