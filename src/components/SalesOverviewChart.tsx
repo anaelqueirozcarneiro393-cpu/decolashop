@@ -60,7 +60,6 @@ export default function SalesOverviewChart({
   }, []);
 
   // Compute dataset based on selected period
-  // Compute dataset based on selected period
   const data: DataPoint[] = useMemo(() => {
     const baseTotal = Math.max(vendasTotais, 0);
 
@@ -68,27 +67,25 @@ export default function SalesOverviewChart({
       const hours = ['00', '02', '04', '06', '08', '10', '12', '14', '16', '18', '20', '22'];
       const currentHour = new Date().getHours();
       const currentBracket = String(Math.floor(currentHour / 2) * 2).padStart(2, '0');
+      const currentBracketNum = parseInt(currentBracket, 10);
       
-      // Total recorded directly in hourlyData
-      const totalRecordedInHours = hourlyData.reduce((acc, item) => acc + (item.valHoje || 0), 0);
+      const totalTodaySales = hourlyData.reduce((acc, item) => acc + (item.valHoje || 0), 0);
 
       return hours.map((h) => {
+        const hNum = parseInt(h, 10);
+        const isFuture = hNum > currentBracketNum;
         const ctxHour = hourlyData.find(item => item.hour === h);
-        let currentVal = ctxHour ? (ctxHour.valHoje || 0) : 0;
-
-        // Fallback: se hourlyData estiver zerado mas vendasTotais > 0, coloca no horário atual
-        if (totalRecordedInHours === 0 && baseTotal > 0 && h === currentBracket) {
-          currentVal = baseTotal;
-        }
-
+        
+        // Future hours are strictly 0 (not occurred yet today)
+        const currentVal = isFuture ? 0 : (ctxHour ? (ctxHour.valHoje || 0) : 0);
         const prevVal = ctxHour ? (ctxHour.valOntem || 0) : 0;
         const pointOrders = currentVal > 0 
-          ? (baseTotal > 0 ? Math.max(1, Math.round((currentVal / baseTotal) * pedidos)) : 1)
+          ? (totalTodaySales > 0 ? Math.max(1, Math.round((currentVal / totalTodaySales) * pedidos)) : 1)
           : 0;
 
         return {
           label: `${h}h`,
-          sublabel: `Hoje, ${h}:00`,
+          sublabel: isFuture ? `Hoje, ${h}:00 (Aguardando)` : `Hoje, ${h}:00`,
           current: Math.round(currentVal * 100) / 100,
           previous: Math.round(prevVal * 100) / 100,
           orders: pointOrders,
@@ -98,15 +95,36 @@ export default function SalesOverviewChart({
     }
 
     if (period === '7d') {
-      const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Hoje'];
-      return days.map((day, i) => {
-        const isToday = i === days.length - 1;
-        const currentVal = isToday ? baseTotal : 0;
-        const pointOrders = isToday ? pedidos : 0;
+      const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+      const today = new Date();
+      const days = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        const isToday = i === 0;
+        const dayLabel = isToday ? 'Hoje' : dayNames[d.getDay()];
+        const fullDayName = isToday ? 'Hoje' : `${dayNames[d.getDay()]}-feira`;
+        days.push({ dayLabel, fullDayName, isToday });
+      }
+
+      const todayTotal = hourlyData.reduce((acc, item) => acc + (item.valHoje || 0), 0);
+      const yesterdayTotal = hourlyData.reduce((acc, item) => acc + (item.valOntem || 0), 0);
+
+      return days.map((item, idx) => {
+        let currentVal = 0;
+        let pointOrders = 0;
+
+        if (item.isToday) {
+          currentVal = todayTotal;
+          pointOrders = todayTotal > 0 ? Math.max(1, Math.round(pedidos * 0.4)) : 0;
+        } else if (idx === days.length - 2) {
+          currentVal = yesterdayTotal;
+          pointOrders = yesterdayTotal > 0 ? Math.max(1, Math.round(pedidos * 0.6)) : 0;
+        }
 
         return {
-          label: day,
-          sublabel: isToday ? 'Hoje' : `${day}-feira`,
+          label: item.dayLabel,
+          sublabel: item.fullDayName,
           current: Math.round(currentVal * 100) / 100,
           previous: 0,
           orders: pointOrders,
@@ -153,9 +171,9 @@ export default function SalesOverviewChart({
 
   // Totals, Peaks and Averages
   const periodTotal = useMemo(() => {
-    const sum = data.reduce((acc, d) => acc + d.current, 0);
-    return sum > 0 ? Math.round(sum * 100) / 100 : Math.round(Math.max(vendasTotais, 0) * 100) / 100;
-  }, [data, vendasTotais]);
+    if (period === 'tudo') return Math.round(Math.max(vendasTotais, 0) * 100) / 100;
+    return Math.round(data.reduce((acc, d) => acc + d.current, 0) * 100) / 100;
+  }, [data, period, vendasTotais]);
 
   const prevPeriodTotal = useMemo(() => {
     return data.reduce((acc, d) => acc + d.previous, 0);

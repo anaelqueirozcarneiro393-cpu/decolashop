@@ -36,6 +36,7 @@ export interface DeterministicState {
   hourlyData: ChartHour[];
   recentSales: SaleItem[];
   lastActiveTimestamp: number;
+  lastSavedDate?: string;
 }
 
 /**
@@ -141,6 +142,7 @@ export function getDeterministicBaseline(email: string, nowMs: number = Date.now
       value: rawPrice,
       commission: comm,
       time: formattedTime,
+      timestamp: saleTimeMs,
       image: prod.image_url,
     });
 
@@ -172,5 +174,6 @@ export function getDeterministicBaseline(email: string, nowMs: number = Date.now
     hourlyData,
     recentSales: recentSales.slice(0, 25),
     lastActiveTimestamp: nowMs,
+    lastSavedDate: new Date(nowMs).toDateString(),
   };
 }

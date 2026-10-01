@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, Bell, User, Menu, Zap, Volume2, VolumeX, CheckCircle, X } from 'lucide-react';
 import { useSession, signIn } from 'next-auth/react';
-import { useSales } from '@/lib/salesContext';
+import { useSales, formatSaleTime } from '@/lib/salesContext';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -139,7 +139,7 @@ export default function Header({ onMenuClick, session: propSession }: HeaderProp
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-1">
                           <p className="text-xs font-bold text-white truncate">{sale.product}</p>
-                          <span className="text-[10px] text-slate-400 font-mono flex-shrink-0">{sale.time}</span>
+                          <span className="text-[10px] text-slate-400 font-mono flex-shrink-0">{formatSaleTime(sale.timestamp, sale.time)}</span>
                         </div>
                         <div className="flex items-center justify-between mt-0.5">
                           <span className="text-[10px] text-slate-400">

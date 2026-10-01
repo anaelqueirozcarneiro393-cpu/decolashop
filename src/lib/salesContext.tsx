@@ -12,7 +12,33 @@ export interface SaleItem {
   value: number;
   commission: number;
   time: string;
+  timestamp?: number;
   image?: string;
+}
+
+export function formatSaleTime(timestamp?: number, fallbackStr?: string): string {
+  const now = new Date();
+  const todayStr = now.toDateString();
+  const yesterdayStr = new Date(now.getTime() - 86400000).toDateString();
+
+  if (timestamp && typeof timestamp === 'number' && !isNaN(timestamp)) {
+    const d = new Date(timestamp);
+    const dStr = d.toDateString();
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+
+    if (dStr === todayStr) {
+      return `Hoje, ${hh}:${mm}`;
+    }
+    if (dStr === yesterdayStr) {
+      return `Ontem, ${hh}:${mm}`;
+    }
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mo = String(d.getMonth() + 1).padStart(2, '0');
+    return `${dd}/${mo}, ${hh}:${mm}`;
+  }
+
+  return fallbackStr || `Hoje, ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 }
 
 export interface ChartHour {
@@ -266,6 +292,69 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         let currHourlyData: ChartHour[] = Array.isArray(parsed.hourlyData) ? [...parsed.hourlyData] : [...CLEAN_HOURLY];
         let currRecentSales: SaleItem[] = Array.isArray(parsed.recentSales) ? [...parsed.recentSales] : [];
 
+        const nowMs = Date.now();
+        const todayDateStr = new Date(nowMs).toDateString();
+        const savedDateStr = parsed.lastSavedDate || (parsed.lastActiveTimestamp ? new Date(parsed.lastActiveTimestamp).toDateString() : null);
+
+        // 1. CHECAGEM E TRANSIÇÃO DE MEIA-NOITE (VIRADA DE DATA):
+        const isDayRollover = savedDateStr && savedDateStr !== todayDateStr;
+
+        if (isDayRollover) {
+          // Virou o dia! Move os valores de ontem para valOntem e reseta valHoje para hoje começar limpo
+          currHourlyData = currHourlyData.map(h => ({
+            hour: h.hour,
+            valOntem: (h.valHoje || 0) > 0 ? (h.valHoje || 0) : (h.valOntem || 0),
+            valHoje: 0
+          }));
+
+          // Atualiza as datas em recentSales para "Ontem"
+          currRecentSales = currRecentSales.map(item => {
+            let newTime = item.time;
+            if (item.timestamp) {
+              newTime = formatSaleTime(item.timestamp, item.time);
+            } else if (typeof item.time === 'string' && item.time.startsWith('Hoje,')) {
+              newTime = item.time.replace('Hoje,', 'Ontem,');
+            }
+            return { ...item, time: newTime };
+          });
+        } else {
+          // Mesmo se for o mesmo dia, sanitiza resquícios de horas futuras (ex: se o usuário abriu à meia-noite e tinha dados de 14h gravados)
+          const currentHourNum = new Date(nowMs).getHours();
+          const currentBracketNum = Math.floor(currentHourNum / 2) * 2;
+          let hasFutureGhostData = false;
+          currHourlyData.forEach(h => {
+            if (parseInt(h.hour, 10) > currentBracketNum && (h.valHoje || 0) > 0) {
+              hasFutureGhostData = true;
+            }
+          });
+
+          if (hasFutureGhostData) {
+            currHourlyData = currHourlyData.map(h => {
+              const hNum = parseInt(h.hour, 10);
+              if (hNum > currentBracketNum) {
+                return {
+                  hour: h.hour,
+                  valOntem: (h.valHoje || 0) > 0 ? (h.valHoje || 0) : (h.valOntem || 0),
+                  valHoje: 0
+                };
+              }
+              return h;
+            });
+            currRecentSales = currRecentSales.map(item => {
+              let newTime = item.time;
+              if (item.timestamp) {
+                newTime = formatSaleTime(item.timestamp, item.time);
+              } else if (typeof item.time === 'string' && item.time.startsWith('Hoje,')) {
+                const matchHour = item.time.match(/(\d{2}):(\d{2})/);
+                if (matchHour && parseInt(matchHour[1], 10) > currentHourNum) {
+                  newTime = item.time.replace('Hoje,', 'Ontem,');
+                }
+              }
+              return { ...item, time: newTime };
+            });
+          }
+        }
+
         if (parsed.intervalMode) setIntervalMode(parsed.intervalMode);
         if (parsed.minSeconds) setMinSeconds(parsed.minSeconds);
         if (parsed.maxSeconds) setMaxSeconds(parsed.maxSeconds);
@@ -274,7 +363,6 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
 
         // Se o usuário já tinha registros salvos e ficou fora por mais de 4 minutos, calcula vendas cronológicas retroativas
         if (parsed.lastActiveTimestamp && typeof parsed.lastActiveTimestamp === 'number') {
-          const nowMs = Date.now();
           const elapsedMs = nowMs - parsed.lastActiveTimestamp;
 
           if (elapsedMs >= 240_000) { // pelo menos 4 minutos
@@ -347,6 +435,7 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
                   value: rawPrice,
                   commission: comm,
                   time: formattedTime,
+                  timestamp: saleDate.getTime(),
                   image: product.image_url,
                 });
 
@@ -445,7 +534,8 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         maxSeconds,
         fixedSeconds,
         selectedProductId,
-        lastActiveTimestamp: Date.now()
+        lastActiveTimestamp: Date.now(),
+        lastSavedDate: new Date().toDateString()
       };
       localStorage.setItem(userStorageKey, JSON.stringify(dataToSave));
       if (userEmail === 'gerente@decolashop.com' || userEmail === 'admin@decolashop.com' || isAdmin) {
@@ -484,6 +574,28 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     userEmail
   ]);
 
+  // Monitor em tempo real para virada da meia-noite (00:00) caso o usuário fique com a aba aberta
+  useEffect(() => {
+    let currentDayStr = new Date().toDateString();
+    const interval = setInterval(() => {
+      const nowDayStr = new Date().toDateString();
+      if (nowDayStr !== currentDayStr) {
+        currentDayStr = nowDayStr;
+        // Virou o dia! Move valHoje de ontem para valOntem e zera valHoje de hoje
+        setHourlyData(prev => prev.map(h => ({
+          hour: h.hour,
+          valOntem: (h.valHoje || 0) > 0 ? (h.valHoje || 0) : (h.valOntem || 0),
+          valHoje: 0
+        })));
+        setRecentSales(prev => prev.map(s => ({
+          ...s,
+          time: formatSaleTime(s.timestamp, s.time)
+        })));
+      }
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Taxa de Antecipação: Começa em R$ 0,00 e sobe de acordo com o saldo disponível (7% sobre o saldo), com limite máximo de R$ 150,00
   const taxaAntecipacao = Math.min(150, Math.round(saldoDisponivel * 0.07 * 100) / 100);
 
@@ -519,6 +631,7 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
       value: parsedPrice,
       commission: commissionVal,
       time: timeStr,
+      timestamp: now.getTime(),
       image: chosen.image_url,
     };
 

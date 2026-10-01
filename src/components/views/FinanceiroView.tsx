@@ -18,7 +18,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { useSales } from '@/lib/salesContext';
+import { useSales, formatSaleTime } from '@/lib/salesContext';
 import { useSession } from 'next-auth/react';
 
 export default function FinanceiroView() {
@@ -484,7 +484,7 @@ export default function FinanceiroView() {
                       </div>
                     </td>
                     <td className="py-3.5 text-center text-slate-400 font-medium text-[11px]">
-                      {sale.time}
+                      {formatSaleTime(sale.timestamp, sale.time)}
                     </td>
                     <td className="py-3.5 text-right font-semibold text-slate-300">
                       R$ {sale.value.toFixed(2).replace('.', ',')}
