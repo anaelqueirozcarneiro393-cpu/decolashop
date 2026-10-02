@@ -155,6 +155,7 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     (session?.user as any)?.role === 'gerente' ||
     (session?.user as any)?.role === 'admin'
   );
+  const isGerenteUser = userEmail === 'gerente@decolashop.com' || userEmail === 'admin@decolashop.com' || isAdmin;
 
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [vendasTotais, setVendasTotais] = useState<number>(0);
@@ -165,7 +166,8 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
   const [unidades, setUnidades] = useState<number>(0);
   const [hourlyData, setHourlyData] = useState<ChartHour[]>(CLEAN_HOURLY);
   const [recentSales, setRecentSales] = useState<SaleItem[]>([]);
-  const [autoSimulate, setAutoSimulate] = useState<boolean>(false);
+  // Vendas automáticas ativas por padrão para que nunca pare de cair vendas
+  const [autoSimulate, setAutoSimulate] = useState<boolean>(true);
   const [isSoundEnabled, setIsSoundEnabled] = useState<boolean>(true);
   const isSoundEnabledRef = useRef(true);
   isSoundEnabledRef.current = isSoundEnabled;
@@ -181,11 +183,11 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  // Intervalo configurável pelo admin
+  // Intervalo dinâmico configurável pelo admin (padrão natural de alta conversão)
   const [intervalMode, setIntervalMode] = useState<'range' | 'fixed'>('range');
-  const [minSeconds, setMinSeconds] = useState<number>(1);
-  const [maxSeconds, setMaxSeconds] = useState<number>(7);
-  const [fixedSeconds, setFixedSeconds] = useState<number>(5);
+  const [minSeconds, setMinSeconds] = useState<number>(25);
+  const [maxSeconds, setMaxSeconds] = useState<number>(65);
+  const [fixedSeconds, setFixedSeconds] = useState<number>(40);
   const [selectedProductId, setSelectedProductId] = useState<string>('all');
   const [availableProducts, setAvailableProducts] = useState<Product[]>(mockProducts);
 
@@ -254,16 +256,16 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         // CENÁRIO 1: CONTA GERENTE (Histórico Semanal de Vendas entre 3k e 5k/dia)
         // =========================================================================
         if (isGerenteUser) {
-          if (!parsed || typeof parsed.vendasTotais !== 'number' || parsed.vendasTotais < 15000 || !Array.isArray(parsed.recentSales) || parsed.recentSales.length < 30) {
+          if (!parsed || typeof parsed.vendasTotais !== 'number' || parsed.vendasTotais < 10000) {
             try {
               let syncRes = await fetch(`/api/user/sync-state?email=gerente@decolashop.com`);
               let syncJson = await syncRes.json();
-              if (syncJson?.success && syncJson?.data && syncJson.data.vendasTotais >= 15000) {
+              if (syncJson?.success && syncJson?.data && syncJson.data.vendasTotais >= 10000) {
                 parsed = syncJson.data;
               }
             } catch {}
 
-            if (!parsed || typeof parsed.vendasTotais !== 'number' || parsed.vendasTotais < 15000) {
+            if (!parsed || typeof parsed.vendasTotais !== 'number' || parsed.vendasTotais < 10000) {
               parsed = getDeterministicBaseline(userEmail, Date.now());
             }
 
@@ -283,18 +285,23 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
           // =========================================================================
           // CENÁRIO 2: CONTAS DE MEMBROS REAIS (Histórico REAL de Verdade - Zero Mock)
           // =========================================================================
-          // As contas de membros comuns começam 100% zeradas (R$ 0,00 e sem vendas anteriores).
-          // Se houver resquícios do antigo gerador automático de mock com vendas prévias,
-          // limpa e reinicia com o histórico real da conta.
-          const hasOldMockSales = Array.isArray(parsed?.recentSales) && parsed.recentSales.some((s: any) => 
-            typeof s.time === 'string' && (s.time.includes('Ontem') || s.time.includes('/'))
-          );
+          // Se houver dados válidos salvos no localStorage ou na nuvem, PRESERVA 100%!
+          // Nunca apaga faturamento ou saldo acumulado da conta do usuário.
+          if (!parsed || typeof parsed.vendasTotais !== 'number') {
+            try {
+              let syncRes = await fetch(`/api/user/sync-state?email=${encodeURIComponent(userEmail)}`);
+              let syncJson = await syncRes.json();
+              if (syncJson?.success && syncJson?.data && typeof syncJson.data.vendasTotais === 'number') {
+                parsed = syncJson.data;
+              }
+            } catch {}
 
-          if (!parsed || typeof parsed.vendasTotais !== 'number' || hasOldMockSales || userEmail === 'usuario@decolashop.com') {
-            parsed = getDeterministicBaseline(userEmail, Date.now());
+            if (!parsed || typeof parsed.vendasTotais !== 'number') {
+              parsed = getDeterministicBaseline(userEmail, Date.now());
+            }
+
             try {
               localStorage.setItem(userStorageKey, JSON.stringify(parsed));
-              localStorage.removeItem(STORAGE_KEY);
             } catch {}
           }
         }
@@ -470,7 +477,7 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
                 });
               }
 
-              currRecentSales = [...generatedSales.reverse(), ...currRecentSales].slice(0, 30);
+              currRecentSales = [...generatedSales.reverse(), ...currRecentSales].slice(0, 100);
               currVendasTotais = Math.round((currVendasTotais + offlineGrossTotal) * 100) / 100;
               currSaldoDisponivel = Math.round((currSaldoDisponivel + offlineCommissionTotal) * 100) / 100;
               currPedidos = currPedidos + count;
@@ -629,6 +636,15 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
       chosen = availableProducts[Math.floor(Math.random() * availableProducts.length)];
     }
 
+    if (!chosen) {
+      chosen = mockProducts[0] || {
+        id: '1',
+        name: 'Smartwatch W9 Pro Ultra Series 9',
+        price: 149.90,
+        image_url: 'https://images.unsplash.com/photo-1579586337278-3befd40fd17a?auto=format&fit=crop&q=80&w=800'
+      };
+    }
+
     let parsedPrice = 149.90;
     if (customPrice && customPrice > 0) {
       parsedPrice = customPrice;
@@ -668,7 +684,7 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     setCliques(prev => prev + Math.floor(Math.random() * 5) + 2);
     setVisitas(prev => prev + Math.floor(Math.random() * 3) + 1);
 
-    setRecentSales(prev => [newTx, ...prev.slice(0, 15)]);
+    setRecentSales(prev => [newTx, ...prev.slice(0, 99)]);
 
     const currentHourStr = String(Math.floor(now.getHours() / 2) * 2).padStart(2, '0');
     setHourlyData(prev => prev.map(h => {
@@ -783,26 +799,45 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  // Loop de Auto-Vendas manual via atalho ou painel Gerente
+  // Stable refs para garantir agendamento contínuo sem cancelamento por re-render
+  const addSaleRef = useRef(addSale);
+  addSaleRef.current = addSale;
+  const isGerenteUserRef = useRef(isGerenteUser);
+  isGerenteUserRef.current = isGerenteUser;
+
+  // Sistema Contínuo e Infalível de Vendas em Tempo Real (Gerente e Membros)
+  // As vendas NUNCA param de cair para nenhuma conta ativa!
   useEffect(() => {
     if (!autoSimulate) return;
 
-    let timeoutId: NodeJS.Timeout;
+    let timerId: NodeJS.Timeout | null = null;
+    let isCancelled = false;
 
     const scheduleNextSale = () => {
+      if (isCancelled) return;
+
       let delayMs: number;
-      if (intervalMode === 'range') {
-        const min = Math.max(1, minSeconds);
+      if (intervalMode === 'fixed') {
+        delayMs = Math.max(5, fixedSeconds) * 1000;
+      } else if (intervalMode === 'range' && (minSeconds !== 25 || maxSeconds !== 65)) {
+        const min = Math.max(5, minSeconds);
         const max = Math.max(min, maxSeconds);
         const randomSec = Math.floor(Math.random() * (max - min + 1)) + min;
         delayMs = randomSec * 1000;
       } else {
-        delayMs = Math.max(1, fixedSeconds) * 1000;
+        // Cadência padrão realista e consistente:
+        // Gerente: entre 25s e 55s
+        // Membros: entre 35s e 75s
+        const isMgr = isGerenteUserRef.current;
+        const min = isMgr ? 25 : 35;
+        const max = isMgr ? 55 : 75;
+        const randomSec = Math.floor(Math.random() * (max - min + 1)) + min;
+        delayMs = randomSec * 1000;
       }
 
-      timeoutId = setTimeout(() => {
-        if (autoSimulateRef.current) {
-          addSale();
+      timerId = setTimeout(() => {
+        if (!isCancelled && autoSimulateRef.current) {
+          addSaleRef.current();
           scheduleNextSale();
         }
       }, delayMs);
@@ -811,34 +846,10 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     scheduleNextSale();
 
     return () => {
-      clearTimeout(timeoutId);
-    };
-  }, [autoSimulate, intervalMode, minSeconds, maxSeconds, fixedSeconds, selectedProductId, availableProducts]);
-
-  // Auto-geração contínua de vendas para TODOS os usuários comuns (não-admin) entre 4 a 15 minutos (240s a 900s)
-  useEffect(() => {
-    // Apenas para usuários autenticados que NÃO são admin/gerente
-    if (isAdmin || !session?.user) return;
-
-    let timerId: NodeJS.Timeout;
-
-    const scheduleNormalUserSale = () => {
-      // Sorteia intervalo aleatório entre 240 segundos (4 min) e 900 segundos (15 min)
-      const randomSeconds = Math.floor(Math.random() * (900 - 240 + 1)) + 240;
-      const delayMs = randomSeconds * 1000;
-
-      timerId = setTimeout(() => {
-        addSale();
-        scheduleNormalUserSale();
-      }, delayMs);
-    };
-
-    scheduleNormalUserSale();
-
-    return () => {
+      isCancelled = true;
       if (timerId) clearTimeout(timerId);
     };
-  }, [isAdmin, session?.user]);
+  }, [autoSimulate, intervalMode, minSeconds, maxSeconds, fixedSeconds]);
 
   return (
     <SalesContext.Provider value={{

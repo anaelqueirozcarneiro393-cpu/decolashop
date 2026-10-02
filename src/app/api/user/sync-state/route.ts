@@ -35,7 +35,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'Dados insuficientes' }, { status: 400 });
     }
 
+    const existing = memorySyncStore.get(email) || {};
     const payload = {
+      ...existing,
       ...state,
       syncedAt: Date.now(),
     };
@@ -44,18 +46,20 @@ export async function POST(req: Request) {
     memorySyncStore.set(email, payload);
     // Se for gerente ou admin, sincroniza ambos
     if (email === 'gerente@decolashop.com' || email === 'admin@decolashop.com') {
-      memorySyncStore.set('gerente@decolashop.com', payload);
-      memorySyncStore.set('admin@decolashop.com', payload);
+      const existingGerente = memorySyncStore.get('gerente@decolashop.com') || {};
+      const existingAdmin = memorySyncStore.get('admin@decolashop.com') || {};
+      memorySyncStore.set('gerente@decolashop.com', { ...existingGerente, ...payload });
+      memorySyncStore.set('admin@decolashop.com', { ...existingAdmin, ...payload });
     }
 
     const res = NextResponse.json({ success: true, message: 'Estado sincronizado com sucesso' });
 
     // Salva também em cookie seguro de longa duração (1 ano) para persistir trocas locais
-    if (state.saldoDisponivel !== undefined) {
+    if (payload.saldoDisponivel !== undefined) {
       res.cookies.set(`decola_sync_${email.replace(/[^a-z0-9]/g, '_')}`, JSON.stringify({
-        vendasTotais: state.vendasTotais,
-        saldoDisponivel: state.saldoDisponivel,
-        isAnticipated: state.isAnticipated,
+        vendasTotais: payload.vendasTotais,
+        saldoDisponivel: payload.saldoDisponivel,
+        isAnticipated: payload.isAnticipated,
         lastActiveTimestamp: Date.now()
       }), {
         maxAge: 31536000, // 1 ano

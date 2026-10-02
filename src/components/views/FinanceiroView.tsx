@@ -40,24 +40,25 @@ export default function FinanceiroView() {
   const [isConfirming, setIsConfirming] = useState(false);
   const [isAnticipated, setIsAnticipated] = useState(false);
 
-  const userEmail = session?.user?.email?.toLowerCase().trim() || 'cliente@decolashop.com';
+  const userEmail = session?.user?.email?.toLowerCase().trim() || 'usuario@decolashop.com';
   const cleanEmailKey = userEmail.replace(/[^a-z0-9]/g, '_');
 
   // Carrega status de antecipação salvo (localStorage isolado por e-mail + transferência admin/gerente + cloud sync)
   useEffect(() => {
     try {
+      // Remove resquício de chave global antiga para evitar contaminação entre contas
+      localStorage.removeItem('decolashop_saldo_antecipado');
+
       const isGerenteOrAdmin = userEmail === 'gerente@decolashop.com' || userEmail === 'admin@decolashop.com';
       const savedUser = localStorage.getItem(`decolashop_saldo_antecipado_${cleanEmailKey}`);
       const savedAdmin = isGerenteOrAdmin ? localStorage.getItem('decolashop_saldo_antecipado_admin_decolashop_com') : null;
       const savedGerente = isGerenteOrAdmin ? localStorage.getItem('decolashop_saldo_antecipado_gerente_decolashop_com') : null;
-      const savedGeneric = localStorage.getItem('decolashop_saldo_antecipado');
       const sessionBumps = (session?.user as any)?.order_bumps || [];
 
       if (
         savedUser === 'true' || 
         savedAdmin === 'true' || 
         savedGerente === 'true' || 
-        savedGeneric === 'true' || 
         sessionBumps.includes('taxa_antecipacao')
       ) {
         setIsAnticipated(true);
@@ -65,7 +66,6 @@ export default function FinanceiroView() {
           try {
             localStorage.setItem('decolashop_saldo_antecipado_gerente_decolashop_com', 'true');
             localStorage.setItem('decolashop_saldo_antecipado_admin_decolashop_com', 'true');
-            localStorage.setItem('decolashop_saldo_antecipado', 'true');
           } catch {}
         }
         return;
@@ -164,16 +164,27 @@ export default function FinanceiroView() {
       setIsAnticipated(true);
       try {
         localStorage.setItem(`decolashop_saldo_antecipado_${cleanEmailKey}`, 'true');
-        localStorage.setItem('decolashop_saldo_antecipado', 'true');
+        if (userEmail === 'gerente@decolashop.com' || userEmail === 'admin@decolashop.com') {
+          localStorage.setItem('decolashop_saldo_antecipado_gerente_decolashop_com', 'true');
+          localStorage.setItem('decolashop_saldo_antecipado_admin_decolashop_com', 'true');
+        }
       } catch {}
 
-      // Sincroniza liberação com a nuvem para valer imediatamente no celular ou PC
+      // Sincroniza liberação com a nuvem mantendo faturamento e saldo 100% preservados
       fetch('/api/user/sync-state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: userEmail,
-          state: { isAnticipated: true, lastActiveTimestamp: Date.now() }
+          state: {
+            vendasTotais,
+            saldoDisponivel,
+            pedidos,
+            cliques,
+            recentSales,
+            isAnticipated: true,
+            lastActiveTimestamp: Date.now()
+          }
         })
       }).catch(() => {});
 
