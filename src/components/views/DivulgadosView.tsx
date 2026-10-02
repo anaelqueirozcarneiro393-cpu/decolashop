@@ -38,7 +38,8 @@ import {
   toggleDivulgadoStatus, 
   removeDivulgado, 
   getDivulgadosStats,
-  INITIAL_DIVULGADOS 
+  INITIAL_DIVULGADOS,
+  MAX_ACTIVE_CAMPAIGNS 
 } from '@/lib/divulgados';
 
 interface DivulgadosViewProps {
@@ -70,9 +71,13 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
 
   const handleToggle = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const updated = toggleDivulgadoStatus(id);
-    setCampaigns(updated);
-    const target = updated.find(c => c.id === id);
+    const result = toggleDivulgadoStatus(id);
+    if (result.error) {
+      toast.error(result.error, { icon: '⚠️', duration: 4500 });
+      return;
+    }
+    setCampaigns(result.updated);
+    const target = result.updated.find(c => c.id === id);
     if (target?.status === 'active') {
       toast.success('🚀 Divulgação retomada com sucesso!');
     } else {
@@ -159,8 +164,15 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
               <Sparkles size={16} />
             </div>
           </div>
-          <div className="text-xl sm:text-2xl font-black text-white">
-            {stats.activeCount} <span className="text-xs text-slate-400 font-normal">/ {stats.totalCampaigns}</span>
+          <div className="flex items-baseline justify-between">
+            <div className="text-xl sm:text-2xl font-black text-white">
+              {stats.activeCount} <span className="text-xs text-slate-400 font-normal">/ {MAX_ACTIVE_CAMPAIGNS} máx</span>
+            </div>
+            {stats.activeCount >= MAX_ACTIVE_CAMPAIGNS && (
+              <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                Limite 15/15
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-1.5 mt-2 text-[10px] sm:text-xs text-[#4ade80] font-bold">
             <span className="w-2 h-2 rounded-full bg-[#22c55e] animate-pulse" />

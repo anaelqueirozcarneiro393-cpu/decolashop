@@ -179,10 +179,21 @@ export function saveDivulgados(campaigns: DivulgadoCampaign[]): void {
   }
 }
 
+export const MAX_ACTIVE_CAMPAIGNS = 15;
+
 export function addDivulgado(newEntry: Omit<DivulgadoCampaign, 'id' | 'createdAt'>): DivulgadoCampaign {
   const current = getDivulgados();
+  const activeCount = current.filter(c => c.status === 'active').length;
+  
+  // Limite de no máximo 15 campanhas ativas
+  let initialStatus = newEntry.status || 'active';
+  if (initialStatus === 'active' && activeCount >= MAX_ACTIVE_CAMPAIGNS) {
+    initialStatus = 'paused';
+  }
+
   const created: DivulgadoCampaign = {
     ...newEntry,
+    status: initialStatus,
     id: `camp-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
     createdAt: new Date().toISOString(),
   };
@@ -191,8 +202,22 @@ export function addDivulgado(newEntry: Omit<DivulgadoCampaign, 'id' | 'createdAt
   return created;
 }
 
-export function toggleDivulgadoStatus(id: string): DivulgadoCampaign[] {
+export function toggleDivulgadoStatus(id: string): { updated: DivulgadoCampaign[]; error?: string } {
   const current = getDivulgados();
+  const target = current.find(c => c.id === id);
+  if (!target) return { updated: current };
+
+  // Ao despausar/ativar, valida se já não atingiu o limite de 15 ativas
+  if (target.status === 'paused') {
+    const activeCount = current.filter(c => c.status === 'active').length;
+    if (activeCount >= MAX_ACTIVE_CAMPAIGNS) {
+      return {
+        updated: current,
+        error: `Limite atingido: você já possui ${MAX_ACTIVE_CAMPAIGNS} campanhas ativas! Pause uma campanha antes de ativar outra.`
+      };
+    }
+  }
+
   const updated = current.map(c => {
     if (c.id === id) {
       return {
@@ -203,7 +228,7 @@ export function toggleDivulgadoStatus(id: string): DivulgadoCampaign[] {
     return c;
   });
   saveDivulgados(updated);
-  return updated;
+  return { updated };
 }
 
 export function removeDivulgado(id: string): DivulgadoCampaign[] {
@@ -211,6 +236,33 @@ export function removeDivulgado(id: string): DivulgadoCampaign[] {
   const updated = current.filter(c => c.id !== id);
   saveDivulgados(updated);
   return updated;
+}
+
+export function registerSaleForCampaign(productIdOrName: string, saleValue: number): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const current = getDivulgados();
+    const cleanSearch = (productIdOrName || '').toLowerCase().trim();
+    let matched = false;
+    const updated = current.map(c => {
+      const isMatch = c.productId === productIdOrName || 
+                      c.id === productIdOrName ||
+                      c.name.toLowerCase().includes(cleanSearch) || 
+                      cleanSearch.includes(c.name.toLowerCase());
+      if (isMatch && !matched) {
+        matched = true;
+        return {
+          ...c,
+          salesCount: (c.salesCount || 0) + 1,
+          revenue: Math.round(((c.revenue || 0) + saleValue) * 100) / 100
+        };
+      }
+      return c;
+    });
+    if (matched) {
+      saveDivulgados(updated);
+    }
+  } catch {}
 }
 
 export function getDivulgadosStats(campaigns: DivulgadoCampaign[]) {

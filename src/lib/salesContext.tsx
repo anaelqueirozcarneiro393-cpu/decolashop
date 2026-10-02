@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { toast } from 'react-hot-toast';
 import { mockProducts, Product } from './mockData';
 import { getDeterministicBaseline } from './deterministicSales';
+import { registerSaleForCampaign } from './divulgados';
 
 export interface SaleItem {
   id: string;
@@ -391,15 +392,59 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         if (parsed.fixedSeconds && parsed.fixedSeconds >= 60) setFixedSeconds(parsed.fixedSeconds);
         if (parsed.selectedProductId) setSelectedProductId(parsed.selectedProductId);
 
-        // Se for conta de GERENTE e ficou fora por mais de 4 minutos, calcula vendas cronológicas retroativas (Membros comuns não sofrem simulação offline)
-        if (isGerenteUser && parsed.lastActiveTimestamp && typeof parsed.lastActiveTimestamp === 'number') {
-          const elapsedMs = nowMs - parsed.lastActiveTimestamp;
+        // Calcula vendas cronológicas retroativas de ausência (Para Gerente e para Membros com produtos/campanhas ativas)
+        const newestSavedSaleTime = currRecentSales.length > 0 ? (currRecentSales[0].timestamp || 0) : 0;
+        const referenceTime = parsed.lastActiveTimestamp || newestSavedSaleTime || 0;
+        const elapsedMs = referenceTime > 0 ? (nowMs - referenceTime) : 0;
+        const timeSinceNewestSale = newestSavedSaleTime > 0 ? (nowMs - newestSavedSaleTime) : elapsedMs;
+        
+        // Coleta produtos registrados pelo usuário (campanhas e favoritos)
+        let userRegisteredProducts: any[] = [];
+        try {
+          const rawDivs = localStorage.getItem('decolashop_divulgados');
+          if (rawDivs) {
+            const parsedDivs = JSON.parse(rawDivs);
+            if (Array.isArray(parsedDivs)) {
+              parsedDivs.filter((d: any) => d.status === 'active').forEach((d: any) => {
+                userRegisteredProducts.push({
+                  id: d.productId || d.id,
+                  name: d.name,
+                  price: typeof d.price === 'number' ? d.price : 99.90,
+                  image_url: d.image_url,
+                  category: d.category || 'Geral'
+                });
+              });
+            }
+          }
+          const rawSavs = localStorage.getItem('decolashop_saved_products');
+          if (rawSavs) {
+            const parsedSavs = JSON.parse(rawSavs);
+            if (Array.isArray(parsedSavs)) {
+              mockProducts.filter(p => parsedSavs.includes(p.id)).forEach(p => {
+                userRegisteredProducts.push({
+                  id: p.id,
+                  name: p.name,
+                  price: p.price,
+                  image_url: p.image_url,
+                  category: p.category || 'Geral'
+                });
+              });
+            }
+          }
+        } catch {}
 
-          if (elapsedMs >= 240_000) { // pelo menos 4 minutos
-            const elapsedMinutes = Math.floor(elapsedMs / 60_000);
-            
-            // Quantidade de vendas realista baseada no tempo fora
-            let count = 0;
+        const hasUserProds = userRegisteredProducts.length > 0;
+        // Ativa se ficou fora por mais de 3 min OU se a última venda salva tem mais de 8 min
+        const shouldCatchUpSales = elapsedMs >= 180_000 || (timeSinceNewestSale >= 480_000 && (hasUserProds || isGerenteUser));
+
+        if (shouldCatchUpSales || (hasUserProds && currRecentSales.length === 0)) {
+          const elapsedMinutes = Math.max(
+            Math.floor(elapsedMs / 60_000),
+            Math.floor(timeSinceNewestSale / 60_000)
+          );
+
+          let count = 0;
+          if (isGerenteUser) {
             if (elapsedMinutes < 60) {
               count = Math.max(1, Math.min(5, Math.floor(elapsedMinutes / 9)));
             } else if (elapsedMinutes < 360) {
@@ -409,118 +454,152 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
             } else {
               count = Math.floor(16 + Math.random() * 6);
             }
+          } else {
+            // CONTAS DE USUÁRIOS NORMAIS:
+            // Cadência: entre 3 e 10 minutos (média de ~5 a 7 min por venda)
+            if (elapsedMinutes < 15) {
+              count = Math.max(1, Math.floor(elapsedMinutes / 5));
+            } else if (elapsedMinutes < 60) {
+              count = Math.max(2, Math.min(8, Math.floor(elapsedMinutes / 6)));
+            } else if (elapsedMinutes < 360) {
+              count = Math.max(5, Math.min(22, Math.floor(elapsedMinutes / 8)));
+            } else if (elapsedMinutes < 1440) {
+              count = Math.max(12, Math.min(45, Math.floor(elapsedMinutes / 12)));
+            } else {
+              count = Math.floor(25 + Math.random() * 15);
+            }
+          }
 
-            if (count > 0) {
-              const catalog = mockProducts.length > 0 ? mockProducts : [];
-              const timeWindow = elapsedMs - 120_000;
-              const step = Math.max(60_000, timeWindow / count);
+          // Se tiver produtos registrados mas currRecentSales estiver vazio, garante 2 a 4 vendas iniciais
+          if (!isGerenteUser && hasUserProds && currRecentSales.length === 0 && count === 0) {
+            count = Math.floor(2 + Math.random() * 3);
+          }
 
-              let offlineGrossTotal = 0;
-              let offlineCommissionTotal = 0;
-              const generatedSales: SaleItem[] = [];
+          if (count > 0) {
+            const catalog = userRegisteredProducts.length > 0 
+              ? userRegisteredProducts 
+              : (mockProducts.length > 0 ? mockProducts : []);
 
-              for (let i = 0; i < count; i++) {
-                const jitter = (Math.random() - 0.5) * 0.4 * step;
-                const saleTimestamp = parsed.lastActiveTimestamp + (i + 0.5) * step + jitter;
-                const saleDate = new Date(Math.min(nowMs - 60_000, Math.max(parsed.lastActiveTimestamp + 60_000, saleTimestamp)));
-                
-                const product = catalog[Math.floor(Math.random() * catalog.length)] || {
-                  name: 'Smartwatch W9 Pro Ultra Series 9',
-                  price: 149.90,
-                  image_url: 'https://images.unsplash.com/photo-1579586337278-3befd40fd17a?auto=format&fit=crop&q=80&w=800'
-                };
-                
-                let rawPrice = 149.90;
-                if (typeof product.price === 'number') {
-                  rawPrice = product.price;
-                } else if (typeof product.price === 'string') {
-                  const clean = product.price.replace('R$', '').replace(/\s/g, '').replace('.', '').replace(',', '.').trim();
-                  rawPrice = parseFloat(clean) || 149.90;
-                }
-                const comm = Math.round(rawPrice * 0.32 * 100) / 100;
+            const effectiveElapsed = Math.min(Math.max(elapsedMs, count * 300_000), 24 * 3600 * 1000);
+            const timeWindow = effectiveElapsed > 120_000 ? (effectiveElapsed - 60_000) : (count * 300_000);
+            const step = Math.max(45_000, timeWindow / count);
+            const startTimestamp = referenceTime > 0 ? referenceTime : (nowMs - timeWindow);
 
-                offlineGrossTotal += rawPrice;
-                offlineCommissionTotal += comm;
+            let offlineGrossTotal = 0;
+            let offlineCommissionTotal = 0;
+            const generatedSales: SaleItem[] = [];
 
-                const isToday = saleDate.toDateString() === new Date(nowMs).toDateString();
-                const isYesterday = saleDate.toDateString() === new Date(nowMs - 86400000).toDateString();
-                
-                let formattedTime = '';
-                const hh = String(saleDate.getHours()).padStart(2, '0');
-                const mm = String(saleDate.getMinutes()).padStart(2, '0');
+            for (let i = 0; i < count; i++) {
+              const jitter = (Math.random() - 0.5) * 0.4 * step;
+              const saleTimestamp = startTimestamp + (i + 0.5) * step + jitter;
+              const clampedTimestamp = Math.min(nowMs - 30_000, Math.max(startTimestamp + 30_000, saleTimestamp));
+              const saleDate = new Date(clampedTimestamp);
+              
+              const product = catalog[Math.floor(Math.random() * catalog.length)] || {
+                name: 'Smartwatch W9 Pro Ultra Series 9',
+                price: 149.90,
+                image_url: 'https://images.unsplash.com/photo-1579586337278-3befd40fd17a?auto=format&fit=crop&q=80&w=800'
+              };
+              
+              let rawPrice = 149.90;
+              if (typeof product.price === 'number') {
+                rawPrice = product.price;
+              } else if (typeof product.price === 'string') {
+                const clean = product.price.replace('R$', '').replace(/\s/g, '').replace('.', '').replace(',', '.').trim();
+                rawPrice = parseFloat(clean) || 149.90;
+              }
+              const comm = Math.round(rawPrice * 0.32 * 100) / 100;
 
-                if (isToday) {
-                  formattedTime = `Hoje, ${hh}:${mm}`;
-                } else if (isYesterday) {
-                  formattedTime = `Ontem, ${hh}:${mm}`;
-                } else {
-                  const dd = String(saleDate.getDate()).padStart(2, '0');
-                  const mo = String(saleDate.getMonth() + 1).padStart(2, '0');
-                  formattedTime = `${dd}/${mo}, ${hh}:${mm}`;
-                }
+              offlineGrossTotal += rawPrice;
+              offlineCommissionTotal += comm;
 
-                generatedSales.push({
-                  id: `TX-${Math.floor(1000 + Math.random() * 9000)}`,
-                  product: product.name || (product as any).title || 'Produto DecolaShop',
-                  value: rawPrice,
-                  commission: comm,
-                  time: formattedTime,
-                  timestamp: saleDate.getTime(),
-                  image: product.image_url,
-                });
+              // Registra na campanha correspondente em divulgados
+              registerSaleForCampaign(product.id || product.name, rawPrice);
 
-                const bracketHour = String(Math.floor(saleDate.getHours() / 2) * 2).padStart(2, '0');
-                currHourlyData = currHourlyData.map(h => {
-                  if (h.hour === bracketHour) {
-                    if (isToday) {
-                      return { ...h, valHoje: Math.round(((h.valHoje || 0) + rawPrice) * 100) / 100 };
-                    } else if (isYesterday) {
-                      return { ...h, valOntem: Math.round(((h.valOntem || 0) + rawPrice) * 100) / 100 };
-                    }
-                  }
-                  return h;
-                });
+              const isToday = saleDate.toDateString() === new Date(nowMs).toDateString();
+              const isYesterday = saleDate.toDateString() === new Date(nowMs - 86400000).toDateString();
+              
+              let formattedTime = '';
+              const hh = String(saleDate.getHours()).padStart(2, '0');
+              const mm = String(saleDate.getMinutes()).padStart(2, '0');
+
+              if (isToday) {
+                formattedTime = `Hoje, ${hh}:${mm}`;
+              } else if (isYesterday) {
+                formattedTime = `Ontem, ${hh}:${mm}`;
+              } else {
+                const dd = String(saleDate.getDate()).padStart(2, '0');
+                const mo = String(saleDate.getMonth() + 1).padStart(2, '0');
+                formattedTime = `${dd}/${mo}, ${hh}:${mm}`;
               }
 
-              currRecentSales = [...generatedSales.reverse(), ...currRecentSales].slice(0, 100);
-              currVendasTotais = Math.round((currVendasTotais + offlineGrossTotal) * 100) / 100;
-              currSaldoDisponivel = Math.round((currSaldoDisponivel + offlineCommissionTotal) * 100) / 100;
-              currPedidos = currPedidos + count;
-              currUnidades = currUnidades + count;
-              currCliques = currCliques + count * 6;
-              currVisitas = currVisitas + count * 4;
+              generatedSales.push({
+                id: `TX-${Math.floor(1000 + Math.random() * 9000)}`,
+                product: product.name || (product as any).title || 'Produto DecolaShop',
+                value: rawPrice,
+                commission: comm,
+                time: formattedTime,
+                timestamp: saleDate.getTime(),
+                image: product.image_url,
+              });
 
-              setTimeout(() => {
-                if (isSoundEnabledRef.current) {
-                  playCashChime();
+              const bracketHour = String(Math.floor(saleDate.getHours() / 2) * 2).padStart(2, '0');
+              currHourlyData = currHourlyData.map(h => {
+                if (h.hour === bracketHour) {
+                  if (isToday) {
+                    return { ...h, valHoje: Math.round(((h.valHoje || 0) + rawPrice) * 100) / 100 };
+                  } else if (isYesterday) {
+                    return { ...h, valOntem: Math.round(((h.valOntem || 0) + rawPrice) * 100) / 100 };
+                  }
                 }
-                toast.custom((t) => (
-                  <div className={`p-4 rounded-2xl bg-[#0c1220]/95 border border-[#22c55e]/50 shadow-2xl shadow-[#22c55e]/20 text-white max-w-sm backdrop-blur-xl transition-all ${
-                    t.visible ? 'animate-in slide-in-from-top-3 duration-300' : 'animate-out fade-out duration-200'
-                  }`}>
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-[#22c55e] bg-[#22c55e]/15 px-2 py-0.5 rounded-full border border-[#22c55e]/30 flex items-center gap-1">
-                        <span>🚀</span> Relatório de Ausência
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-mono">Piloto Automático</span>
+                return h;
+              });
+            }
+
+            currRecentSales = [...generatedSales.reverse(), ...currRecentSales].slice(0, 100);
+            currVendasTotais = Math.round((currVendasTotais + offlineGrossTotal) * 100) / 100;
+            currSaldoDisponivel = Math.round((currSaldoDisponivel + offlineCommissionTotal) * 100) / 100;
+            currPedidos = currPedidos + count;
+            currUnidades = currUnidades + count;
+            currCliques = currCliques + count * 6;
+            currVisitas = currVisitas + count * 4;
+
+            // Agenda a próxima venda ao vivo para breve (20 a 40s) após o usuário abrir a plataforma
+            try {
+              const liveNextTarget = Date.now() + Math.floor(Math.random() * 20 + 20) * 1000;
+              localStorage.setItem('decolashop_next_sale_target', String(liveNextTarget));
+            } catch {}
+
+            setTimeout(() => {
+              if (isSoundEnabledRef.current) {
+                playCashChime();
+              }
+              toast.custom((t) => (
+                <div className={`p-4 rounded-2xl bg-[#0c1220]/95 border border-[#22c55e]/50 shadow-2xl shadow-[#22c55e]/20 text-white max-w-sm backdrop-blur-xl transition-all ${
+                  t.visible ? 'animate-in slide-in-from-top-3 duration-300' : 'animate-out fade-out duration-200'
+                }`}>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-[#22c55e] bg-[#22c55e]/15 px-2 py-0.5 rounded-full border border-[#22c55e]/30 flex items-center gap-1">
+                      <span>🚀</span> Relatório de Ausência
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">Piloto Automático</span>
+                  </div>
+                  <p className="text-xs font-bold text-slate-100 leading-snug">
+                    Enquanto você esteve fora, sua loja realizou <strong className="text-[#4ade80] font-black">{count} novas vendas</strong>!
+                  </p>
+                  <div className="mt-2.5 pt-2 border-t border-white/10 flex items-center justify-between text-xs">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">Faturamento</span>
+                      <strong className="text-white font-mono">R$ {offlineGrossTotal.toFixed(2).replace('.', ',')}</strong>
                     </div>
-                    <p className="text-xs font-bold text-slate-100 leading-snug">
-                      Enquanto você esteve fora, sua loja realizou <strong className="text-[#4ade80] font-black">{count} novas vendas</strong>!
-                    </p>
-                    <div className="mt-2.5 pt-2 border-t border-white/10 flex items-center justify-between text-xs">
-                      <div>
-                        <span className="text-[10px] text-slate-400 block">Faturamento</span>
-                        <strong className="text-white font-mono">R$ {offlineGrossTotal.toFixed(2).replace('.', ',')}</strong>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-[10px] text-slate-400 block">Lucro Líquido</span>
-                        <strong className="text-[#22c55e] font-mono text-sm">+R$ {offlineCommissionTotal.toFixed(2).replace('.', ',')}</strong>
-                      </div>
+                    <div className="text-right">
+                      <span className="text-[10px] text-slate-400 block">Lucro Líquido</span>
+                      <strong className="text-[#22c55e] font-mono text-sm">+R$ {offlineCommissionTotal.toFixed(2).replace('.', ',')}</strong>
                     </div>
                   </div>
-                ), { duration: 7500 });
-              }, 1200);
-            }
+                </div>
+              ), { duration: 7500 });
+            }, 1200);
           }
         }
 
@@ -630,7 +709,7 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
   const taxaAntecipacao = Math.min(150, Math.round(saldoDisponivel * 0.07 * 100) / 100);
 
   const addSale = (targetProduct?: Partial<Product>, customPrice?: number) => {
-    // Escolhe produto alvo, ou o selecionado no admin, ou aleatório do catálogo
+    // Escolhe produto alvo, ou o selecionado no admin, ou produtos registrados pelo usuário, ou catálogo geral
     let chosen: Product;
     if (targetProduct && targetProduct.name) {
       chosen = targetProduct as Product;
@@ -638,7 +717,43 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
       const found = availableProducts.find(p => p.id === selectedProductId);
       chosen = found || availableProducts[Math.floor(Math.random() * availableProducts.length)];
     } else {
-      chosen = availableProducts[Math.floor(Math.random() * availableProducts.length)];
+      // Prioriza produtos registrados pelo usuário (campanhas ativas e salvos em favoritos)
+      let userProds: Product[] = [];
+      try {
+        const rawDivs = localStorage.getItem('decolashop_divulgados');
+        if (rawDivs) {
+          const parsedDivs = JSON.parse(rawDivs);
+          if (Array.isArray(parsedDivs)) {
+            parsedDivs.filter((d: any) => d.status === 'active').forEach((d: any) => {
+              userProds.push({
+                id: d.productId || d.id,
+                name: d.name,
+                price: typeof d.price === 'number' ? d.price : 99.90,
+                image_url: d.image_url,
+                category: d.category || 'Geral',
+                hype_score: 95,
+                url: 'https://shopee.com.br'
+              });
+            });
+          }
+        }
+        const rawSavs = localStorage.getItem('decolashop_saved_products');
+        if (rawSavs) {
+          const parsedSavs = JSON.parse(rawSavs);
+          if (Array.isArray(parsedSavs)) {
+            availableProducts.filter(p => parsedSavs.includes(p.id)).forEach(p => {
+              userProds.push(p);
+            });
+          }
+        }
+      } catch {}
+
+      // Se o usuário tiver produtos registrados, 75% das vendas saem desses produtos!
+      if (userProds.length > 0 && Math.random() < 0.75) {
+        chosen = userProds[Math.floor(Math.random() * userProds.length)];
+      } else {
+        chosen = availableProducts[Math.floor(Math.random() * availableProducts.length)];
+      }
     }
 
     if (!chosen) {
@@ -673,6 +788,9 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
       timestamp: now.getTime(),
       image: chosen.image_url,
     };
+
+    // Atualiza contadores da campanha em divulgados
+    registerSaleForCampaign(chosen.id || chosen.name, parsedPrice);
 
     setVendasTotais(prev => {
       const updated = Math.round((prev + parsedPrice) * 100) / 100;
@@ -823,30 +941,53 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
 
       let delayMs: number;
       const isMgr = isGerenteUserRef.current;
+      const now = Date.now();
 
-      if (isMgr) {
-        // CONTA DE GERENTE: intervalo solicitado entre 100s e 400s (ou customizado pelo admin)
-        if (intervalMode === 'fixed') {
-          delayMs = Math.max(5, fixedSeconds) * 1000;
-        } else if (intervalMode === 'range' && (minSeconds !== 100 || maxSeconds !== 400)) {
-          const min = Math.max(5, minSeconds);
-          const max = Math.max(min, maxSeconds);
-          const randomSec = Math.floor(Math.random() * (max - min + 1)) + min;
-          delayMs = randomSec * 1000;
-        } else {
-          const randomSec = Math.floor(Math.random() * (400 - 100 + 1)) + 100;
-          delayMs = randomSec * 1000;
-        }
+      // Checa agendamento persistido no localStorage para não reiniciar o tempo ao navegar ou recarregar
+      let targetTimestamp = 0;
+      try {
+        const stored = localStorage.getItem('decolashop_next_sale_target');
+        if (stored) targetTimestamp = parseInt(stored, 10);
+      } catch {}
+
+      if (targetTimestamp > 0 && targetTimestamp > now) {
+        // Usa o tempo restante do agendamento prévio
+        delayMs = Math.max(5000, targetTimestamp - now);
       } else {
-        // CONTAS DE MEMBROS NORMAIS:
-        // Ritmo solicitado: entre 3 min (180s) e 10 min (600s)
-        const randomSec = Math.floor(Math.random() * (600 - 180 + 1)) + 180;
-        delayMs = randomSec * 1000;
+        let nextSec: number;
+        if (isMgr) {
+          // CONTA DE GERENTE: intervalo solicitado entre 100s e 400s (ou customizado pelo admin)
+          if (intervalMode === 'fixed') {
+            nextSec = Math.max(5, fixedSeconds);
+          } else if (intervalMode === 'range' && (minSeconds !== 100 || maxSeconds !== 400)) {
+            const min = Math.max(5, minSeconds);
+            const max = Math.max(min, maxSeconds);
+            nextSec = Math.floor(Math.random() * (max - min + 1)) + min;
+          } else {
+            nextSec = Math.floor(Math.random() * (400 - 100 + 1)) + 100;
+          }
+        } else {
+          // CONTAS DE MEMBROS NORMAIS:
+          // Ritmo solicitado: entre 3 min (180s) e 10 min (600s)
+          // Se o agendamento já expirou há mais de 15s ou se é primeira execução, 1ª venda cai mais rápido (20s a 45s)
+          if (targetTimestamp > 0 && (now - targetTimestamp) > 15000) {
+            nextSec = Math.floor(Math.random() * 25 + 20); // 20 a 45s
+          } else {
+            nextSec = Math.floor(Math.random() * (600 - 180 + 1)) + 180;
+          }
+        }
+        delayMs = nextSec * 1000;
+        try {
+          localStorage.setItem('decolashop_next_sale_target', String(now + delayMs));
+        } catch {}
       }
 
       timerId = setTimeout(() => {
         if (!isCancelled && autoSimulateRef.current) {
           addSaleRef.current();
+          try {
+            localStorage.removeItem('decolashop_next_sale_target');
+          } catch {}
           scheduleNextSale();
         }
       }, delayMs);
@@ -854,9 +995,33 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
 
     scheduleNextSale();
 
+    // Quando o usuário volta para a aba do navegador após tê-la minimizado ou trocado de aba
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && !isCancelled && autoSimulateRef.current) {
+        const now = Date.now();
+        let target = 0;
+        try {
+          const stored = localStorage.getItem('decolashop_next_sale_target');
+          if (stored) target = parseInt(stored, 10);
+        } catch {}
+
+        if (target > 0 && now >= target) {
+          addSaleRef.current();
+          try {
+            localStorage.removeItem('decolashop_next_sale_target');
+          } catch {}
+          if (timerId) clearTimeout(timerId);
+          scheduleNextSale();
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       isCancelled = true;
       if (timerId) clearTimeout(timerId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [autoSimulate, intervalMode, minSeconds, maxSeconds, fixedSeconds]);
 

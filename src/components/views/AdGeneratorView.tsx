@@ -17,7 +17,7 @@ import { toast } from 'react-hot-toast';
 import { useSales } from '@/lib/salesContext';
 import { getProductsFromSupabase } from '@/app/actions';
 import { Product, mockProducts } from '@/lib/mockData';
-import { addDivulgado } from '@/lib/divulgados';
+import { addDivulgado, getDivulgados, MAX_ACTIVE_CAMPAIGNS } from '@/lib/divulgados';
 
 interface AdGeneratorViewProps {
   product?: any;
@@ -56,6 +56,16 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
   });
 
   const handleStartPublishing = () => {
+    const currentCampaigns = getDivulgados();
+    const activeCount = currentCampaigns.filter(c => c.status === 'active').length;
+    if (activeCount >= MAX_ACTIVE_CAMPAIGNS) {
+      toast.error(`Limite atingido: você já possui ${MAX_ACTIVE_CAMPAIGNS} campanhas ativas! Acesse "Divulgados" e pause ou remova uma campanha antes de ativar uma nova.`, {
+        duration: 5500,
+        icon: '⚠️'
+      });
+      return;
+    }
+
     setIsPublishing(true);
     setPublishProgress(10);
     setPublishedNetwork('Otimizando criativos com IA...');
