@@ -15,7 +15,8 @@ import {
   Check,
   QrCode,
   ShieldCheck,
-  Sparkles
+  Sparkles,
+  ArrowRight
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useSales, formatSaleTime } from '@/lib/salesContext';
@@ -29,7 +30,8 @@ export default function FinanceiroView() {
   const [withdrawAmount, setWithdrawAmount] = useState('0,00');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Estados do Modal Pix da Taxa
+  // Estados do Modal Pix da Taxa e Confirmação de Saque
+  const [showWithdrawConfirmModal, setShowWithdrawConfirmModal] = useState(false);
   const [showPixModal, setShowPixModal] = useState(false);
   const [pixData, setPixData] = useState<{
     qrCodeText: string;
@@ -109,6 +111,7 @@ export default function FinanceiroView() {
   const handleAntecipacao = async () => {
     if (saldoDisponivel <= 0 || taxaAntecipacao <= 0) {
       toast.error('Você ainda não possui saldo disponível para antecipar.');
+      setShowWithdrawConfirmModal(false);
       return;
     }
 
@@ -140,6 +143,7 @@ export default function FinanceiroView() {
 
       if (res.success && res.pix) {
         setPixData(res.pix);
+        setShowWithdrawConfirmModal(false);
         setShowPixModal(true);
         toast.success(`Chave Pix gerada para pagamento da taxa de R$ ${taxaAntecipacao.toFixed(2).replace('.', ',')}!`);
       } else {
@@ -340,7 +344,13 @@ export default function FinanceiroView() {
 
           {!isAnticipated && (
             <button
-              onClick={handleAntecipacao}
+              onClick={() => {
+                if (saldoDisponivel <= 0) {
+                  toast.error('Você ainda não possui saldo disponível para antecipar.');
+                  return;
+                }
+                setShowWithdrawConfirmModal(true);
+              }}
               disabled={isProcessing}
               className="flex-shrink-0 flex items-center gap-2 py-3 px-5 rounded-2xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-black font-black text-xs uppercase tracking-wider shadow-lg shadow-[#22c55e]/25 transition-all active:scale-95 disabled:opacity-70 cursor-pointer"
             >
@@ -348,9 +358,7 @@ export default function FinanceiroView() {
               <span>
                 {isProcessing 
                   ? 'GERANDO PIX...' 
-                  : taxaAntecipacao <= 0
-                    ? 'ANTECIPAR SALDO AGORA (TAXA 7%)'
-                    : `ANTECIPAR SALDO AGORA (TAXA R$ ${taxaAntecipacao.toFixed(2).replace('.', ',')})`}
+                  : 'ANTECIPAR SALDO AGORA (TAXA DE 7%)'}
               </span>
             </button>
           )}
@@ -442,10 +450,20 @@ export default function FinanceiroView() {
               SOLICITAR SAQUE PIX (MÍN. R$ 2.000,00)
             </button>
           ) : (
-            <div className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/[0.02] border border-white/10 text-slate-400 text-xs font-semibold">
-              <Lock size={13} className="text-amber-400" />
-              <span>Saque liberado após antecipação</span>
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (saldoDisponivel <= 0) {
+                  toast.error('Você ainda não possui saldo disponível para antecipar.');
+                  return;
+                }
+                setShowWithdrawConfirmModal(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#22c55e]/15 hover:bg-[#22c55e]/25 border border-[#22c55e]/40 text-[#4ade80] text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-sm shadow-[#22c55e]/10"
+            >
+              <Zap size={13} className="text-[#22c55e]" fill="currentColor" />
+              <span>Antecipar Saldo Agora (Taxa de 7%)</span>
+            </button>
           )}
         </div>
       </div>
@@ -552,6 +570,87 @@ export default function FinanceiroView() {
           </div>
         )}
       </div>
+
+      {/* ================= POP-UP SUPER CHAMATIVO DE CONFIRMAÇÃO DE SAQUE ================= */}
+      {showWithdrawConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg bg-[#0d121f] border-2 border-[#22c55e] rounded-3xl p-6 sm:p-8 shadow-[0_0_60px_rgba(34,197,94,0.35)] text-center text-white space-y-6 overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Efeitos Glow de Fundo */}
+            <div className="absolute -top-24 -left-24 w-52 h-52 bg-[#22c55e]/20 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-24 -right-24 w-52 h-52 bg-[#4ade80]/20 rounded-full blur-3xl pointer-events-none" />
+
+            {/* Fechar */}
+            <button
+              onClick={() => setShowWithdrawConfirmModal(false)}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer z-10"
+            >
+              <X size={20} />
+            </button>
+
+            {/* Selo Chamativo */}
+            <div className="relative z-10 flex justify-center">
+              <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/40 text-xs font-black uppercase tracking-wider shadow-[0_0_15px_rgba(34,197,94,0.25)]">
+                <Sparkles size={14} className="text-[#22c55e]" />
+                <span>Saque Imediato Disponível</span>
+              </div>
+            </div>
+
+            {/* Pergunta Exigida */}
+            <div className="relative z-10 space-y-2">
+              <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight">
+                Deseja sacar seu lucro agora?
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-300 font-medium max-w-sm mx-auto">
+                Suas comissões acumuladas estão prontas para serem transferidas diretamente para sua conta bancária.
+              </p>
+            </div>
+
+            {/* Card Focado EXCLUSIVAMENTE no Valor Líquido a Sacar */}
+            <div className="relative z-10 p-6 sm:p-8 rounded-3xl bg-gradient-to-b from-[#22c55e]/15 to-[#22c55e]/5 border-2 border-[#22c55e]/50 shadow-[0_0_30px_rgba(34,197,94,0.2)]">
+              <span className="text-[11px] sm:text-xs font-black text-[#4ade80] uppercase tracking-widest block mb-2">
+                VALOR LÍQUIDO PARA SER SACADO
+              </span>
+              <div className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-[#22c55e] via-[#4ade80] to-[#86efac] drop-shadow-[0_0_25px_rgba(34,197,94,0.5)] py-1">
+                R$ {saldoDisponivel.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+              <div className="mt-3 inline-flex items-center gap-1.5 text-xs text-slate-300 font-medium">
+                <CheckCircle2 size={14} className="text-[#22c55e]" />
+                <span>100% liberado • Transferência instantânea via Pix</span>
+              </div>
+            </div>
+
+            {/* Botão de Confirmação Super Chamativo */}
+            <div className="relative z-10 space-y-2 pt-1">
+              <button
+                type="button"
+                disabled={isProcessing}
+                onClick={handleAntecipacao}
+                className="w-full py-4 sm:py-5 px-6 rounded-2xl bg-gradient-to-r from-[#22c55e] via-[#4ade80] to-[#22c55e] hover:brightness-110 text-black font-black text-sm sm:text-base uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-[0_0_35px_rgba(34,197,94,0.55)] transition-all active:scale-95 disabled:opacity-60 cursor-pointer animate-pulse"
+              >
+                {isProcessing ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                    <span>GERANDO LIBERAÇÃO PIX...</span>
+                  </div>
+                ) : (
+                  <>
+                    <span>SIM, QUERO SACAR MEU LUCRO AGORA 🚀</span>
+                    <ArrowRight size={20} strokeWidth={3} />
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowWithdrawConfirmModal(false)}
+                className="w-full text-center text-xs text-slate-500 hover:text-slate-300 font-semibold transition-colors cursor-pointer py-1.5"
+              >
+                Agora não, continuar acumulando vendas
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ================= MODAL PIX DA TAXA DE ANTECIPAÇÃO ================= */}
       {showPixModal && pixData && (
