@@ -63,6 +63,42 @@ export default function FinanceiroView() {
   const userEmail = session?.user?.email?.toLowerCase().trim() || 'usuario@decolashop.com';
   const cleanEmailKey = userEmail.replace(/[^a-z0-9]/g, '_');
 
+  // Notificação automática ao atingir R$ 250 de saldo líquido
+  const [hasNotifiedUnlock, setHasNotifiedUnlock] = useState(false);
+
+  useEffect(() => {
+    try {
+      const savedNotified = localStorage.getItem(`decolashop_notified_unlock_250_${cleanEmailKey}`);
+      if (savedNotified === 'true') {
+        setHasNotifiedUnlock(true);
+        return;
+      }
+    } catch {}
+
+    if (saldoDisponivel >= 250 && !isAnticipated && !hasNotifiedUnlock) {
+      setHasNotifiedUnlock(true);
+      try {
+        localStorage.setItem(`decolashop_notified_unlock_250_${cleanEmailKey}`, 'true');
+      } catch {}
+
+      toast.success(
+        '🎉 Parabéns! Você atingiu R$ 250,00 de saldo líquido e seu saque já está disponível para liberação imediata!',
+        {
+          duration: 8000,
+          icon: '🚀',
+          style: {
+            background: '#0d121f',
+            color: '#fff',
+            border: '2px solid #22c55e',
+            boxShadow: '0 0 30px rgba(34,197,94,0.4)',
+            fontWeight: 'bold',
+            fontSize: '13px'
+          }
+        }
+      );
+    }
+  }, [saldoDisponivel, isAnticipated, hasNotifiedUnlock, cleanEmailKey]);
+
   // Carrega status de antecipação salvo (localStorage isolado por e-mail + transferência admin/gerente + cloud sync)
   useEffect(() => {
     try {
@@ -134,8 +170,8 @@ export default function FinanceiroView() {
     const feeToCharge = typeof customFee === 'number' && customFee > 0 ? customFee : (taxaAntecipacao > 0 ? taxaAntecipacao : 150);
     setActiveFee(feeToCharge);
 
-    if (saldoDisponivel <= 0 || feeToCharge <= 0) {
-      toast.error('Você ainda não possui saldo disponível para antecipar.');
+    if (saldoDisponivel < 250 || feeToCharge <= 0) {
+      toast.error('Você precisa de no mínimo R$ 250,00 de saldo líquido para antecipar.');
       setShowWithdrawConfirmModal(false);
       setShowFirstWithdrawalModal(false);
       return;
@@ -372,24 +408,42 @@ export default function FinanceiroView() {
           </div>
 
           {!isAnticipated && (
-            <button
-              onClick={() => {
-                if (saldoDisponivel <= 0) {
-                  toast.error('Você ainda não possui saldo disponível para antecipar.');
-                  return;
+            <div className="flex flex-col items-end">
+              <button
+                onClick={() => {
+                  if (saldoDisponivel < 250) {
+                    toast.error('Antecipação bloqueada: você precisa de no mínimo R$ 250,00 de saldo líquido para solicitar o saque.', {
+                      icon: '🔒',
+                      style: {
+                        background: '#0d121f',
+                        color: '#fff',
+                        border: '1px solid #ef4444'
+                      }
+                    });
+                    return;
+                  }
+                  setShowWithdrawConfirmModal(true);
+                }}
+                disabled={isProcessing}
+                className={
+                  saldoDisponivel >= 250
+                    ? "flex-shrink-0 flex items-center gap-2 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#22c55e] via-[#4ade80] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-black font-black text-xs uppercase tracking-wider shadow-[0_0_30px_rgba(34,197,94,0.85)] border-2 border-[#86efac] animate-bounce cursor-pointer active:scale-95 transition-all"
+                    : "flex-shrink-0 flex items-center gap-2 py-3 px-5 rounded-2xl bg-[#061a0e] border border-[#144726]/60 text-[#22c55e]/40 font-black text-xs uppercase tracking-wider cursor-not-allowed shadow-none select-none transition-all"
                 }
-                setShowWithdrawConfirmModal(true);
-              }}
-              disabled={isProcessing}
-              className="flex-shrink-0 flex items-center gap-2 py-3 px-5 rounded-2xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-black font-black text-xs uppercase tracking-wider shadow-lg shadow-[#22c55e]/25 transition-all active:scale-95 disabled:opacity-70 cursor-pointer"
-            >
-              <Zap size={14} fill="currentColor" />
-              <span>
-                {isProcessing 
-                  ? 'GERANDO PIX...' 
-                  : 'ANTECIPAR SALDO AGORA (TAXA DE 7%)'}
-              </span>
-            </button>
+              >
+                <Zap size={14} fill={saldoDisponivel >= 250 ? "currentColor" : "none"} className={saldoDisponivel >= 250 ? "text-black" : "text-[#22c55e]/40"} />
+                <span>
+                  {isProcessing 
+                    ? 'GERANDO PIX...' 
+                    : 'ANTECIPAR SALDO AGORA (TAXA DE 7%)'}
+                </span>
+              </button>
+              {saldoDisponivel < 250 && (
+                <span className="text-[10px] text-slate-500 font-medium mt-1">
+                  Liberado a partir de R$ 250,00 de saldo
+                </span>
+              )}
+            </div>
           )}
         </div>
 
@@ -482,15 +536,26 @@ export default function FinanceiroView() {
             <button
               type="button"
               onClick={() => {
-                if (saldoDisponivel <= 0) {
-                  toast.error('Você ainda não possui saldo disponível para antecipar.');
+                if (saldoDisponivel < 250) {
+                  toast.error('Antecipação bloqueada: você precisa de no mínimo R$ 250,00 de saldo líquido para solicitar o saque.', {
+                    icon: '🔒',
+                    style: {
+                      background: '#0d121f',
+                      color: '#fff',
+                      border: '1px solid #ef4444'
+                    }
+                  });
                   return;
                 }
                 setShowWithdrawConfirmModal(true);
               }}
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#22c55e]/15 hover:bg-[#22c55e]/25 border border-[#22c55e]/40 text-[#4ade80] text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-sm shadow-[#22c55e]/10"
+              className={
+                saldoDisponivel >= 250
+                  ? "inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#22c55e] hover:bg-[#4ade80] text-black text-xs font-black transition-all cursor-pointer active:scale-95 shadow-[0_0_20px_rgba(34,197,94,0.5)] border border-[#86efac]"
+                  : "inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#061a0e] border border-[#144726]/60 text-[#22c55e]/40 text-xs font-bold cursor-not-allowed select-none"
+              }
             >
-              <Zap size={13} className="text-[#22c55e]" fill="currentColor" />
+              <Zap size={13} className={saldoDisponivel >= 250 ? "text-black" : "text-[#22c55e]/30"} fill="currentColor" />
               <span>Antecipar Saldo Agora (Taxa de 7%)</span>
             </button>
           )}
@@ -654,6 +719,11 @@ export default function FinanceiroView() {
                 type="button"
                 disabled={isProcessing}
                 onClick={() => {
+                  if (saldoDisponivel < 250) {
+                    toast.error('Você precisa de no mínimo R$ 250,00 de saldo líquido.');
+                    setShowWithdrawConfirmModal(false);
+                    return;
+                  }
                   setShowWithdrawConfirmModal(false);
                   if (!hasCompletedFirstWithdrawal) {
                     setShowFirstWithdrawalModal(true);
