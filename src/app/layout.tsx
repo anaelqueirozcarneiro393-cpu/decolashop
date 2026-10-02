@@ -6,6 +6,7 @@ import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { Providers } from "@/components/Providers";
 import AffiliateTracker from "@/components/AffiliateTracker";
+import AntiInspectionShield from "@/components/AntiInspectionShield";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -52,6 +53,7 @@ export default function RootLayout({
       <body className="min-h-full bg-dark-bg text-foreground antialiased">
         <Providers>
           <AffiliateTracker />
+          <AntiInspectionShield />
           {children}
         </Providers>
       </body>
