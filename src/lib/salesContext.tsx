@@ -183,10 +183,10 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  // Intervalo dinâmico configurável pelo admin (Gerente: 100s-400s, Membros: 300s-900s)
+  // Intervalo dinâmico configurável pelo admin (Gerente: 100s-400s, Membros: 180s-600s)
   const [intervalMode, setIntervalMode] = useState<'range' | 'fixed'>('range');
-  const [minSeconds, setMinSeconds] = useState<number>(isGerenteUser ? 100 : 300);
-  const [maxSeconds, setMaxSeconds] = useState<number>(isGerenteUser ? 400 : 900);
+  const [minSeconds, setMinSeconds] = useState<number>(isGerenteUser ? 100 : 180);
+  const [maxSeconds, setMaxSeconds] = useState<number>(isGerenteUser ? 400 : 600);
   const [fixedSeconds, setFixedSeconds] = useState<number>(180);
   const [selectedProductId, setSelectedProductId] = useState<string>('all');
   const [availableProducts, setAvailableProducts] = useState<Product[]>(mockProducts);
@@ -381,8 +381,13 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (parsed.intervalMode) setIntervalMode(parsed.intervalMode);
-        if (parsed.minSeconds && parsed.minSeconds >= 80) setMinSeconds(parsed.minSeconds);
-        if (parsed.maxSeconds && parsed.maxSeconds >= 200) setMaxSeconds(parsed.maxSeconds);
+        if (!isGerenteUser && parsed.minSeconds === 300 && parsed.maxSeconds === 900) {
+          setMinSeconds(180);
+          setMaxSeconds(600);
+        } else {
+          if (parsed.minSeconds && parsed.minSeconds >= 80) setMinSeconds(parsed.minSeconds);
+          if (parsed.maxSeconds && parsed.maxSeconds >= 200) setMaxSeconds(parsed.maxSeconds);
+        }
         if (parsed.fixedSeconds && parsed.fixedSeconds >= 60) setFixedSeconds(parsed.fixedSeconds);
         if (parsed.selectedProductId) setSelectedProductId(parsed.selectedProductId);
 
@@ -744,9 +749,9 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         icon: '💰'
       });
 
-      // Loop subsequente entre 4 e 15 minutos (240s a 900s aleatório)
+      // Loop subsequente entre 3 e 10 minutos (180s a 600s aleatório)
       const scheduleSubsequent = () => {
-        const randomSeconds = Math.floor(Math.random() * (900 - 240 + 1)) + 240;
+        const randomSeconds = Math.floor(Math.random() * (600 - 180 + 1)) + 180;
         setTimeout(() => {
           addSale(targetProduct, customPrice);
           scheduleSubsequent();
@@ -834,8 +839,8 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         // CONTAS DE MEMBROS NORMAIS:
-        // Ritmo bem mais lento e realista: entre 300s (5 min) e 900s (15 min)
-        const randomSec = Math.floor(Math.random() * (900 - 300 + 1)) + 300;
+        // Ritmo solicitado: entre 3 min (180s) e 10 min (600s)
+        const randomSec = Math.floor(Math.random() * (600 - 180 + 1)) + 180;
         delayMs = randomSec * 1000;
       }
 
