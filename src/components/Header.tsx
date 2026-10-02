@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Bell, User, Menu, Zap, Volume2, VolumeX, CheckCircle, X } from 'lucide-react';
+import { Search, Bell, User, Menu, Zap, Volume2, VolumeX, CheckCircle, X, Eye, EyeOff } from 'lucide-react';
 import { useSession, signIn } from 'next-auth/react';
 import { useSales, formatSaleTime } from '@/lib/salesContext';
+import { usePrivacy } from '@/lib/privacyContext';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -26,6 +27,7 @@ export default function Header({ onMenuClick, session: propSession }: HeaderProp
   const userBadge = isAdmin ? 'Gerente' : 'Membro VIP';
 
   const { isSoundEnabled, toggleSound, recentSales } = useSales();
+  const { hideEmail, toggleHideEmail, maskEmail } = usePrivacy();
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -158,13 +160,30 @@ export default function Header({ onMenuClick, session: propSession }: HeaderProp
           )}
         </div>
         
+        {/* Botão de Modo Gravação / Ocultar E-mail */}
+        <button
+          type="button"
+          onClick={toggleHideEmail}
+          className={`p-2 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold ${
+            hideEmail
+              ? 'bg-amber-500/15 border-amber-500/40 text-amber-400 hover:bg-amber-500/25 shadow-sm shadow-amber-500/10'
+              : 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10'
+          }`}
+          title={hideEmail ? 'Modo Gravação ATIVO (E-mail Oculto) - Clique para mostrar' : 'Ocultar e-mail da conta (Modo Gravação de Tela)'}
+        >
+          {hideEmail ? <EyeOff size={15} className="text-amber-400" /> : <Eye size={15} />}
+          <span className="hidden md:inline text-[11px] font-semibold">
+            {hideEmail ? 'E-mail Oculto' : 'Ocultar E-mail'}
+          </span>
+        </button>
+
         <div className="h-6 w-[1px] bg-white/10 mx-1 hidden sm:block" />
 
         {isAuthenticated ? (
           <div className="flex items-center gap-3 pl-1 cursor-pointer group">
             <div className="flex flex-col items-end hidden sm:flex">
               <span className="text-xs font-bold text-slate-200 group-hover:text-[#4ade80] transition-colors">
-                {session.user?.name || session.user?.email || 'gerente@decolashop.com'}
+                {hideEmail ? maskEmail(session.user?.email || 'gerente@decolashop.com') : (session.user?.name || session.user?.email || 'gerente@decolashop.com')}
               </span>
               <span className="text-[10px] font-black uppercase tracking-wider text-[#22c55e]">
                 {userBadge}

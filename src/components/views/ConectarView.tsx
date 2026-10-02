@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
+import { usePrivacy } from '@/lib/privacyContext';
 
 type ChannelKey = 'shopee' | 'tiktok' | 'ml';
 
@@ -77,6 +78,7 @@ const CHANNEL_METADATA: Record<ChannelKey, {
 
 export default function ConectarView() {
   const { data: session } = useSession();
+  const { hideEmail, maskEmail } = usePrivacy();
   const [selectedChannel, setSelectedChannel] = useState<ChannelKey>('shopee');
   const [connections, setConnections] = useState<ConnectionsState>(DEFAULT_CONNECTIONS);
   const [name, setName] = useState('');
@@ -286,7 +288,9 @@ export default function ConectarView() {
               </div>
               <div className="flex justify-between items-center text-slate-400 pb-2 border-b border-white/5">
                 <span className="font-medium">Email da Conta:</span>
-                <span className="font-bold text-white">{currentChannel?.email || 'gerente@decolashop.com'}</span>
+                <span className="font-bold text-white font-mono">
+                  {hideEmail ? maskEmail(currentChannel?.email || 'gerente@decolashop.com') : (currentChannel?.email || 'gerente@decolashop.com')}
+                </span>
               </div>
               <div className="flex justify-between items-center text-slate-400 pb-2 border-b border-white/5">
                 <span className="font-medium">Conectado em:</span>

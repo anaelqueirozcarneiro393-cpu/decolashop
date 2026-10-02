@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { User, Shield, Key, Sparkles, Mail, CheckCircle2, Lock, Zap } from 'lucide-react';
+import { User, Shield, Key, Sparkles, Mail, CheckCircle2, Lock, Zap, Eye, EyeOff } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { toast } from 'react-hot-toast';
+import { usePrivacy } from '@/lib/privacyContext';
 
 export default function PerfilView() {
   const { data: session } = useSession();
@@ -24,6 +25,7 @@ export default function PerfilView() {
   const [name, setName] = useState(defaultName);
   const [email, setEmail] = useState(rawEmail);
   const [isSaving, setIsSaving] = useState(false);
+  const { hideEmail, toggleHideEmail, maskEmail } = usePrivacy();
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,7 +59,19 @@ export default function PerfilView() {
           </div>
           <div>
             <h3 className="text-xl font-black text-white">{name}</h3>
-            <p className="text-xs text-muted-foreground">{email}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-muted-foreground font-mono">
+                {hideEmail ? maskEmail(email) : email}
+              </p>
+              <button
+                type="button"
+                onClick={toggleHideEmail}
+                className="text-slate-400 hover:text-white p-1 rounded transition-colors"
+                title={hideEmail ? "Mostrar e-mail" : "Ocultar e-mail (Modo Gravação)"}
+              >
+                {hideEmail ? <EyeOff size={13} className="text-[#22c55e]" /> : <Eye size={13} />}
+              </button>
+            </div>
             <div className="flex items-center gap-2 mt-2">
               <span className="text-[10px] font-black uppercase tracking-wider bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/30 px-2.5 py-0.5 rounded-full shadow-[0_0_10px_rgba(34,197,94,0.15)]">
                 {userBadge}
@@ -85,14 +99,39 @@ export default function PerfilView() {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-300 mb-1.5">E-mail Cadastrado</label>
-            <input
-              type="email"
-              value={email}
-              disabled
-              className="w-full bg-secondary/15 border border-border/30 rounded-xl py-3 px-4 text-sm text-slate-400 cursor-not-allowed"
-            />
-            <p className="text-[11px] text-muted-foreground mt-1">E-mail principal vinculado ao faturamento e saques.</p>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-bold text-slate-300">E-mail Cadastrado</label>
+              <button
+                type="button"
+                onClick={toggleHideEmail}
+                className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 px-2.5 py-1 rounded-lg border border-white/10 cursor-pointer"
+                title={hideEmail ? "Mostrar e-mail" : "Ocultar e-mail para gravação de tela"}
+              >
+                {hideEmail ? <EyeOff size={13} className="text-[#22c55e]" /> : <Eye size={13} />}
+                <span className={hideEmail ? "text-[#4ade80] font-semibold" : ""}>
+                  {hideEmail ? 'Modo Gravação: Oculto' : 'Ocultar E-mail'}
+                </span>
+              </button>
+            </div>
+            <div className="relative">
+              <input
+                type="text"
+                value={hideEmail ? maskEmail(email) : email}
+                disabled
+                className="w-full bg-secondary/15 border border-border/30 rounded-xl py-3 px-4 text-sm text-slate-300 cursor-not-allowed pr-10 font-mono"
+              />
+              <button
+                type="button"
+                onClick={toggleHideEmail}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1 cursor-pointer"
+                title={hideEmail ? "Mostrar e-mail" : "Ocultar e-mail"}
+              >
+                {hideEmail ? <EyeOff size={16} className="text-[#22c55e]" /> : <Eye size={16} />}
+              </button>
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              E-mail principal vinculado ao faturamento e saques. Ocultado durante gravações de vídeo.
+            </p>
           </div>
 
           <button

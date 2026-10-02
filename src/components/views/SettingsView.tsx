@@ -1,13 +1,15 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Settings, Shield, User, CreditCard, Sparkles, Check, ExternalLink, RefreshCw, Key } from 'lucide-react';
+import { Settings, Shield, User, CreditCard, Sparkles, Check, ExternalLink, RefreshCw, Key, Eye, EyeOff } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { toast } from 'react-hot-toast';
 import SigilopayCheckoutModal from '@/components/checkout/SigilopayCheckoutModal';
+import { usePrivacy } from '@/lib/privacyContext';
 
 export default function SettingsView() {
   const { data: session, update } = useSession();
+  const { hideEmail, toggleHideEmail, maskEmail } = usePrivacy();
   // @ts-ignore
   const plan = session?.user?.plan || 'free';
   const isVip = plan !== 'free';
@@ -56,7 +58,19 @@ export default function SettingsView() {
           </div>
           <div>
             <h3 className="text-lg font-bold text-white">{session?.user?.name || 'Membro DecolaShop'}</h3>
-            <p className="text-xs text-muted-foreground">{session?.user?.email || 'email@exemplo.com'}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-muted-foreground font-mono">
+                {hideEmail ? maskEmail(session?.user?.email || 'email@exemplo.com') : (session?.user?.email || 'email@exemplo.com')}
+              </p>
+              <button
+                type="button"
+                onClick={toggleHideEmail}
+                className="text-slate-400 hover:text-white p-1 rounded transition-colors cursor-pointer"
+                title={hideEmail ? "Mostrar e-mail" : "Ocultar e-mail (Modo Gravação)"}
+              >
+                {hideEmail ? <EyeOff size={13} className="text-[#22c55e]" /> : <Eye size={13} />}
+              </button>
+            </div>
             <div className="mt-2 inline-flex items-center gap-2">
               <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
                 isVip

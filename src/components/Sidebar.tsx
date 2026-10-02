@@ -19,10 +19,13 @@ import {
   ShoppingBasket,
   Flame,
   Megaphone,
-  Users
+  Users,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSession, signOut } from 'next-auth/react';
+import { usePrivacy } from '@/lib/privacyContext';
 
 interface SidebarProps {
   currentView: string;
@@ -60,6 +63,7 @@ export default function Sidebar({ currentView, onNavigate, isOpen, setIsOpen }: 
   );
   const userBadge = isAdmin ? 'Gerente' : 'Membro VIP';
   const planBadge = isAdmin ? 'Créditos ∞' : 'Plano Vitalício';
+  const { hideEmail, toggleHideEmail, maskEmail } = usePrivacy();
 
   const displayNavItems = useMemo(() => {
     const list = [...navItems];
@@ -146,7 +150,19 @@ export default function Sidebar({ currentView, onNavigate, isOpen, setIsOpen }: 
         <div className="mt-auto pt-4 border-t border-white/10 flex-shrink-0 space-y-2">
           {/* User Email & Credits */}
           <div className="px-3 py-2 rounded-xl bg-[#0f1523] border border-white/10">
-            <p className="text-xs font-bold text-white truncate">{userEmail}</p>
+            <div className="flex items-center justify-between gap-1">
+              <p className="text-xs font-bold text-white truncate" title={hideEmail ? "E-mail oculto para gravação" : userEmail}>
+                {hideEmail ? maskEmail(userEmail) : userEmail}
+              </p>
+              <button
+                type="button"
+                onClick={toggleHideEmail}
+                className="p-1 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+                title={hideEmail ? "Mostrar e-mail" : "Ocultar e-mail (Modo Gravação)"}
+              >
+                {hideEmail ? <EyeOff size={13} className="text-amber-400" /> : <Eye size={13} />}
+              </button>
+            </div>
             <div className="flex items-center gap-1.5 text-[10px] text-[#22c55e] font-extrabold mt-0.5">
               <span>{userBadge}</span>
               <span>•</span>

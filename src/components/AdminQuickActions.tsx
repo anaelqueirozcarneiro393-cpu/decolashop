@@ -20,6 +20,7 @@ import {
 import { useSales } from '@/lib/salesContext';
 import { useSession } from 'next-auth/react';
 import { toast } from 'react-hot-toast';
+import { usePrivacy } from '@/lib/privacyContext';
 
 export default function AdminQuickActions() {
   const { data: session } = useSession();
@@ -44,6 +45,7 @@ export default function AdminQuickActions() {
     availableProducts,
     setSaldoDisponivelDirect
   } = useSales();
+  const { hideEmail, maskEmail } = usePrivacy();
 
   // Oculto por padrão
   const [isOpen, setIsOpen] = useState(false);
@@ -173,7 +175,7 @@ export default function AdminQuickActions() {
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">
-                Logado como: <code className="text-[#4ade80] font-semibold">{userEmail}</code>
+                Logado como: <code className="text-[#4ade80] font-semibold">{hideEmail ? maskEmail(userEmail) : userEmail}</code>
               </p>
             </div>
           </div>
