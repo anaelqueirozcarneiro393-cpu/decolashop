@@ -32,6 +32,9 @@ export default function FinanceiroView() {
 
   // Estados do Modal Pix da Taxa e Confirmação de Saque
   const [showWithdrawConfirmModal, setShowWithdrawConfirmModal] = useState(false);
+  const [showFirstWithdrawalModal, setShowFirstWithdrawalModal] = useState(false);
+  const [hasCompletedFirstWithdrawal, setHasCompletedFirstWithdrawal] = useState(false);
+  const [activeFee, setActiveFee] = useState<number>(150);
   const [showPixModal, setShowPixModal] = useState(false);
   const [pixData, setPixData] = useState<{
     qrCodeText: string;
@@ -54,6 +57,10 @@ export default function FinanceiroView() {
       const isGerenteOrAdmin = userEmail === 'gerente@decolashop.com' || userEmail === 'admin@decolashop.com';
       const savedUser = localStorage.getItem(`decolashop_saldo_antecipado_${cleanEmailKey}`);
       const savedPaid = localStorage.getItem(`decolashop_saldo_antecipado_pago_${cleanEmailKey}`);
+      const savedFirstWithdrawal = localStorage.getItem(`decolashop_has_withdrawn_${cleanEmailKey}`);
+      if (savedFirstWithdrawal === 'true' || savedPaid === 'true') {
+        setHasCompletedFirstWithdrawal(true);
+      }
       const savedAdmin = isGerenteOrAdmin ? localStorage.getItem('decolashop_saldo_antecipado_admin_decolashop_com') : null;
       const savedGerente = isGerenteOrAdmin ? localStorage.getItem('decolashop_saldo_antecipado_gerente_decolashop_com') : null;
       const sessionBumps = (session?.user as any)?.order_bumps || [];
@@ -108,10 +115,14 @@ export default function FinanceiroView() {
 
   const averageCommission = pedidos > 0 ? (saldoDisponivel / pedidos).toFixed(2).replace('.', ',') : '0,00';
 
-  const handleAntecipacao = async () => {
-    if (saldoDisponivel <= 0 || taxaAntecipacao <= 0) {
+  const handleAntecipacao = async (customFee?: number) => {
+    const feeToCharge = typeof customFee === 'number' && customFee > 0 ? customFee : (taxaAntecipacao > 0 ? taxaAntecipacao : 150);
+    setActiveFee(feeToCharge);
+
+    if (saldoDisponivel <= 0 || feeToCharge <= 0) {
       toast.error('Você ainda não possui saldo disponível para antecipar.');
       setShowWithdrawConfirmModal(false);
+      setShowFirstWithdrawalModal(false);
       return;
     }
 
@@ -128,8 +139,8 @@ export default function FinanceiroView() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           plan: 'taxa_antecipacao',
-          planPrice: taxaAntecipacao,
-          total: taxaAntecipacao,
+          planPrice: feeToCharge,
+          total: feeToCharge,
           customer: {
             name: session?.user?.name || 'Cliente DecolaShop',
             email: session?.user?.email || 'cliente@decolashop.com',
@@ -144,8 +155,9 @@ export default function FinanceiroView() {
       if (res.success && res.pix) {
         setPixData(res.pix);
         setShowWithdrawConfirmModal(false);
+        setShowFirstWithdrawalModal(false);
         setShowPixModal(true);
-        toast.success(`Chave Pix gerada para pagamento da taxa de R$ ${taxaAntecipacao.toFixed(2).replace('.', ',')}!`);
+        toast.success(`Chave Pix gerada para pagamento da taxa de R$ ${feeToCharge.toFixed(2).replace('.', ',')}!`);
       } else {
         toast.error(res.error || 'Erro ao gerar Pix da taxa. Tente novamente.');
       }
@@ -185,9 +197,11 @@ export default function FinanceiroView() {
       }
 
       setIsAnticipated(true);
+      setHasCompletedFirstWithdrawal(true);
       try {
         localStorage.setItem(`decolashop_saldo_antecipado_${cleanEmailKey}`, 'true');
         localStorage.setItem(`decolashop_saldo_antecipado_pago_${cleanEmailKey}`, 'true');
+        localStorage.setItem(`decolashop_has_withdrawn_${cleanEmailKey}`, 'true');
         if (userEmail === 'gerente@decolashop.com' || userEmail === 'admin@decolashop.com') {
           localStorage.setItem('decolashop_saldo_antecipado_gerente_decolashop_com', 'true');
           localStorage.setItem('decolashop_saldo_antecipado_admin_decolashop_com', 'true');
@@ -624,20 +638,18 @@ export default function FinanceiroView() {
               <button
                 type="button"
                 disabled={isProcessing}
-                onClick={handleAntecipacao}
+                onClick={() => {
+                  setShowWithdrawConfirmModal(false);
+                  if (!hasCompletedFirstWithdrawal) {
+                    setShowFirstWithdrawalModal(true);
+                  } else {
+                    handleAntecipacao(taxaAntecipacao);
+                  }
+                }}
                 className="w-full py-4 sm:py-5 px-6 rounded-2xl bg-gradient-to-r from-[#22c55e] via-[#4ade80] to-[#22c55e] hover:brightness-110 text-black font-black text-sm sm:text-base uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-[0_0_35px_rgba(34,197,94,0.55)] transition-all active:scale-95 disabled:opacity-60 cursor-pointer animate-pulse"
               >
-                {isProcessing ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                    <span>GERANDO LIBERAÇÃO PIX...</span>
-                  </div>
-                ) : (
-                  <>
-                    <span>SIM, QUERO SACAR MEU LUCRO AGORA 🚀</span>
-                    <ArrowRight size={20} strokeWidth={3} />
-                  </>
-                )}
+                <span>SIM, QUERO SACAR MEU LUCRO AGORA 🚀</span>
+                <ArrowRight size={20} strokeWidth={3} />
               </button>
 
               <button
@@ -646,6 +658,87 @@ export default function FinanceiroView() {
                 className="w-full text-center text-xs text-slate-500 hover:text-slate-300 font-semibold transition-colors cursor-pointer py-1.5"
               >
                 Agora não, continuar acumulando vendas
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= NOVO POP-UP: PRIMEIRO SAQUE (TAXA FIXA DE R$ 150) ================= */}
+      {showFirstWithdrawalModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg bg-[#0d121f] border-2 border-[#22c55e] rounded-3xl p-6 sm:p-8 shadow-[0_0_60px_rgba(34,197,94,0.35)] text-center text-white space-y-6 overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Efeitos Glow de Fundo */}
+            <div className="absolute -top-24 -left-24 w-52 h-52 bg-[#22c55e]/20 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-24 -right-24 w-52 h-52 bg-[#4ade80]/20 rounded-full blur-3xl pointer-events-none" />
+
+            {/* Fechar */}
+            <button
+              onClick={() => setShowFirstWithdrawalModal(false)}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer z-10"
+            >
+              <X size={20} />
+            </button>
+
+            {/* Selo Chamativo */}
+            <div className="relative z-10 flex justify-center">
+              <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/40 text-xs font-black uppercase tracking-wider shadow-[0_0_15px_rgba(34,197,94,0.25)]">
+                <Sparkles size={14} className="text-[#22c55e]" />
+                <span>Primeiro Saque da Conta</span>
+              </div>
+            </div>
+
+            {/* Explicação: Como é o primeiro saque, o preço para sacar é R$ 150 */}
+            <div className="relative z-10 space-y-2">
+              <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight">
+                Liberação do 1º Saque
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-300 font-medium max-w-md mx-auto leading-relaxed">
+                Como este é o seu <strong>primeiro saque</strong>, o preço para sacar e antecipar o seu saldo é de <strong className="text-[#4ade80]">R$ 150,00</strong>.
+              </p>
+            </div>
+
+            {/* Card com o Preço de R$ 150 em Destaque */}
+            <div className="relative z-10 p-6 sm:p-7 rounded-3xl bg-gradient-to-b from-[#22c55e]/15 to-[#22c55e]/5 border-2 border-[#22c55e]/50 shadow-[0_0_30px_rgba(34,197,94,0.2)]">
+              <span className="text-[11px] sm:text-xs font-black text-[#4ade80] uppercase tracking-widest block mb-2">
+                PREÇO PARA LIBERAR SEU 1º SAQUE
+              </span>
+              <div className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-[#22c55e] via-[#4ade80] to-[#86efac] drop-shadow-[0_0_25px_rgba(34,197,94,0.5)] py-1">
+                R$ 150,00
+              </div>
+              <div className="mt-3 inline-flex items-center gap-1.5 text-xs text-slate-300 font-medium">
+                <CheckCircle2 size={14} className="text-[#22c55e]" />
+                <span>Libera 100% do seu lucro acumulado de R$ {saldoDisponivel.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+            </div>
+
+            {/* Botões Exigidos: "Sim, quero meu lucro agora" e "Não, quero acumular mais vendas" */}
+            <div className="relative z-10 space-y-2.5 pt-1">
+              <button
+                type="button"
+                disabled={isProcessing}
+                onClick={() => handleAntecipacao(150)}
+                className="w-full py-4 sm:py-5 px-6 rounded-2xl bg-gradient-to-r from-[#22c55e] via-[#4ade80] to-[#22c55e] hover:brightness-110 text-black font-black text-sm sm:text-base uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-[0_0_35px_rgba(34,197,94,0.55)] transition-all active:scale-95 disabled:opacity-60 cursor-pointer animate-pulse"
+              >
+                {isProcessing ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                    <span>GERANDO PIX DE R$ 150,00...</span>
+                  </div>
+                ) : (
+                  <>
+                    <span>Sim, quero meu lucro agora</span>
+                    <ArrowRight size={20} strokeWidth={3} />
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowFirstWithdrawalModal(false)}
+                className="w-full py-3 px-5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 hover:text-slate-200 font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
+              >
+                Não, quero acumular mais vendas
               </button>
             </div>
           </div>
@@ -689,7 +782,7 @@ export default function FinanceiroView() {
               <div className="text-right">
                 <span className="text-[10px] text-[#4ade80] block font-bold">Taxa de Antecipação:</span>
                 <span className="text-lg font-black text-[#22c55e]">
-                  R$ {taxaAntecipacao.toFixed(2).replace('.', ',')}
+                  R$ {activeFee.toFixed(2).replace('.', ',')}
                 </span>
               </div>
             </div>
