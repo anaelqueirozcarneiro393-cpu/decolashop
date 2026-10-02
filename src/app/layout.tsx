@@ -5,6 +5,7 @@ import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import { Providers } from "@/components/Providers";
+import AffiliateTracker from "@/components/AffiliateTracker";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -50,6 +51,7 @@ export default function RootLayout({
     <html lang="pt-BR" className={`${inter.variable} h-full`}>
       <body className="min-h-full bg-dark-bg text-foreground antialiased">
         <Providers>
+          <AffiliateTracker />
           {children}
         </Providers>
       </body>

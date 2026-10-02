@@ -22,6 +22,7 @@ import {
 import { toast } from 'react-hot-toast';
 import { signIn } from 'next-auth/react';
 import { unlockOrderBumpsLocally } from '@/lib/orderBumps';
+import { recordAffiliateSale } from '@/lib/affiliateSystem';
 
 export interface OrderBump {
   id: string;
@@ -288,6 +289,24 @@ export default function CnpayCheckoutModal({
       const confirmData = await confirmRes.json();
 
       if (confirmData.success) {
+        // Record affiliate commission on initial checkout (subscription + bumps)
+        try {
+          recordAffiliateSale({
+            plan: selectedPlan,
+            planPrice: planBasePrice,
+            bumps: selectedBumps,
+            bumpPrices: bumpsTotal,
+            totalAmount: totalPrice,
+            customerName: name.trim(),
+            customerEmail: email.trim().toLowerCase(),
+            customerPhone: phone.replace(/\D/g, ''),
+            customerCpf: cpf.replace(/\D/g, ''),
+            transactionId: pixData?.transactionId,
+          });
+        } catch (affErr) {
+          console.error('Erro ao registrar venda de afiliado:', affErr);
+        }
+
         // Unlock order bumps locally for immediate client-side access
         if (selectedBumps && selectedBumps.length > 0) {
           unlockOrderBumpsLocally(selectedBumps);

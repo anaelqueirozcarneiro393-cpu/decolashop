@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { 
   LayoutDashboard, 
   Wallet, 
@@ -18,7 +18,8 @@ import {
   Zap,
   ShoppingBasket,
   Flame,
-  Megaphone
+  Megaphone,
+  Users
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSession, signOut } from 'next-auth/react';
@@ -60,6 +61,20 @@ export default function Sidebar({ currentView, onNavigate, isOpen, setIsOpen }: 
   const userBadge = isAdmin ? 'Gerente' : 'Membro VIP';
   const planBadge = isAdmin ? 'Créditos ∞' : 'Plano Vitalício';
 
+  const displayNavItems = useMemo(() => {
+    const list = [...navItems];
+    if (isAdmin) {
+      list.splice(2, 0, {
+        name: 'Afiliados',
+        id: 'afiliados',
+        icon: Users,
+        badge: 'GERENTE',
+        badgeColor: 'bg-[#22c55e]/20 text-[#4ade80] border-[#22c55e]/30'
+      });
+    }
+    return list;
+  }, [isAdmin]);
+
   return (
     <aside className={cn(
       "fixed left-0 top-0 z-40 h-screen w-64 bg-[#080c14]/95 backdrop-blur-2xl border-r border-[#22c55e]/15 transition-transform duration-300 ease-in-out flex flex-col",
@@ -96,7 +111,7 @@ export default function Sidebar({ currentView, onNavigate, isOpen, setIsOpen }: 
 
         {/* Navigation List */}
         <nav className="flex-1 space-y-1">
-          {navItems.map((item) => {
+          {displayNavItems.map((item) => {
             const isActive = currentView === item.id;
             return (
               <button

@@ -21,6 +21,7 @@ import PerfilView from '@/components/views/PerfilView';
 import ReembolsoView from '@/components/views/ReembolsoView';
 import SettingsView from '@/components/views/SettingsView';
 import DivulgadosView from '@/components/views/DivulgadosView';
+import AfiliadosView from '@/components/views/AfiliadosView';
 import AdminQuickActions from '@/components/AdminQuickActions';
 import { Product } from '@/lib/mockData';
 import { Toaster, toast } from 'react-hot-toast';
@@ -33,6 +34,7 @@ import MobileBottomNav from '@/components/MobileBottomNav';
 export type ViewType = 
   | 'dashboard' 
   | 'financeiro' 
+  | 'afiliados'
   | 'catalogo' 
   | 'divulgacao-ia' 
   | 'divulgados'
@@ -57,12 +59,25 @@ export default function AppContainer() {
   const [savedProducts, setSavedProducts] = useState<string[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  const rawEmail = session?.user?.email || '';
+  const userEmail = rawEmail.toLowerCase().trim();
+  const userRole = (session?.user as any)?.role || '';
+  const isNormalUser = userEmail === 'usuario@decolashop.com' || userEmail === 'cliente@decolashop.com' || userEmail === 'user@decolashop.com';
+  const isAdmin = !isNormalUser && (
+    userEmail === 'gerente@decolashop.com' || 
+    userEmail.includes('gerente') || 
+    userEmail.includes('admin') || 
+    userRole === 'gerente' || 
+    userRole === 'admin'
+  );
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const rawPath = window.location.pathname.replace(/^\//, '').toLowerCase();
       const validViews: ViewType[] = [
         'dashboard', 
         'financeiro', 
+        'afiliados',
         'catalogo', 
         'divulgacao-ia', 
         'divulgados',
@@ -80,7 +95,11 @@ export default function AppContainer() {
         'configuracoes'
       ];
       if (rawPath && validViews.includes(rawPath as ViewType)) {
-        setCurrentView(rawPath as ViewType);
+        if (rawPath === 'afiliados' && !isAdmin) {
+          setCurrentView('dashboard');
+        } else {
+          setCurrentView(rawPath as ViewType);
+        }
       }
     }
 
@@ -93,7 +112,7 @@ export default function AppContainer() {
     if (saved) {
       setSavedProducts(JSON.parse(saved));
     }
-  }, []);
+  }, [isAdmin]);
 
   const handleSaveProduct = (id: string) => {
     let newSaved = [...savedProducts];
@@ -109,6 +128,10 @@ export default function AppContainer() {
   };
 
   const navigateToView = (view: ViewType, product?: Product) => {
+    if (view === 'afiliados' && !isAdmin) {
+      toast.error('Acesso exclusivo à gerência.');
+      return;
+    }
     if (product) setSelectedProduct(product);
     setCurrentView(view);
     if (typeof window !== 'undefined') {
@@ -201,6 +224,10 @@ export default function AppContainer() {
 
             {currentView === 'financeiro' && (
               <FinanceiroView />
+            )}
+
+            {currentView === 'afiliados' && (
+              <AfiliadosView />
             )}
 
             {currentView === 'catalogo' && (
