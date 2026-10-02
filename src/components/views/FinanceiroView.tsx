@@ -44,6 +44,21 @@ export default function FinanceiroView() {
   const [copied, setCopied] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [isAnticipated, setIsAnticipated] = useState(false);
+  const [countdown, setCountdown] = useState(899);
+
+  useEffect(() => {
+    if (!showFirstWithdrawalModal) return;
+    const interval = setInterval(() => {
+      setCountdown((prev) => (prev > 0 ? prev - 1 : 899));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [showFirstWithdrawalModal]);
+
+  const formatTimer = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
 
   const userEmail = session?.user?.email?.toLowerCase().trim() || 'usuario@decolashop.com';
   const cleanEmailKey = userEmail.replace(/[^a-z0-9]/g, '_');
@@ -664,10 +679,10 @@ export default function FinanceiroView() {
         </div>
       )}
 
-      {/* ================= NOVO POP-UP: PRIMEIRO SAQUE (TAXA FIXA DE R$ 150) ================= */}
+      {/* ================= NOVO POP-UP: PRIMEIRO SAQUE COM OS 3 GATILHOS ================= */}
       {showFirstWithdrawalModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="relative w-full max-w-lg bg-[#0d121f] border-2 border-[#22c55e] rounded-3xl p-6 sm:p-8 shadow-[0_0_60px_rgba(34,197,94,0.35)] text-center text-white space-y-6 overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="relative w-full max-w-lg bg-[#0d121f] border-2 border-[#22c55e] rounded-3xl p-6 sm:p-8 shadow-[0_0_60px_rgba(34,197,94,0.35)] text-center text-white space-y-5 overflow-hidden animate-in zoom-in-95 duration-200">
             {/* Efeitos Glow de Fundo */}
             <div className="absolute -top-24 -left-24 w-52 h-52 bg-[#22c55e]/20 rounded-full blur-3xl pointer-events-none" />
             <div className="absolute -bottom-24 -right-24 w-52 h-52 bg-[#4ade80]/20 rounded-full blur-3xl pointer-events-none" />
@@ -680,39 +695,67 @@ export default function FinanceiroView() {
               <X size={20} />
             </button>
 
-            {/* Selo Chamativo */}
-            <div className="relative z-10 flex justify-center">
-              <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/40 text-xs font-black uppercase tracking-wider shadow-[0_0_15px_rgba(34,197,94,0.25)]">
+            {/* Selo e Gatilho 1: URGÊNCIA ARTIFICIAL (Cronômetro Regressivo) */}
+            <div className="relative z-10 flex flex-col items-center gap-1.5">
+              <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/40 text-xs font-black uppercase tracking-wider shadow-[0_0_15px_rgba(34,197,94,0.25)]">
                 <Sparkles size={14} className="text-[#22c55e]" />
                 <span>Primeiro Saque da Conta</span>
               </div>
+
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-rose-500/15 border border-rose-500/35 text-rose-400 text-xs font-black uppercase tracking-wider shadow-[0_0_15px_rgba(244,63,94,0.2)] animate-pulse mt-1">
+                <Clock size={13} className="text-rose-400 shrink-0" />
+                <span>Taxa promocional expira em: <strong className="font-mono text-white text-xs">{formatTimer(countdown)}</strong></span>
+              </div>
+              <span className="text-[10px] text-slate-400 font-medium">Após o término do prazo, a taxa volta para o valor normal de R$ 250,00</span>
             </div>
 
-            {/* Explicação: Como é o primeiro saque, o preço para sacar é R$ 150 */}
-            <div className="relative z-10 space-y-2">
+            {/* Título Principal */}
+            <div className="relative z-10 space-y-1">
               <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight">
                 Liberação do 1º Saque
               </h2>
               <p className="text-xs sm:text-sm text-slate-300 font-medium max-w-md mx-auto leading-relaxed">
-                Como este é o seu <strong>primeiro saque</strong>, o preço para sacar e antecipar o seu saldo é de <strong className="text-[#4ade80]">R$ 150,00</strong>.
+                Como este é o seu <strong>primeiro saque</strong>, sua taxa de liberação foi reduzida para apenas <strong className="text-[#4ade80]">R$ 150,00</strong>.
               </p>
             </div>
 
-            {/* Card com o Preço de R$ 150 em Destaque */}
-            <div className="relative z-10 p-6 sm:p-7 rounded-3xl bg-gradient-to-b from-[#22c55e]/15 to-[#22c55e]/5 border-2 border-[#22c55e]/50 shadow-[0_0_30px_rgba(34,197,94,0.2)]">
-              <span className="text-[11px] sm:text-xs font-black text-[#4ade80] uppercase tracking-widest block mb-2">
-                PREÇO PARA LIBERAR SEU 1º SAQUE
-              </span>
-              <div className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-[#22c55e] via-[#4ade80] to-[#86efac] drop-shadow-[0_0_25px_rgba(34,197,94,0.5)] py-1">
-                R$ 150,00
+            {/* Gatilho 2: ÂNCORA DE COMPARAÇÃO (Pague R$ 150 → Receba no Pix) */}
+            <div className="relative z-10 p-5 sm:p-6 rounded-3xl bg-gradient-to-b from-[#22c55e]/15 to-[#22c55e]/5 border-2 border-[#22c55e]/50 shadow-[0_0_30px_rgba(34,197,94,0.2)] space-y-3.5">
+              <div className="grid grid-cols-2 gap-3 items-center bg-black/45 rounded-2xl p-3.5 border border-white/10 text-left">
+                <div>
+                  <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block">Você Paga Hoje:</span>
+                  <div className="flex items-baseline gap-1.5 mt-0.5">
+                    <span className="text-2xl sm:text-3xl font-black text-white">R$ 150</span>
+                    <span className="text-xs text-slate-500 line-through">R$ 250</span>
+                  </div>
+                  <span className="text-[10px] text-amber-400 font-bold block mt-0.5">Taxa única promocional</span>
+                </div>
+
+                <div className="border-l border-white/10 pl-3">
+                  <span className="text-[10px] text-[#4ade80] font-extrabold uppercase tracking-wider block">Você Recebe no Pix:</span>
+                  <div className="text-2xl sm:text-3xl font-black text-[#22c55e] mt-0.5 drop-shadow-[0_0_15px_rgba(34,197,94,0.5)]">
+                    R$ {saldoDisponivel.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <span className="text-[10px] text-[#4ade80] font-bold block mt-0.5">100% Líquido na sua conta</span>
+                </div>
               </div>
-              <div className="mt-3 inline-flex items-center gap-1.5 text-xs text-slate-300 font-medium">
-                <CheckCircle2 size={14} className="text-[#22c55e]" />
-                <span>Libera 100% do seu lucro acumulado de R$ {saldoDisponivel.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+
+              <div className="flex items-center justify-center gap-1.5 text-xs text-slate-300 font-medium">
+                <CheckCircle2 size={14} className="text-[#22c55e] shrink-0" />
+                <span>Pague <strong>R$ 150,00</strong> → Receba <strong>R$ {saldoDisponivel.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> instantaneamente</span>
               </div>
             </div>
 
-            {/* Botões Exigidos: "Sim, quero meu lucro agora" e "Não, quero acumular mais vendas" */}
+            {/* Gatilho 3: PROVA SOCIAL NO MODAL */}
+            <div className="relative z-10 flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-white/[0.03] border border-white/5 text-[11px] text-slate-300">
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#22c55e] opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#22c55e]"></span>
+              </span>
+              <span><strong>142 afiliados</strong> já sacaram hoje • Último saque: Mariana R. (R$ 1.840) há 3 min</span>
+            </div>
+
+            {/* Botões: "Sim, quero meu lucro agora" e "Não, quero acumular mais vendas" */}
             <div className="relative z-10 space-y-2.5 pt-1">
               <button
                 type="button"
