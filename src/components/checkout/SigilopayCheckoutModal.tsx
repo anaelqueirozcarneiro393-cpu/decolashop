@@ -22,7 +22,7 @@ import {
 import { toast } from 'react-hot-toast';
 import { signIn } from 'next-auth/react';
 import { unlockOrderBumpsLocally } from '@/lib/orderBumps';
-import { recordAffiliateSale } from '@/lib/affiliateSystem';
+import { recordAffiliateSale, getAffiliateRef } from '@/lib/affiliateSystem';
 
 export interface OrderBump {
   id: string;
@@ -282,7 +282,9 @@ export default function SigilopayCheckoutModal({
           password: password,
           plan: selectedPlan,
           bumps: selectedBumps,
-          transactionId: pixData?.transactionId
+          total: totalPrice,
+          transactionId: pixData?.transactionId,
+          affiliateCode: getAffiliateRef()
         })
       });
 

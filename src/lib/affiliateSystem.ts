@@ -153,6 +153,38 @@ export function getAffiliates(): Affiliate[] {
   }
 }
 
+function postAffiliatesApi(payload: any) {
+  if (typeof window === 'undefined') return;
+  fetch('/api/affiliates', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).catch(() => {});
+}
+
+/**
+ * Synchronize affiliates and sales from server API across devices
+ */
+export async function syncAffiliatesFromServer(): Promise<{ affiliates: Affiliate[]; sales: AffiliateSale[] }> {
+  if (typeof window === 'undefined') return { affiliates: [], sales: [] };
+  try {
+    const res = await fetch('/api/affiliates', { cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && Array.isArray(data.affiliates)) {
+        localStorage.setItem(AFFILIATES_STORAGE_KEY, JSON.stringify(data.affiliates));
+        localStorage.setItem(AFFILIATE_SALES_STORAGE_KEY, JSON.stringify(data.sales || []));
+        window.dispatchEvent(new Event('decolashop_affiliates_updated'));
+        window.dispatchEvent(new Event('decolashop_affiliate_sales_updated'));
+        return { affiliates: data.affiliates, sales: data.sales || [] };
+      }
+    }
+  } catch (e) {
+    console.warn('Erro ao sincronizar afiliados do servidor:', e);
+  }
+  return { affiliates: getAffiliates(), sales: getAffiliateSales() };
+}
+
 /**
  * Save affiliates list and notify subscribers
  */
@@ -240,6 +272,7 @@ export function addAffiliate(data: {
 
   const updated = [newAffiliate, ...affiliates];
   saveAffiliates(updated);
+  postAffiliatesApi({ action: 'create', affiliate: newAffiliate });
   return newAffiliate;
 }
 
@@ -272,6 +305,7 @@ export function updateAffiliate(id: string, updates: Partial<Affiliate>): Affili
 
   affiliates[index] = updatedAffiliate;
   saveAffiliates(affiliates);
+  postAffiliatesApi({ action: 'update', id, updates });
   return updatedAffiliate;
 }
 
@@ -292,6 +326,7 @@ export function deleteAffiliate(id: string): boolean {
   const filtered = affiliates.filter(a => a.id !== id);
   if (filtered.length === affiliates.length) return false;
   saveAffiliates(filtered);
+  postAffiliatesApi({ action: 'delete', id });
   return true;
 }
 
@@ -324,6 +359,7 @@ export function markCommissionPaid(affiliateId: string): boolean {
     saveAffiliateSales(sales);
   }
 
+  postAffiliatesApi({ action: 'pay', affiliateId });
   return true;
 }
 
@@ -398,6 +434,7 @@ export function recordAffiliateSale(params: {
 
   const sales = getAffiliateSales();
   saveAffiliateSales([newSale, ...sales]);
+  postAffiliatesApi({ action: 'record_sale', sale: { affiliateCode: activeCode, ...params } });
 
   return newSale;
 }

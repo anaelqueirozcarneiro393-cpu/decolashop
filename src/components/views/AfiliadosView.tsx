@@ -39,7 +39,8 @@ import {
   deleteAffiliate, 
   updateAffiliateCommission, 
   markCommissionPaid, 
-  getAffiliateLink 
+  getAffiliateLink,
+  syncAffiliatesFromServer
 } from '@/lib/affiliateSystem';
 
 const BUMP_NAMES: Record<string, string> = {
@@ -97,11 +98,26 @@ export default function AfiliadosView() {
   useEffect(() => {
     loadData();
 
+    // 1. Initial server sync
+    syncAffiliatesFromServer().then(({ affiliates: affs, sales: sls }) => {
+      setAffiliates(affs);
+      setSales(sls);
+    });
+
+    // 2. Real-time background polling every 3 seconds for instant updates across devices
+    const pollInterval = setInterval(() => {
+      syncAffiliatesFromServer().then(({ affiliates: affs, sales: sls }) => {
+        setAffiliates(affs);
+        setSales(sls);
+      });
+    }, 3000);
+
     const handleUpdate = () => loadData();
     window.addEventListener('decolashop_affiliates_updated', handleUpdate);
     window.addEventListener('decolashop_affiliate_sales_updated', handleUpdate);
 
     return () => {
+      clearInterval(pollInterval);
       window.removeEventListener('decolashop_affiliates_updated', handleUpdate);
       window.removeEventListener('decolashop_affiliate_sales_updated', handleUpdate);
     };

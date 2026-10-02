@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { validateAndSanitizePayload, isValidEmail, sanitizeString } from '@/lib/security';
+import { recordAffiliateSaleOnServer } from '@/app/api/affiliates/route';
 
 export const dynamic = 'force-dynamic';
 
@@ -99,6 +100,9 @@ export async function POST(req: Request) {
     const cleanPhone = phone ? String(phone).replace(/\D/g, '') : null;
     const cleanPassword = sanitizeString(password || '');
     const userPlan = plan === 'monthly' ? 'monthly' : 'lifetime';
+    const safeBumps = Array.isArray(bumps) 
+      ? bumps.map((b: any) => sanitizeString(String(b)))
+      : [];
 
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = 
@@ -121,10 +125,6 @@ export async function POST(req: Request) {
           .select('id, email, password, order_bumps')
           .eq('email', cleanEmail)
           .maybeSingle();
-
-        const safeBumps = Array.isArray(bumps) 
-          ? bumps.map((b: any) => sanitizeString(String(b)))
-          : [];
 
         if (existingUser) {
           const existingBumps = Array.isArray(existingUser.order_bumps) ? existingUser.order_bumps : [];
@@ -159,6 +159,35 @@ export async function POST(req: Request) {
         }
       } catch (dbErr) {
         console.error('Erro ao registrar usuário no Supabase:', dbErr);
+      }
+    }
+
+    // 5. Registro automático de venda de afiliado no servidor (multi-dispositivo)
+    if (plan !== 'taxa_antecipacao') {
+      const cookiesHeader = req.headers.get('cookie') || '';
+      const matchAf = cookiesHeader.match(/(?:^|;\s*)decolashop_af=([^;]+)/);
+      const affiliateCode = rawBody.affiliateCode || (matchAf ? decodeURIComponent(matchAf[1]) : null);
+
+      if (affiliateCode) {
+        try {
+          const planBase = userPlan === 'monthly' ? 97 : 147;
+          const totalAmount = Number(rawBody.total) || planBase;
+          recordAffiliateSaleOnServer({
+            affiliateCode,
+            plan: userPlan,
+            planPrice: planBase,
+            bumps: safeBumps,
+            bumpPrices: Math.max(0, totalAmount - planBase),
+            totalAmount,
+            customerName: cleanName,
+            customerEmail: cleanEmail,
+            customerPhone: cleanPhone || undefined,
+            customerCpf: cleanCpf || undefined,
+            transactionId: transactionId || undefined,
+          });
+        } catch (affServerErr) {
+          console.error('[AFILIADOS] Erro ao registrar venda de afiliado no servidor:', affServerErr);
+        }
       }
     }
 
