@@ -40,168 +40,14 @@ export interface AffiliateSale {
   transactionId?: string;
 }
 
-const AFFILIATES_STORAGE_KEY = 'decolashop_affiliates_v1';
-const AFFILIATE_SALES_STORAGE_KEY = 'decolashop_affiliate_sales_v1';
+const AFFILIATES_STORAGE_KEY = 'decolashop_affiliates_real_v2';
+const AFFILIATE_SALES_STORAGE_KEY = 'decolashop_affiliate_sales_real_v2';
 const AFFILIATE_REF_COOKIE = 'decolashop_af';
 const AFFILIATE_REF_STORAGE = 'decolashop_affiliate_ref';
 
-// Realistic seed affiliates for gerente@decolashop.com
-const DEFAULT_AFFILIATES: Affiliate[] = [
-  {
-    id: 'af_pedro',
-    name: 'Pedro Alcântara',
-    code: 'pedro',
-    email: 'pedro.alcantara@gmail.com',
-    phone: '(11) 98721-4433',
-    pixKey: '384.921.849-12',
-    pixKeyType: 'cpf',
-    commissionPercent: 50,
-    active: true,
-    createdAt: Date.now() - 14 * 86400000,
-    totalRevenue: 2848.40,
-    totalSalesCount: 12,
-    pendingCommission: 479.70,
-    paidCommission: 944.50,
-    lastPaidAt: Date.now() - 3 * 86400000,
-  },
-  {
-    id: 'af_lucas',
-    name: 'Lucas Rocha (Dropship Pro)',
-    code: 'lucas',
-    email: 'lucasrocha.mkt@gmail.com',
-    phone: '(21) 99876-1122',
-    pixKey: 'lucasrocha.mkt@gmail.com',
-    pixKeyType: 'email',
-    commissionPercent: 50,
-    active: true,
-    createdAt: Date.now() - 10 * 86400000,
-    totalRevenue: 1968.90,
-    totalSalesCount: 8,
-    pendingCommission: 269.85,
-    paidCommission: 714.60,
-    lastPaidAt: Date.now() - 4 * 86400000,
-  },
-  {
-    id: 'af_carla',
-    name: 'Carla Mendes',
-    code: 'carla',
-    email: 'carla.mendes@hotmail.com',
-    phone: '(31) 98455-7799',
-    pixKey: '31984557799',
-    pixKeyType: 'phone',
-    commissionPercent: 60,
-    active: true,
-    createdAt: Date.now() - 7 * 86400000,
-    totalRevenue: 1548.50,
-    totalSalesCount: 6,
-    pendingCommission: 389.70,
-    paidCommission: 539.40,
-    lastPaidAt: Date.now() - 2 * 86400000,
-  }
-];
-
-// Seed sales demonstrating checkout commissions (subscriptions + bumps)
-const DEFAULT_SALES: AffiliateSale[] = [
-  {
-    id: 'sale_af_101',
-    affiliateId: 'af_pedro',
-    affiliateCode: 'pedro',
-    affiliateName: 'Pedro Alcântara',
-    customerName: 'Rodrigo Silveira',
-    customerEmail: 'rodrigo.silveira@outlook.com',
-    customerPhone: '11977665544',
-    plan: 'lifetime',
-    planPrice: 179.90,
-    bumps: ['bump_curso', 'bump_acelerador'],
-    bumpPrices: 69.80,
-    totalAmount: 249.70,
-    commissionPercent: 50,
-    commissionAmount: 124.85,
-    isSelfPurchase: false,
-    status: 'confirmed',
-    createdAt: Date.now() - 2 * 3600000, // 2h ago
-    transactionId: 'TX-PIX-984210'
-  },
-  {
-    id: 'sale_af_102',
-    affiliateId: 'af_lucas',
-    affiliateCode: 'lucas',
-    affiliateName: 'Lucas Rocha (Dropship Pro)',
-    customerName: 'Juliana Pires',
-    customerEmail: 'juliana.pires@gmail.com',
-    customerPhone: '21988776655',
-    plan: 'lifetime',
-    planPrice: 179.90,
-    bumps: ['bump_acompanhamento'],
-    bumpPrices: 59.90,
-    totalAmount: 239.80,
-    commissionPercent: 50,
-    commissionAmount: 119.90,
-    isSelfPurchase: false,
-    status: 'confirmed',
-    createdAt: Date.now() - 7 * 3600000, // 7h ago
-    transactionId: 'TX-PIX-983192'
-  },
-  {
-    id: 'sale_af_103',
-    affiliateId: 'af_carla',
-    affiliateCode: 'carla',
-    affiliateName: 'Carla Mendes',
-    customerName: 'Marcos Vinicius',
-    customerEmail: 'marcos.vini99@gmail.com',
-    customerPhone: '31971234455',
-    plan: 'monthly',
-    planPrice: 89.90,
-    bumps: ['bump_curso'],
-    bumpPrices: 29.90,
-    totalAmount: 119.80,
-    commissionPercent: 60,
-    commissionAmount: 71.88,
-    isSelfPurchase: false,
-    status: 'confirmed',
-    createdAt: Date.now() - 14 * 3600000, // 14h ago
-    transactionId: 'TX-PIX-981044'
-  },
-  {
-    id: 'sale_af_104',
-    affiliateId: 'af_pedro',
-    affiliateCode: 'pedro',
-    affiliateName: 'Pedro Alcântara',
-    customerName: 'Pedro Alcântara',
-    customerEmail: 'pedro.alcantara@gmail.com',
-    customerPhone: '11987214433',
-    plan: 'lifetime',
-    planPrice: 179.90,
-    bumps: ['bump_acelerador'],
-    bumpPrices: 39.90,
-    totalAmount: 219.80,
-    commissionPercent: 50,
-    commissionAmount: 109.90,
-    isSelfPurchase: true, // Example of self-purchase detection
-    status: 'confirmed',
-    createdAt: Date.now() - 26 * 3600000,
-    transactionId: 'TX-PIX-978431'
-  },
-  {
-    id: 'sale_af_105',
-    affiliateId: 'af_pedro',
-    affiliateCode: 'pedro',
-    affiliateName: 'Pedro Alcântara',
-    customerName: 'Renata Albuquerque',
-    customerEmail: 'renata.alb@gmail.com',
-    plan: 'lifetime',
-    planPrice: 179.90,
-    bumps: ['bump_curso', 'bump_acompanhamento', 'bump_acelerador'],
-    bumpPrices: 129.70,
-    totalAmount: 309.60,
-    commissionPercent: 50,
-    commissionAmount: 154.80,
-    isSelfPurchase: false,
-    status: 'paid_to_affiliate',
-    createdAt: Date.now() - 4 * 86400000,
-    transactionId: 'TX-PIX-967120'
-  }
-];
+// Clean real affiliate system - 100% real data only
+const DEFAULT_AFFILIATES: Affiliate[] = [];
+const DEFAULT_SALES: AffiliateSale[] = [];
 
 // Helper: Read cookie
 function getCookie(name: string): string | null {
@@ -279,23 +125,31 @@ export function clearAffiliateRef(): void {
 }
 
 /**
- * Get all registered affiliates
+ * Get all registered affiliates (100% real data, starts empty)
  */
 export function getAffiliates(): Affiliate[] {
-  if (typeof window === 'undefined') return DEFAULT_AFFILIATES;
+  if (typeof window === 'undefined') return [];
   try {
+    // Purge legacy fake keys if any
+    localStorage.removeItem('decolashop_affiliates_v1');
+    localStorage.removeItem('decolashop_affiliate_sales_v1');
+
     const raw = localStorage.getItem(AFFILIATES_STORAGE_KEY);
     if (!raw) {
-      localStorage.setItem(AFFILIATES_STORAGE_KEY, JSON.stringify(DEFAULT_AFFILIATES));
-      return DEFAULT_AFFILIATES;
+      return [];
     }
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed;
+    if (Array.isArray(parsed)) {
+      // Purge any fake seed affiliates
+      const filtered = parsed.filter(a => !['af_pedro', 'af_lucas', 'af_carla'].includes(a.id) && !a.name?.includes('Pedro Alcântara'));
+      if (filtered.length !== parsed.length) {
+        localStorage.setItem(AFFILIATES_STORAGE_KEY, JSON.stringify(filtered));
+      }
+      return filtered;
     }
-    return DEFAULT_AFFILIATES;
+    return [];
   } catch {
-    return DEFAULT_AFFILIATES;
+    return [];
   }
 }
 
@@ -311,23 +165,27 @@ export function saveAffiliates(affiliates: Affiliate[]): void {
 }
 
 /**
- * Get all affiliate sales
+ * Get all affiliate sales (100% real sales from checkout confirmations)
  */
 export function getAffiliateSales(): AffiliateSale[] {
-  if (typeof window === 'undefined') return DEFAULT_SALES;
+  if (typeof window === 'undefined') return [];
   try {
     const raw = localStorage.getItem(AFFILIATE_SALES_STORAGE_KEY);
     if (!raw) {
-      localStorage.setItem(AFFILIATE_SALES_STORAGE_KEY, JSON.stringify(DEFAULT_SALES));
-      return DEFAULT_SALES;
+      return [];
     }
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
-      return parsed;
+      // Purge any fake seed sales
+      const filtered = parsed.filter(s => !s.id.startsWith('sale_af_10') && !s.affiliateName?.includes('Pedro Alcântara'));
+      if (filtered.length !== parsed.length) {
+        localStorage.setItem(AFFILIATE_SALES_STORAGE_KEY, JSON.stringify(filtered));
+      }
+      return filtered;
     }
-    return DEFAULT_SALES;
+    return [];
   } catch {
-    return DEFAULT_SALES;
+    return [];
   }
 }
 

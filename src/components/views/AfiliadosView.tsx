@@ -431,14 +431,18 @@ export default function AfiliadosView() {
         </div>
 
         {filteredAffiliates.length === 0 ? (
-          <div className="text-center py-12 text-slate-400">
-            <Users size={32} className="mx-auto mb-2 opacity-40 text-slate-500" />
-            <p className="text-sm font-semibold">Nenhum afiliado encontrado.</p>
+          <div className="text-center py-12 text-slate-400 bg-black/20 rounded-xl border border-white/5 p-6">
+            <Users size={36} className="mx-auto mb-2 opacity-40 text-slate-500" />
+            <p className="text-sm font-bold text-white">Nenhum parceiro cadastrado no momento</p>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1">
+              Cadastre seus afiliados para gerar links exclusivos de divulgação com porcentagem de comissão personalizada.
+            </p>
             <button
               onClick={handleOpenCreateModal}
-              className="mt-3 text-xs text-[#22c55e] hover:underline font-bold"
+              className="mt-4 px-4 py-2 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] text-black font-extrabold text-xs shadow-lg shadow-[#22c55e]/20 transition-all cursor-pointer inline-flex items-center gap-1.5"
             >
-              + Cadastrar primeiro afiliado
+              <UserPlus size={14} className="stroke-[2.5]" />
+              <span>+ Cadastrar Primeiro Afiliado</span>
             </button>
           </div>
         ) : (
@@ -643,8 +647,12 @@ export default function AfiliadosView() {
         </div>
 
         {filteredSales.length === 0 ? (
-          <div className="text-center py-8 text-slate-400 text-xs">
-            Nenhuma venda registrada com o filtro selecionado.
+          <div className="text-center py-10 text-slate-400 bg-black/20 rounded-xl border border-white/5 p-6">
+            <TrendingUp size={28} className="mx-auto mb-2 opacity-40 text-slate-500" />
+            <p className="text-xs font-bold text-slate-300">Nenhuma venda de afiliado registrada ainda</p>
+            <p className="text-[11px] text-slate-500 max-w-md mx-auto mt-1">
+              Quando um cliente concluir uma assinatura usando o link (?af=codigo) de um afiliado e o Pix for confirmado, os detalhes do pedido e o valor exato da comissão aparecerão aqui automaticamente.
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -774,7 +782,7 @@ export default function AfiliadosView() {
                 <input
                   type="text"
                   required
-                  placeholder="Ex: Pedro Alcântara"
+                  placeholder="Ex: João da Silva"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-[#22c55e]"
@@ -792,7 +800,7 @@ export default function AfiliadosView() {
                   <input
                     type="text"
                     required
-                    placeholder="pedro"
+                    placeholder="joao"
                     value={formData.code}
                     onChange={(e) => setFormData({ ...formData, code: e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '') })}
                     className="flex-1 px-3 py-2 bg-transparent text-xs text-white font-mono focus:outline-none"
@@ -809,7 +817,7 @@ export default function AfiliadosView() {
                   <input
                     type="email"
                     required
-                    placeholder="pedro@email.com"
+                    placeholder="joao@email.com"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-[#22c55e]"
