@@ -522,43 +522,16 @@ export default function FinanceiroView() {
             <span>Transferências protegidas por criptografia de ponta a ponta BACEN • Saque mínimo de R$ 2.000,00.</span>
           </span>
 
-          {/* O botão NÃO aparece antes de pagar a taxa. Só aparece após antecipar e NÃO é clicável / não funcional */}
-          {isAnticipated ? (
-            <button
-              type="button"
-              disabled
-              className="w-full sm:w-auto py-3 px-6 rounded-2xl bg-white/10 border border-white/10 text-slate-400 font-extrabold text-xs uppercase tracking-wider cursor-not-allowed opacity-50 select-none pointer-events-none"
-              title="Aguardando liberação do sistema"
-            >
-              SOLICITAR SAQUE PIX (MÍN. R$ 2.000,00)
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                if (saldoDisponivel < 250) {
-                  toast.error('Antecipação bloqueada: você precisa de no mínimo R$ 250,00 de saldo líquido para solicitar o saque.', {
-                    icon: '🔒',
-                    style: {
-                      background: '#0d121f',
-                      color: '#fff',
-                      border: '1px solid #ef4444'
-                    }
-                  });
-                  return;
-                }
-                setShowWithdrawConfirmModal(true);
-              }}
-              className={
-                saldoDisponivel >= 250
-                  ? "inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#22c55e] hover:bg-[#4ade80] text-black text-xs font-black transition-all cursor-pointer active:scale-95 shadow-[0_0_20px_rgba(34,197,94,0.5)] border border-[#86efac]"
-                  : "inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#061a0e] border border-[#144726]/60 text-[#22c55e]/40 text-xs font-bold cursor-not-allowed select-none"
-              }
-            >
-              <Zap size={13} className={saldoDisponivel >= 250 ? "text-black" : "text-[#22c55e]/30"} fill="currentColor" />
-              <span>Antecipar Saldo Agora (Taxa de 7%)</span>
-            </button>
-          )}
+          {/* Botão de Solicitar Saque PIX mantido 100% INATIVO conforme solicitado */}
+          <button
+            type="button"
+            disabled
+            className="w-full sm:w-auto py-3.5 px-6 rounded-2xl bg-white/5 border border-white/10 text-slate-500 font-extrabold text-xs uppercase tracking-wider cursor-not-allowed opacity-50 select-none pointer-events-none flex items-center justify-center gap-2"
+            title="Função de saque temporariamente inativa"
+          >
+            <Lock size={13} className="text-slate-500" />
+            <span>SOLICITAR SAQUE PIX (MÍN. R$ 2.000,00)</span>
+          </button>
         </div>
       </div>
 
