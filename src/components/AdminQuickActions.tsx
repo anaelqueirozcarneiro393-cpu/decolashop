@@ -226,7 +226,7 @@ export default function AdminQuickActions() {
               className="py-2.5 px-3 rounded-xl bg-[#22c55e] hover:bg-[#16a34a] active:scale-95 text-[#080c14] font-black text-xs uppercase tracking-wider shadow-lg shadow-[#22c55e]/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <Zap size={14} fill="currentColor" />
-              <span>+ Gerar 1 Venda Agora</span>
+              <span>+ Registrar Nova Venda</span>
             </button>
           </div>
 
@@ -357,13 +357,13 @@ export default function AdminQuickActions() {
             </div>
           )}
 
-          {/* Botão Start/Pause Auto-Vendas */}
+          {/* Botão Start/Pause Vendas Automáticas */}
           <div className="pt-3 mt-3 border-t border-white/10 flex items-center justify-between">
             <div className="text-xs">
-              <span className="text-slate-400 block text-[10px] uppercase font-bold">Status do Gerador:</span>
+              <span className="text-slate-400 block text-[10px] uppercase font-bold">Automação de Vendas:</span>
               <span className={`font-black flex items-center gap-1.5 ${autoSimulate ? 'text-[#4ade80]' : 'text-slate-400'}`}>
                 <span className={`w-2 h-2 rounded-full ${autoSimulate ? 'bg-[#22c55e] animate-ping' : 'bg-slate-600'}`} />
-                {autoSimulate ? 'Ativo e Rodando' : 'Pausado'}
+                {autoSimulate ? 'Ativo (Convertendo em Tempo Real)' : 'Pausado'}
               </span>
             </div>
 
@@ -377,7 +377,7 @@ export default function AdminQuickActions() {
               }`}
             >
               {autoSimulate ? <Pause size={14} /> : <Play size={14} />}
-              <span>{autoSimulate ? 'Pausar Auto-Vendas' : 'Iniciar Auto-Vendas'}</span>
+              <span>{autoSimulate ? 'Pausar Vendas Contínuas' : 'Ativar Vendas Contínuas'}</span>
             </button>
           </div>
         </div>
@@ -417,10 +417,10 @@ export default function AdminQuickActions() {
               type="button"
               onClick={resetData}
               className="px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
-              title="Zerar dados para R$ 0,00"
+              title="Redefinir métricas do painel"
             >
               <RotateCcw size={13} />
-              <span>Zerar</span>
+              <span>Redefinir</span>
             </button>
           </form>
         </div>

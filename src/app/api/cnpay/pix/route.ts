@@ -240,8 +240,8 @@ export async function GET() {
         identifier: 'CHECK-' + Date.now(),
         amount: 2.00,
         client: {
-          name: 'Verificacao Status',
-          email: 'teste@decolashop.com',
+          name: 'Cliente DecolaShop',
+          email: 'cliente@decolashop.com',
           phone: '11999999999',
           document: getSafeValidCPF('39151747805')
         }

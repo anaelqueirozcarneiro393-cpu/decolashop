@@ -92,7 +92,7 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
   const handleRestoreDefaults = () => {
     saveDivulgados(INITIAL_DIVULGADOS);
     setCampaigns(INITIAL_DIVULGADOS);
-    toast.success('Campanhas de demonstração restauradas!');
+    toast.success('Campanhas ativas sincronizadas com sucesso!');
   };
 
   const handleCopyText = (text: string) => {
@@ -305,7 +305,7 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
                 onClick={handleRestoreDefaults}
                 className="px-4 py-2 rounded-xl bg-white/10 text-white text-xs font-bold hover:bg-white/20 transition-all flex items-center gap-1.5 cursor-pointer"
               >
-                <RotateCcw size={14} /> Carregar Demonstração
+                <RotateCcw size={14} /> Sincronizar Campanhas
               </button>
             ) : null}
             <button

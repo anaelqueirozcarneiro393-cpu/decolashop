@@ -753,7 +753,7 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('decolashop_sales_state');
     } catch {}
 
-    toast.success('Dashboard zerado com sucesso (R$ 0,00)!');
+    toast.success('Métricas do painel redefinidas com sucesso.');
   };
 
   const setSaldoDisponivelDirect = (val: number) => {
@@ -767,12 +767,12 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         const desc = intervalMode === 'range' 
           ? `entre ${minSeconds}s e ${maxSeconds}s`
           : `a cada ${fixedSeconds}s`;
-        toast(`🚀 Auto-Vendas Ativado (${desc})`, { 
+        toast(`🚀 Tráfego Contínuo Ativado (${desc})`, { 
           icon: '⚡',
           style: { background: '#111726', color: '#4ade80', border: '1px solid rgba(34,197,94,0.4)' }
         });
       } else {
-        toast('Auto-Vendas Pausado.', { icon: '⏸️' });
+        toast('Tráfego Contínuo Pausado.', { icon: '⏸️' });
       }
       return next;
     });

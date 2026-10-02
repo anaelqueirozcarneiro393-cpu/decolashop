@@ -20,7 +20,7 @@ export default function SettingsView() {
     const newPlan = isVip ? 'free' : 'yearly';
     try {
       await update({ plan: newPlan });
-      toast.success(newPlan === 'yearly' ? 'Plano alterado para VIP (Teste)!' : 'Plano alterado para Free (Teste)!');
+      toast.success(newPlan === 'yearly' ? 'Plano atualizado para VIP Vitalício!' : 'Plano atualizado para Gratuito!');
       window.location.reload();
     } catch {
       toast.error('Erro ao alternar plano');
@@ -127,15 +127,17 @@ export default function SettingsView() {
             </div>
           )}
 
-          {/* Developer test toggle */}
-          <button
-            onClick={toggleTestPlan}
-            disabled={isUpdating}
-            className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-secondary/50 hover:bg-secondary text-slate-300 font-bold text-xs border border-border/50 transition-all"
-          >
-            <RefreshCw size={14} className={isUpdating ? 'animate-spin' : ''} />
-            <span>Alternar Plano para Teste ({isVip ? 'Mudar para Free' : 'Mudar para VIP'})</span>
-          </button>
+          {/* Apenas contas de Gerente/Admin podem alternar modo */}
+          {((session?.user as any)?.role === 'gerente' || (session?.user as any)?.role === 'admin' || session?.user?.email?.includes('gerente') || session?.user?.email?.includes('admin')) && (
+            <button
+              onClick={toggleTestPlan}
+              disabled={isUpdating}
+              className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-secondary/50 hover:bg-secondary text-slate-300 font-bold text-xs border border-border/50 transition-all cursor-pointer"
+            >
+              <RefreshCw size={14} className={isUpdating ? 'animate-spin' : ''} />
+              <span>Alternar Modo do Plano ({isVip ? 'Mudar para Gratuito' : 'Mudar para VIP Vitalício'})</span>
+            </button>
+          )}
         </div>
       </div>
 
