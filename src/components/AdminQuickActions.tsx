@@ -317,19 +317,19 @@ export default function AdminQuickActions() {
                 <input
                   type="number"
                   min={1}
-                  max={60}
+                  max={900}
                   value={minSeconds}
                   onChange={(e) => setMinSeconds(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-14 px-2 py-1.5 bg-[#0d131f] border border-white/15 rounded-lg text-center font-black text-white text-xs focus:border-[#22c55e]"
+                  className="w-16 px-2 py-1.5 bg-[#0d131f] border border-white/15 rounded-lg text-center font-black text-white text-xs focus:border-[#22c55e]"
                 />
                 <span className="text-slate-400 text-xs">e</span>
                 <input
                   type="number"
                   min={minSeconds}
-                  max={120}
+                  max={900}
                   value={maxSeconds}
-                  onChange={(e) => setMaxSeconds(Math.max(minSeconds, parseInt(e.target.value) || 7))}
-                  className="w-14 px-2 py-1.5 bg-[#0d131f] border border-white/15 rounded-lg text-center font-black text-white text-xs focus:border-[#22c55e]"
+                  onChange={(e) => setMaxSeconds(Math.max(minSeconds, parseInt(e.target.value) || 400))}
+                  className="w-16 px-2 py-1.5 bg-[#0d131f] border border-white/15 rounded-lg text-center font-black text-white text-xs focus:border-[#22c55e]"
                 />
                 <span className="text-slate-400 text-xs">segundos</span>
               </div>
@@ -344,9 +344,9 @@ export default function AdminQuickActions() {
                 <input
                   type="number"
                   min={1}
-                  max={120}
+                  max={900}
                   value={fixedSeconds}
-                  onChange={(e) => setFixedSeconds(Math.max(1, parseInt(e.target.value) || 5))}
+                  onChange={(e) => setFixedSeconds(Math.max(1, parseInt(e.target.value) || 180))}
                   className="w-16 px-2 py-1.5 bg-[#0d131f] border border-white/15 rounded-lg text-center font-black text-white text-xs focus:border-[#22c55e]"
                 />
                 <span className="text-slate-400 text-xs">segundos</span>

@@ -183,11 +183,11 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  // Intervalo dinâmico configurável pelo admin (padrão natural de alta conversão)
+  // Intervalo dinâmico configurável pelo admin (Gerente: 100s-400s, Membros: 90s-400s)
   const [intervalMode, setIntervalMode] = useState<'range' | 'fixed'>('range');
-  const [minSeconds, setMinSeconds] = useState<number>(25);
-  const [maxSeconds, setMaxSeconds] = useState<number>(65);
-  const [fixedSeconds, setFixedSeconds] = useState<number>(40);
+  const [minSeconds, setMinSeconds] = useState<number>(isGerenteUser ? 100 : 90);
+  const [maxSeconds, setMaxSeconds] = useState<number>(400);
+  const [fixedSeconds, setFixedSeconds] = useState<number>(180);
   const [selectedProductId, setSelectedProductId] = useState<string>('all');
   const [availableProducts, setAvailableProducts] = useState<Product[]>(mockProducts);
 
@@ -381,9 +381,9 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (parsed.intervalMode) setIntervalMode(parsed.intervalMode);
-        if (parsed.minSeconds) setMinSeconds(parsed.minSeconds);
-        if (parsed.maxSeconds) setMaxSeconds(parsed.maxSeconds);
-        if (parsed.fixedSeconds) setFixedSeconds(parsed.fixedSeconds);
+        if (parsed.minSeconds && parsed.minSeconds >= 80) setMinSeconds(parsed.minSeconds);
+        if (parsed.maxSeconds && parsed.maxSeconds >= 200) setMaxSeconds(parsed.maxSeconds);
+        if (parsed.fixedSeconds && parsed.fixedSeconds >= 60) setFixedSeconds(parsed.fixedSeconds);
         if (parsed.selectedProductId) setSelectedProductId(parsed.selectedProductId);
 
         // Se for conta de GERENTE e ficou fora por mais de 4 minutos, calcula vendas cronológicas retroativas (Membros comuns não sofrem simulação offline)
@@ -819,18 +819,18 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
       let delayMs: number;
       if (intervalMode === 'fixed') {
         delayMs = Math.max(5, fixedSeconds) * 1000;
-      } else if (intervalMode === 'range' && (minSeconds !== 25 || maxSeconds !== 65)) {
+      } else if (intervalMode === 'range' && (minSeconds !== (isGerenteUserRef.current ? 100 : 90) || maxSeconds !== 400)) {
         const min = Math.max(5, minSeconds);
         const max = Math.max(min, maxSeconds);
         const randomSec = Math.floor(Math.random() * (max - min + 1)) + min;
         delayMs = randomSec * 1000;
       } else {
-        // Cadência padrão realista e consistente:
-        // Gerente: entre 25s e 55s
-        // Membros: entre 35s e 75s
+        // Cadência padrão dinâmica:
+        // Gerente: entre 100s e 400s
+        // Membros normais: entre 90s e 400s
         const isMgr = isGerenteUserRef.current;
-        const min = isMgr ? 25 : 35;
-        const max = isMgr ? 55 : 75;
+        const min = isMgr ? 100 : 90;
+        const max = 400;
         const randomSec = Math.floor(Math.random() * (max - min + 1)) + min;
         delayMs = randomSec * 1000;
       }
