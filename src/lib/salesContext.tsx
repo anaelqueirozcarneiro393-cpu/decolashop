@@ -226,17 +226,14 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
       try {
         let saved = localStorage.getItem(userStorageKey);
 
-        // TRANSFERÊNCIA / MIGRAÇÃO AUTOMÁTICA COMPLETA:
-        // Se a conta for gerente@decolashop.com (ou admin@decolashop.com ou isAdmin),
-        // busca todo o histórico anterior da conta admin para transferir sem perder absolutamente nada!
-        if (!saved && (userEmail === 'gerente@decolashop.com' || userEmail === 'admin@decolashop.com' || isAdmin)) {
+        const isGerenteUser = userEmail === 'gerente@decolashop.com' || userEmail === 'admin@decolashop.com' || isAdmin;
+
+        // TRANSFERÊNCIA / MIGRAÇÃO AUTOMÁTICA COMPLETA (EXCLUSIVO GERENTE):
+        if (isGerenteUser && !saved) {
           saved = 
             localStorage.getItem('decolashop_sales_state_gerente_decolashop_com') ||
             localStorage.getItem('decolashop_sales_state_admin_decolashop_com') ||
-            localStorage.getItem('decolashop_sales_state_admin') ||
-            localStorage.getItem(STORAGE_KEY) ||
-            localStorage.getItem('decolashop_sales_state_v2') ||
-            localStorage.getItem('decolashop_sales_state');
+            localStorage.getItem('decolashop_sales_state_admin');
 
           if (saved) {
             try {
@@ -246,11 +243,6 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        // Fallback para chave anterior geral se a do usuário não existir
-        if (!saved && userEmail === 'usuario@decolashop.com') {
-          saved = localStorage.getItem(STORAGE_KEY);
-        }
-
         let parsed: any = null;
         if (saved) {
           try {
@@ -258,40 +250,53 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
           } catch {}
         }
 
-        // Se o localStorage estiver vazio (novo dispositivo, cache limpo ou aba anônima):
-        if (!parsed || typeof parsed.vendasTotais !== 'number') {
-          // 1. Tenta buscar da nuvem (API de sincronização)
-          try {
-            let syncRes = await fetch(`/api/user/sync-state?email=${encodeURIComponent(userEmail)}`);
-            let syncJson = await syncRes.json();
-            if ((!syncJson?.success || !syncJson?.data) && (userEmail === 'gerente@decolashop.com' || isAdmin)) {
-              syncRes = await fetch(`/api/user/sync-state?email=admin@decolashop.com`);
-              syncJson = await syncRes.json();
-            }
-            if (syncJson?.success && syncJson?.data && typeof syncJson.data.vendasTotais === 'number') {
-              parsed = syncJson.data;
-            }
-          } catch {}
-        }
+        // =========================================================================
+        // CENÁRIO 1: CONTA GERENTE (Histórico Semanal de Vendas entre 3k e 5k/dia)
+        // =========================================================================
+        if (isGerenteUser) {
+          if (!parsed || typeof parsed.vendasTotais !== 'number' || parsed.vendasTotais < 15000 || !Array.isArray(parsed.recentSales) || parsed.recentSales.length < 30) {
+            try {
+              let syncRes = await fetch(`/api/user/sync-state?email=gerente@decolashop.com`);
+              let syncJson = await syncRes.json();
+              if (syncJson?.success && syncJson?.data && syncJson.data.vendasTotais >= 15000) {
+                parsed = syncJson.data;
+              }
+            } catch {}
 
-        // AUTO-UPGRADE DA CONTA GERENTE (1 Semana Completa entre R$ 3k e 5k por dia!):
-        // Se a conta for de Gerente/Admin e ainda estiver com dados legados (< 15k ou menos de 30 vendas):
-        const isGerenteUser = userEmail === 'gerente@decolashop.com' || userEmail === 'admin@decolashop.com' || isAdmin;
-        if (isGerenteUser && (!parsed || typeof parsed.vendasTotais !== 'number' || parsed.vendasTotais < 15000 || !Array.isArray(parsed.recentSales) || parsed.recentSales.length < 30)) {
-          parsed = getDeterministicBaseline(userEmail, Date.now());
-          try {
-            const str = JSON.stringify(parsed);
-            localStorage.setItem(userStorageKey, str);
-            localStorage.setItem('decolashop_sales_state_gerente_decolashop_com', str);
-            localStorage.setItem('decolashop_sales_state_admin_decolashop_com', str);
-            fetch('/api/user/sync-state', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email: userEmail, state: parsed })
-            }).catch(() => {});
-          } catch {}
-        } else if (!parsed || typeof parsed.vendasTotais !== 'number') {
-          parsed = getDeterministicBaseline(userEmail, Date.now());
+            if (!parsed || typeof parsed.vendasTotais !== 'number' || parsed.vendasTotais < 15000) {
+              parsed = getDeterministicBaseline(userEmail, Date.now());
+            }
+
+            try {
+              const str = JSON.stringify(parsed);
+              localStorage.setItem(userStorageKey, str);
+              localStorage.setItem('decolashop_sales_state_gerente_decolashop_com', str);
+              localStorage.setItem('decolashop_sales_state_admin_decolashop_com', str);
+              fetch('/api/user/sync-state', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: userEmail, state: parsed })
+              }).catch(() => {});
+            } catch {}
+          }
+        } else {
+          // =========================================================================
+          // CENÁRIO 2: CONTAS DE MEMBROS REAIS (Histórico REAL de Verdade - Zero Mock)
+          // =========================================================================
+          // As contas de membros comuns começam 100% zeradas (R$ 0,00 e sem vendas anteriores).
+          // Se houver resquícios do antigo gerador automático de mock com vendas prévias,
+          // limpa e reinicia com o histórico real da conta.
+          const hasOldMockSales = Array.isArray(parsed?.recentSales) && parsed.recentSales.some((s: any) => 
+            typeof s.time === 'string' && (s.time.includes('Ontem') || s.time.includes('/'))
+          );
+
+          if (!parsed || typeof parsed.vendasTotais !== 'number' || hasOldMockSales || userEmail === 'usuario@decolashop.com') {
+            parsed = getDeterministicBaseline(userEmail, Date.now());
+            try {
+              localStorage.setItem(userStorageKey, JSON.stringify(parsed));
+              localStorage.removeItem(STORAGE_KEY);
+            } catch {}
+          }
         }
 
         if (isCancelled) return;
@@ -374,8 +379,8 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         if (parsed.fixedSeconds) setFixedSeconds(parsed.fixedSeconds);
         if (parsed.selectedProductId) setSelectedProductId(parsed.selectedProductId);
 
-        // Se o usuário já tinha registros salvos e ficou fora por mais de 4 minutos, calcula vendas cronológicas retroativas
-        if (parsed.lastActiveTimestamp && typeof parsed.lastActiveTimestamp === 'number') {
+        // Se for conta de GERENTE e ficou fora por mais de 4 minutos, calcula vendas cronológicas retroativas (Membros comuns não sofrem simulação offline)
+        if (isGerenteUser && parsed.lastActiveTimestamp && typeof parsed.lastActiveTimestamp === 'number') {
           const elapsedMs = nowMs - parsed.lastActiveTimestamp;
 
           if (elapsedMs >= 240_000) { // pelo menos 4 minutos

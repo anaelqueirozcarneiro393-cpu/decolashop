@@ -290,13 +290,13 @@ export function getDeterministicBaseline(email: string, nowMs: number = Date.now
   }
 
   // =========================================================================
-  // CENÁRIO 2: USUÁRIO COMUM / NOVO (Baseline Inicial de Loja Nova)
+  // CENÁRIO 2: CONTAS DE MEMBROS / USUÁRIOS REAIS (Começam 100% Zeradas!)
   // =========================================================================
-  const hoursAgo = 26 + (rand() * 14); // 26 a 40 horas
-  const startTime = nowMs - (hoursAgo * 3600 * 1000);
-  const salesCount = Math.floor(12 + rand() * 8);
-
-  const hourlyData: ChartHour[] = [
+  // Somente a conta de Gerente possui histórico demonstrativo pré-populado.
+  // Contas de membros e novos usuários iniciam com seu histórico REAL:
+  // zero vendas, zero pedidos, zero comissões e lista de transações limpa.
+  // Elas acumulam dados apenas a partir do momento em que o usuário utiliza a plataforma.
+  const cleanHourly: ChartHour[] = [
     { hour: '00', valHoje: 0, valOntem: 0 },
     { hour: '02', valHoje: 0, valOntem: 0 },
     { hour: '04', valHoje: 0, valOntem: 0 },
@@ -311,78 +311,15 @@ export function getDeterministicBaseline(email: string, nowMs: number = Date.now
     { hour: '22', valHoje: 0, valOntem: 0 },
   ];
 
-  const recentSales: SaleItem[] = [];
-  let totalGross = 0;
-  let totalCommission = 0;
-
-  const totalDuration = nowMs - startTime - (4 * 60 * 1000);
-  const step = totalDuration / salesCount;
-
-  for (let i = 0; i < salesCount; i++) {
-    const jitter = (rand() - 0.5) * 0.45 * step;
-    const saleTimeMs = startTime + (i + 0.5) * step + jitter;
-    const saleDate = new Date(saleTimeMs);
-
-    const prodIndex = Math.floor(rand() * catalog.length);
-    const prod = catalog[prodIndex];
-    const rawPrice = getProductPrice(prod);
-    const comm = Math.round(rawPrice * 0.32 * 100) / 100;
-
-    totalGross += rawPrice;
-    totalCommission += comm;
-
-    const isToday = saleDate.toDateString() === new Date(nowMs).toDateString();
-    const isYesterday = saleDate.toDateString() === new Date(nowMs - 86400000).toDateString();
-    const hh = String(saleDate.getHours()).padStart(2, '0');
-    const mm = String(saleDate.getMinutes()).padStart(2, '0');
-
-    let formattedTime = '';
-    if (isToday) {
-      formattedTime = `Hoje, ${hh}:${mm}`;
-    } else if (isYesterday) {
-      formattedTime = `Ontem, ${hh}:${mm}`;
-    } else {
-      const dd = String(saleDate.getDate()).padStart(2, '0');
-      const mo = String(saleDate.getMonth() + 1).padStart(2, '0');
-      formattedTime = `${dd}/${mo}, ${hh}:${mm}`;
-    }
-
-    const txIdSeed = Math.floor(1000 + rand() * 8999);
-    recentSales.push({
-      id: `TX-${txIdSeed}`,
-      product: prod.name || (prod as any).title || 'Produto DecolaShop',
-      value: rawPrice,
-      commission: comm,
-      time: formattedTime,
-      timestamp: saleTimeMs,
-      image: prod.image_url,
-    });
-
-    const bracketHour = String(Math.floor(saleDate.getHours() / 2) * 2).padStart(2, '0');
-    const hourSlot = hourlyData.find(h => h.hour === bracketHour);
-    if (hourSlot) {
-      if (isToday) {
-        hourSlot.valHoje = Math.round(((hourSlot.valHoje || 0) + rawPrice) * 100) / 100;
-      } else if (isYesterday) {
-        hourSlot.valOntem = Math.round(((hourSlot.valOntem || 0) + rawPrice) * 100) / 100;
-      }
-    }
-  }
-
-  recentSales.reverse();
-
-  const totalClicks = salesCount * 8 + Math.floor(rand() * 15);
-  const totalVisits = salesCount * 5 + Math.floor(rand() * 10);
-
   return {
-    vendasTotais: Math.round(totalGross * 100) / 100,
-    saldoDisponivel: Math.round(totalCommission * 100) / 100,
-    visitas: totalVisits,
-    cliques: totalClicks,
-    pedidos: salesCount,
-    unidades: salesCount,
-    hourlyData,
-    recentSales: recentSales.slice(0, 25),
+    vendasTotais: 0,
+    saldoDisponivel: 0,
+    visitas: 0,
+    cliques: 0,
+    pedidos: 0,
+    unidades: 0,
+    hourlyData: cleanHourly,
+    recentSales: [],
     lastActiveTimestamp: nowMs,
     lastSavedDate: new Date(nowMs).toDateString(),
   };
