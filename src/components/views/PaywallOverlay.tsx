@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Lock, Sparkles, Check, QrCode, ShieldCheck } from 'lucide-react';
-import CnpayCheckoutModal from '@/components/checkout/CnpayCheckoutModal';
+import SigilopayCheckoutModal from '@/components/checkout/SigilopayCheckoutModal';
 
 export default function PaywallOverlay() {
   const [mounted, setMounted] = useState(false);
@@ -102,8 +102,8 @@ export default function PaywallOverlay() {
         document.body
       )}
 
-      {/* In-App CN Pay Checkout Modal with Order Bumps */}
-      <CnpayCheckoutModal
+      {/* In-App SigiloPay Checkout Modal with Order Bumps */}
+      <SigilopayCheckoutModal
         isOpen={!!selectedPlanModal}
         onClose={() => setSelectedPlanModal(null)}
         defaultPlan={selectedPlanModal || 'lifetime'}

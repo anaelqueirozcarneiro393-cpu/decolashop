@@ -24,7 +24,7 @@ export async function POST(req: Request) {
 
     console.log("🔥 [WEBHOOK SIGILOPAY RECEBIDO] 🔥", JSON.stringify(body, null, 2));
 
-    // Extract customer & order details (compatible with SigiloPay & CNPay structures)
+    // Extract customer & order details (SigiloPay payload structure)
     const client = body.client || body.customer || body.payer || body.data?.client || body.data?.customer || {};
     const email = (client.email || body.email || body.data?.email || "").toLowerCase().trim();
     const status = (body.status || body.event || body.type || body.data?.status || "").toUpperCase();

@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { signIn } from "next-auth/react";
 import { Mail, Lock, Key, ExternalLink, ShieldCheck, Sparkles, Crown, Rocket, X, Check, ArrowRight } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import CnpayCheckoutModal from '@/components/checkout/CnpayCheckoutModal';
+import SigilopayCheckoutModal from '@/components/checkout/SigilopayCheckoutModal';
 
 export default function LoginView() {
   const [email, setEmail] = useState('');
@@ -240,8 +240,8 @@ export default function LoginView() {
 
       </div>
 
-      {/* Checkout Nativo Transparente com Order Bumps & CN Pay Pix */}
-      <CnpayCheckoutModal
+      {/* Checkout Nativo Transparente com Order Bumps & SigiloPay Pix */}
+      <SigilopayCheckoutModal
         isOpen={!!selectedPlanModal}
         onClose={() => setSelectedPlanModal(null)}
         defaultPlan={selectedPlanModal || 'lifetime'}

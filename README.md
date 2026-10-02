@@ -24,11 +24,11 @@ O **DecolaShop** (powered by **Apex Intelligence**) é uma plataforma SaaS full-
    - Lista curada de fornecedores diretos de fábrica (Mega Polo Brás, 25 de Março, Dropshipping Nacional com estoque no Brasil, Importação Direta AliExpress Choice).
    - Acesso a grupos VIP no WhatsApp, canais de alertas no Telegram e Mastermind.
 
-5. **💳 Checkout Transparente CN Pay (Pix & Order Bumps)**
-   - Integração direta e nativa via API CN Pay (`/api/cnpay/pix`) sem redirecionamento para checkout externo.
-   - **Order Bumps irresistíveis** no modal com recálculo em tempo real (Lista de Fornecedores, Pack de Vídeos Virais, Robô Espião Telegram).
+5. **💳 Checkout Transparente SigiloPay (Pix & Order Bumps)**
+   - Integração direta e nativa via API SigiloPay (`/api/sigilopay/pix`) sem redirecionamento para checkout externo.
+   - **Order Bumps irresistíveis** no modal com recálculo em tempo real (Curso Completo, Acompanhamento, Acelerador de Vendas).
    - Geração dinâmica de QR Code Pix e Chave Copia e Cola instantâneos.
-   - Webhook automático CN Pay (`/api/webhooks/cnpay`) que atualiza status no banco e libera acesso imediatamente.
+   - Webhook automático SigiloPay (`/api/webhooks/sigilopay`) que atualiza status no banco e libera acesso imediatamente.
    - Gating visual com efeito de desfoque elegante e modal de conversão.
 
 6. **🔐 Autenticação Híbrida (NextAuth v5 + Supabase + 1-Clique Demo)**
@@ -68,7 +68,7 @@ Abra no navegador em: **[http://localhost:3000](http://localhost:3000)**
 ### 3. Teste Imediato (Sem configurações extras):
 Na tela de login, você verá a opção **"Acesso Rápido para Teste (1-Clique)"**:
 - Clique em **"VIP Completo"** para navegar por todas as ferramentas, minerador e IA sem restrições.
-- Clique em **"Modo Gratuito"** para vivenciar o funil de vendas e a tela de paywall da IronPay.
+- Clique em **"Modo Gratuito"** para vivenciar o funil de vendas e a tela de checkout Pix transparente da SigiloPay.
 
 ---
 
@@ -86,9 +86,10 @@ SUPABASE_SERVICE_ROLE_KEY="..."
 NEXT_PUBLIC_SUPABASE_URL="https://...supabase.co"
 NEXT_PUBLIC_SUPABASE_ANON_KEY="..."
 
-# IA APIs
-GEMINI_API_KEY="..."
-GROQ_API_KEY="..."
+# SigiloPay Gateway API
+SIGILOPAY_PUBLIC_KEY="sua_chave_publica"
+SIGILOPAY_SECRET_KEY="sua_chave_privada"
+SIGILOPAY_BASE_URL="https://app.sigilopay.com.br"
 ```
 
 ---
@@ -98,6 +99,6 @@ GROQ_API_KEY="..."
 1. Suba o repositório para o GitHub ou GitLab.
 2. Importe no [Vercel](https://vercel.com).
 3. Adicione as variáveis de ambiente descritas acima.
-4. No painel da **CN Pay** (ou IronPay), cadastre a URL do webhook apontando para:
-   `https://seu-dominio.com.br/api/webhooks/cnpay`
-5. Adicione no ambiente Vercel a variável `CNPAY_API_KEY` com o token gerado na sua conta CN Pay.
+4. No painel da **SigiloPay**, cadastre a URL do webhook apontando para:
+   `https://seu-dominio.com.br/api/webhooks/sigilopay`
+5. Configure suas credenciais da SigiloPay nas variáveis da Vercel.

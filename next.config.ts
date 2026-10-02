@@ -34,6 +34,7 @@ const nextConfig: NextConfig = {
     return [
       { source: '/dashboard', destination: '/' },
       { source: '/financeiro', destination: '/' },
+      { source: '/afiliados', destination: '/' },
       { source: '/catalogo', destination: '/' },
       { source: '/divulgacao-ia', destination: '/' },
       { source: '/divulgados', destination: '/' },

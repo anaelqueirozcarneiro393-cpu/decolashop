@@ -95,7 +95,7 @@ export default function VideoIaView({ product, onNavigate }: VideoIaViewProps) {
       '39151747805';
 
     try {
-      const response = await fetch('/api/cnpay/pix', {
+      const response = await fetch('/api/sigilopay/pix', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -138,7 +138,7 @@ export default function VideoIaView({ product, onNavigate }: VideoIaViewProps) {
   const handleConfirmPix = async () => {
     setIsConfirmingPix(true);
     try {
-      await fetch('/api/cnpay/confirm-payment', {
+      await fetch('/api/sigilopay/confirm-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

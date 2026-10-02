@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Settings, Shield, User, CreditCard, Sparkles, Check, ExternalLink, RefreshCw, Key } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { toast } from 'react-hot-toast';
-import CnpayCheckoutModal from '@/components/checkout/CnpayCheckoutModal';
+import SigilopayCheckoutModal from '@/components/checkout/SigilopayCheckoutModal';
 
 export default function SettingsView() {
   const { data: session, update } = useSession();
@@ -141,8 +141,8 @@ export default function SettingsView() {
         </div>
       </div>
 
-      {/* CN Pay Native Checkout Modal with Order Bumps */}
-      <CnpayCheckoutModal
+      {/* SigiloPay Native Checkout Modal with Order Bumps */}
+      <SigilopayCheckoutModal
         isOpen={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}
         defaultPlan="lifetime"

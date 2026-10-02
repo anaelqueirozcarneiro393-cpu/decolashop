@@ -89,19 +89,19 @@ function isValidCPF(cpf: string): boolean {
   return true;
 }
 
-interface CnpayCheckoutModalProps {
+interface SigilopayCheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
   defaultPlan?: 'monthly' | 'lifetime';
   onSuccess?: () => void;
 }
 
-export default function CnpayCheckoutModal({
+export default function SigilopayCheckoutModal({
   isOpen,
   onClose,
   defaultPlan = 'lifetime',
   onSuccess
-}: CnpayCheckoutModalProps) {
+}: SigilopayCheckoutModalProps) {
   // Reset step whenever modal is reopened
   const [step, setStep] = useState<'form' | 'pix' | 'success'>('form');
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'lifetime'>(defaultPlan);
@@ -218,7 +218,7 @@ export default function CnpayCheckoutModal({
     setApiError(null);
 
     try {
-      const response = await fetch('/api/cnpay/pix', {
+      const response = await fetch('/api/sigilopay/pix', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -248,7 +248,7 @@ export default function CnpayCheckoutModal({
         toast.error(errMsg, { duration: 7000 });
       }
     } catch (err: any) {
-      console.error('Erro na requisição CN Pay:', err);
+      console.error('Erro na requisição SigiloPay:', err);
       const connErr = 'Falha de conexão com a API de pagamento.';
       setApiError(connErr);
       toast.error(connErr);
@@ -271,7 +271,7 @@ export default function CnpayCheckoutModal({
 
     try {
       // 1. Activate account in database
-      const confirmRes = await fetch('/api/cnpay/confirm-payment', {
+      const confirmRes = await fetch('/api/sigilopay/confirm-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -745,3 +745,4 @@ export default function CnpayCheckoutModal({
     </div>
   );
 }
+
