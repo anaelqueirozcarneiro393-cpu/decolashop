@@ -19,7 +19,15 @@ export async function GET(req: Request) {
   }
 
   if (stored) {
-    return NextResponse.json({ success: true, data: stored, source: 'cloud' });
+    if (email === 'usuario@decolashop.com' && stored.isAnticipated) {
+      stored = { ...stored, isAnticipated: false };
+      memorySyncStore.set(email, stored);
+    }
+    const res = NextResponse.json({ success: true, data: stored, source: 'cloud' });
+    if (email === 'usuario@decolashop.com') {
+      res.cookies.delete(`decola_sync_usuario_decolashop_com`);
+    }
+    return res;
   }
 
   return NextResponse.json({ success: true, data: null, source: 'none' });
@@ -41,6 +49,10 @@ export async function POST(req: Request) {
       ...state,
       syncedAt: Date.now(),
     };
+
+    if (email === 'usuario@decolashop.com' && state.isAnticipated === false) {
+      payload.isAnticipated = false;
+    }
 
     // Salva no cache do servidor
     memorySyncStore.set(email, payload);

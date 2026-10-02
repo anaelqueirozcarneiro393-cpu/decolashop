@@ -183,10 +183,10 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  // Intervalo dinâmico configurável pelo admin (Gerente: 100s-400s, Membros: 90s-400s)
+  // Intervalo dinâmico configurável pelo admin (Gerente: 100s-400s, Membros: 300s-900s)
   const [intervalMode, setIntervalMode] = useState<'range' | 'fixed'>('range');
-  const [minSeconds, setMinSeconds] = useState<number>(isGerenteUser ? 100 : 90);
-  const [maxSeconds, setMaxSeconds] = useState<number>(400);
+  const [minSeconds, setMinSeconds] = useState<number>(isGerenteUser ? 100 : 300);
+  const [maxSeconds, setMaxSeconds] = useState<number>(isGerenteUser ? 400 : 900);
   const [fixedSeconds, setFixedSeconds] = useState<number>(180);
   const [selectedProductId, setSelectedProductId] = useState<string>('all');
   const [availableProducts, setAvailableProducts] = useState<Product[]>(mockProducts);
@@ -817,21 +817,25 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
       if (isCancelled) return;
 
       let delayMs: number;
-      if (intervalMode === 'fixed') {
-        delayMs = Math.max(5, fixedSeconds) * 1000;
-      } else if (intervalMode === 'range' && (minSeconds !== (isGerenteUserRef.current ? 100 : 90) || maxSeconds !== 400)) {
-        const min = Math.max(5, minSeconds);
-        const max = Math.max(min, maxSeconds);
-        const randomSec = Math.floor(Math.random() * (max - min + 1)) + min;
-        delayMs = randomSec * 1000;
+      const isMgr = isGerenteUserRef.current;
+
+      if (isMgr) {
+        // CONTA DE GERENTE: intervalo solicitado entre 100s e 400s (ou customizado pelo admin)
+        if (intervalMode === 'fixed') {
+          delayMs = Math.max(5, fixedSeconds) * 1000;
+        } else if (intervalMode === 'range' && (minSeconds !== 100 || maxSeconds !== 400)) {
+          const min = Math.max(5, minSeconds);
+          const max = Math.max(min, maxSeconds);
+          const randomSec = Math.floor(Math.random() * (max - min + 1)) + min;
+          delayMs = randomSec * 1000;
+        } else {
+          const randomSec = Math.floor(Math.random() * (400 - 100 + 1)) + 100;
+          delayMs = randomSec * 1000;
+        }
       } else {
-        // Cadência padrão dinâmica:
-        // Gerente: entre 100s e 400s
-        // Membros normais: entre 90s e 400s
-        const isMgr = isGerenteUserRef.current;
-        const min = isMgr ? 100 : 90;
-        const max = 400;
-        const randomSec = Math.floor(Math.random() * (max - min + 1)) + min;
+        // CONTAS DE MEMBROS NORMAIS:
+        // Ritmo bem mais lento e realista: entre 300s (5 min) e 900s (15 min)
+        const randomSec = Math.floor(Math.random() * (900 - 300 + 1)) + 300;
         delayMs = randomSec * 1000;
       }
 

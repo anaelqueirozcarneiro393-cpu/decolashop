@@ -49,6 +49,21 @@ export default function FinanceiroView() {
       // Remove resquício de chave global antiga para evitar contaminação entre contas
       localStorage.removeItem('decolashop_saldo_antecipado');
 
+      // Retorna usuario@decolashop.com ao estado normal (carência de 30 dias ativa)
+      if (cleanEmailKey === 'usuario_decolashop_com') {
+        localStorage.removeItem('decolashop_saldo_antecipado_usuario_decolashop_com');
+        setIsAnticipated(false);
+        fetch('/api/user/sync-state', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: 'usuario@decolashop.com',
+            state: { isAnticipated: false }
+          })
+        }).catch(() => {});
+        return;
+      }
+
       const isGerenteOrAdmin = userEmail === 'gerente@decolashop.com' || userEmail === 'admin@decolashop.com';
       const savedUser = localStorage.getItem(`decolashop_saldo_antecipado_${cleanEmailKey}`);
       const savedAdmin = isGerenteOrAdmin ? localStorage.getItem('decolashop_saldo_antecipado_admin_decolashop_com') : null;
