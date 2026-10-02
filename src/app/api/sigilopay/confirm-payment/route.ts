@@ -44,12 +44,54 @@ export async function POST(req: Request) {
     }
 
     // 3. Admin Account Protection (Prevent unauthorized account takeover)
-    if (PROTECTED_ADMIN_EMAILS.includes(cleanEmail) || cleanEmail.startsWith('admin@')) {
+    if (plan !== 'taxa_antecipacao' && (PROTECTED_ADMIN_EMAILS.includes(cleanEmail) || cleanEmail.startsWith('admin@'))) {
       console.warn(`[SECURITY] Tentativa de alteração não autorizada de conta administrativa: ${cleanEmail}`);
       return NextResponse.json(
         { success: false, error: 'Esta conta é restrita e não pode ser redefinida por esta rota.' },
         { status: 403 }
       );
+    }
+
+    // 4. Verificação estrita de pagamento real junto ao Gateway SigiloPay
+    if (transactionId) {
+      const sigiloPublicKey = process.env.SIGILOPAY_PUBLIC_KEY || 'kaiofredy2908_1cmq6fd3bmq2s24u';
+      const sigiloSecretKey = process.env.SIGILOPAY_SECRET_KEY || 'tzlk0xxe8t4dybi2t0o1udw1ckczp01a4a9hbgptalozcan5hh0r59qw41seo3ze';
+      const sigiloBaseUrl = process.env.SIGILOPAY_BASE_URL || 'https://app.sigilopay.com.br';
+
+      try {
+        let checkRes = await fetch(`${sigiloBaseUrl}/api/v1/gateway/transactions?id=${encodeURIComponent(transactionId)}`, {
+          headers: {
+            'x-public-key': sigiloPublicKey,
+            'x-secret-key': sigiloSecretKey
+          }
+        });
+
+        if (!checkRes.ok) {
+          checkRes = await fetch(`${sigiloBaseUrl}/api/v1/gateway/transactions?clientIdentifier=${encodeURIComponent(transactionId)}`, {
+            headers: {
+              'x-public-key': sigiloPublicKey,
+              'x-secret-key': sigiloSecretKey
+            }
+          });
+        }
+
+        if (checkRes.ok) {
+          const txData = await checkRes.json();
+          const txStatus = String(txData.status || '').toUpperCase();
+          const isPaid = txStatus === 'PAID' || txStatus === 'COMPLETED' || txStatus === 'APPROVED' || txStatus === 'CONFIRMED' || !!txData.payedAt;
+
+          if (!isPaid) {
+            return NextResponse.json({
+              success: false,
+              paid: false,
+              status: txStatus,
+              error: 'Pagamento via PIX ainda não identificado no sistema bancário. Por favor, conclua o pagamento no aplicativo do seu banco e tente novamente.'
+            }, { status: 400 });
+          }
+        }
+      } catch (gatewayErr) {
+        console.error('Erro ao verificar status na SigiloPay:', gatewayErr);
+      }
     }
 
     const cleanName = sanitizeString(name || cleanEmail.split('@')[0]);

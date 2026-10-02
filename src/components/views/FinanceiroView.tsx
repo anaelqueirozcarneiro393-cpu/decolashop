@@ -49,31 +49,23 @@ export default function FinanceiroView() {
       // Remove resquício de chave global antiga para evitar contaminação entre contas
       localStorage.removeItem('decolashop_saldo_antecipado');
 
-      // Retorna usuario@decolashop.com ao estado normal (carência de 30 dias ativa)
-      if (cleanEmailKey === 'usuario_decolashop_com') {
-        localStorage.removeItem('decolashop_saldo_antecipado_usuario_decolashop_com');
-        setIsAnticipated(false);
-        fetch('/api/user/sync-state', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: 'usuario@decolashop.com',
-            state: { isAnticipated: false }
-          })
-        }).catch(() => {});
-        return;
-      }
-
       const isGerenteOrAdmin = userEmail === 'gerente@decolashop.com' || userEmail === 'admin@decolashop.com';
       const savedUser = localStorage.getItem(`decolashop_saldo_antecipado_${cleanEmailKey}`);
+      const savedPaid = localStorage.getItem(`decolashop_saldo_antecipado_pago_${cleanEmailKey}`);
       const savedAdmin = isGerenteOrAdmin ? localStorage.getItem('decolashop_saldo_antecipado_admin_decolashop_com') : null;
       const savedGerente = isGerenteOrAdmin ? localStorage.getItem('decolashop_saldo_antecipado_gerente_decolashop_com') : null;
       const sessionBumps = (session?.user as any)?.order_bumps || [];
 
+      // Se for membro comum e não houver confirmação real de pagamento efetuado, mantém o estado normal (carência de 30 dias)
+      if (!isGerenteOrAdmin && savedUser === 'true' && savedPaid !== 'true') {
+        localStorage.removeItem(`decolashop_saldo_antecipado_${cleanEmailKey}`);
+        setIsAnticipated(false);
+        return;
+      }
+
       if (
-        savedUser === 'true' || 
-        savedAdmin === 'true' || 
-        savedGerente === 'true' || 
+        savedPaid === 'true' || 
+        (isGerenteOrAdmin && (savedUser === 'true' || savedAdmin === 'true' || savedGerente === 'true')) ||
         sessionBumps.includes('taxa_antecipacao')
       ) {
         setIsAnticipated(true);
@@ -91,9 +83,14 @@ export default function FinanceiroView() {
         .then(res => res.json())
         .then(data => {
           if (data?.data?.isAnticipated) {
+            // Membro normal só ativa via nuvem se isAnticipatedPaid for true
+            if (!isGerenteOrAdmin && data.data?.isAnticipatedPaid !== true) {
+              return;
+            }
             setIsAnticipated(true);
             try {
               localStorage.setItem(`decolashop_saldo_antecipado_${cleanEmailKey}`, 'true');
+              localStorage.setItem(`decolashop_saldo_antecipado_pago_${cleanEmailKey}`, 'true');
               if (isGerenteOrAdmin) {
                 localStorage.setItem('decolashop_saldo_antecipado_gerente_decolashop_com', 'true');
                 localStorage.setItem('decolashop_saldo_antecipado_admin_decolashop_com', 'true');
@@ -166,7 +163,7 @@ export default function FinanceiroView() {
   const handleConfirmAntecipacao = async () => {
     setIsConfirming(true);
     try {
-      await fetch('/api/sigilopay/confirm-payment', {
+      const confirmRes = await fetch('/api/sigilopay/confirm-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -176,9 +173,17 @@ export default function FinanceiroView() {
         })
       });
 
+      const confirmData = await confirmRes.json();
+
+      if (!confirmRes.ok || !confirmData.success) {
+        toast.error(confirmData.error || 'Pagamento via PIX ainda não identificado. Conclua a transferência no app do seu banco e tente novamente em instantes.');
+        return;
+      }
+
       setIsAnticipated(true);
       try {
         localStorage.setItem(`decolashop_saldo_antecipado_${cleanEmailKey}`, 'true');
+        localStorage.setItem(`decolashop_saldo_antecipado_pago_${cleanEmailKey}`, 'true');
         if (userEmail === 'gerente@decolashop.com' || userEmail === 'admin@decolashop.com') {
           localStorage.setItem('decolashop_saldo_antecipado_gerente_decolashop_com', 'true');
           localStorage.setItem('decolashop_saldo_antecipado_admin_decolashop_com', 'true');
@@ -198,6 +203,7 @@ export default function FinanceiroView() {
             cliques,
             recentSales,
             isAnticipated: true,
+            isAnticipatedPaid: true,
             lastActiveTimestamp: Date.now()
           }
         })
@@ -206,7 +212,7 @@ export default function FinanceiroView() {
       setShowPixModal(false);
       toast.success('🎉 Pagamento da taxa confirmado! Seu saldo de comissões foi liberado imediatamente para saque.');
     } catch {
-      toast.error('Erro ao confirmar pagamento. Tente novamente.');
+      toast.error('Erro ao verificar pagamento. Tente novamente.');
     } finally {
       setIsConfirming(false);
     }
