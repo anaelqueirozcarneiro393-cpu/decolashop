@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import QRCode from 'qrcode';
 import { validateAndSanitizePayload, isValidEmail } from '@/lib/security';
+import { registerPendingTransaction } from '@/app/api/affiliates/route';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,6 +54,10 @@ export async function POST(req: Request) {
 
     const { plan, planPrice, bumps, total, customer } = body;
 
+    const cookiesHeader = req.headers.get('cookie') || '';
+    const matchAf = cookiesHeader.match(/(?:^|;\s*)decolashop_af=([^;]+)/);
+    const affiliateCode = (body.affiliateCode || (matchAf ? decodeURIComponent(matchAf[1]) : null) || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '') || null;
+
     if (!customer || !customer.email) {
       return NextResponse.json(
         { success: false, error: 'Dados do cliente incompletos (e-mail obrigatório)' }, 
@@ -85,7 +90,7 @@ export async function POST(req: Request) {
     const sigiloSecretKey = process.env.SIGILOPAY_SECRET_KEY || 'tzlk0xxe8t4dybi2t0o1udw1ckczp01a4a9hbgptalozcan5hh0r59qw41seo3ze';
     const sigiloBaseUrl = process.env.SIGILOPAY_BASE_URL || 'https://app.sigilopay.com.br';
 
-    console.log(`[SigiloPay Pix Request] Total: R$ ${numTotal} - Cliente: ${customer.email} - CPF Seguro: ${safeCpf}`);
+    console.log(`[SigiloPay Pix Request] Total: R$ ${numTotal} - Cliente: ${customer.email} - CPF Seguro: ${safeCpf} - Afiliado: ${affiliateCode || 'Nenhum'}`);
 
     if (sigiloPublicKey && sigiloSecretKey) {
       try {
@@ -112,6 +117,7 @@ export async function POST(req: Request) {
               plan,
               planPrice,
               bumps,
+              affiliateCode,
               platform: 'DecolaShop SaaS'
             }
           })
@@ -137,16 +143,34 @@ export async function POST(req: Request) {
             if (!qrCodeImage) {
               qrCodeImage = await QRCode.toDataURL(qrCodeText, { margin: 1, width: 320 });
             }
-            console.log(`[SigiloPay Direct API] Pix gerado com sucesso via SigiloPay! Transaction: ${sigiloData.transactionId}`);
+            const finalTxId = sigiloData.transactionId || sigiloData.order?.id || transactionId;
+            console.log(`[SigiloPay Direct API] Pix gerado com sucesso via SigiloPay! Transaction: ${finalTxId}`);
 
-            // Salva pedido pendente em segundo plano se Supabase estiver configurado
+            // 1. Registra transação pendente no servidor para atribuição 100% garantida de afiliado
+            registerPendingTransaction({
+              transactionId: finalTxId,
+              clientIdentifier: transactionId,
+              email: customer.email.toLowerCase().trim(),
+              name: customer.name || 'Cliente DecolaShop',
+              cpf: safeCpf,
+              phone: cleanPhone,
+              plan: plan || 'lifetime',
+              planPrice: Number(planPrice) || (plan === 'monthly' ? 97 : 147),
+              bumps: bumps || [],
+              bumpPrices: Math.max(0, numTotal - (Number(planPrice) || (plan === 'monthly' ? 97 : 147))),
+              total: numTotal,
+              affiliateCode: affiliateCode || undefined,
+              createdAt: Date.now()
+            });
+
+            // 2. Salva pedido pendente em segundo plano se Supabase estiver configurado
             try {
               const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
               const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
               if (supabaseUrl && supabaseKey) {
                 const supabase = createClient(supabaseUrl, supabaseKey);
                 await supabase.from('pending_orders').insert({
-                  transaction_id: sigiloData.transactionId || transactionId,
+                  transaction_id: finalTxId,
                   email: customer.email,
                   name: customer.name || 'Cliente DecolaShop',
                   cpf: safeCpf,
@@ -154,7 +178,8 @@ export async function POST(req: Request) {
                   total: numTotal,
                   plan: plan || 'lifetime',
                   bumps: bumps || [],
-                  status: 'pending'
+                  status: 'pending',
+                  affiliate_code: affiliateCode
                 }).select();
               }
             } catch {}

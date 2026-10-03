@@ -44,42 +44,123 @@ export interface ServerAffiliateSale {
   transactionId?: string;
 }
 
+interface PendingTransaction {
+  transactionId: string;
+  clientIdentifier?: string;
+  email: string;
+  name?: string;
+  phone?: string;
+  cpf?: string;
+  plan: string;
+  planPrice?: number;
+  bumps?: string[];
+  bumpPrices?: number;
+  total: number;
+  affiliateCode?: string | null;
+  createdAt: number;
+}
+
 interface AffiliatesStore {
   affiliates: ServerAffiliate[];
   sales: ServerAffiliateSale[];
+  pendingTransactions?: PendingTransaction[];
 }
 
-const DATA_FILE = path.join(process.cwd(), '.affiliates_data.json');
+// Support multiple storage locations (process.cwd() for local dev, /tmp for Vercel/AWS Lambda serverless)
+function getStoragePaths(): string[] {
+  const paths = [path.join(process.cwd(), '.affiliates_data.json')];
+  try {
+    const tmpPath = path.join('/tmp', '.affiliates_data.json');
+    if (!paths.includes(tmpPath)) {
+      paths.push(tmpPath);
+    }
+  } catch {}
+  return paths;
+}
 
 // In-memory cache
 let memoryStore: AffiliatesStore = {
   affiliates: [],
   sales: [],
+  pendingTransactions: [],
 };
 
 export function loadStore(): AffiliatesStore {
-  try {
-    if (fs.existsSync(DATA_FILE)) {
-      const raw = fs.readFileSync(DATA_FILE, 'utf-8');
-      const parsed = JSON.parse(raw);
-      if (parsed && Array.isArray(parsed.affiliates) && Array.isArray(parsed.sales)) {
-        memoryStore = parsed;
-        return memoryStore;
+  const paths = getStoragePaths();
+  for (const filePath of paths) {
+    try {
+      if (fs.existsSync(filePath)) {
+        const raw = fs.readFileSync(filePath, 'utf-8');
+        const parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed.affiliates) && Array.isArray(parsed.sales)) {
+          // If parsed has more affiliates or sales than memoryStore, update memoryStore
+          if (parsed.affiliates.length >= memoryStore.affiliates.length) {
+            memoryStore.affiliates = parsed.affiliates;
+          }
+          if (parsed.sales.length >= memoryStore.sales.length) {
+            memoryStore.sales = parsed.sales;
+          }
+          if (Array.isArray(parsed.pendingTransactions)) {
+            memoryStore.pendingTransactions = parsed.pendingTransactions;
+          }
+        }
       }
+    } catch (e) {
+      // Ignore read errors from non-existent or inaccessible paths
     }
-  } catch (e) {
-    console.error('Erro ao ler .affiliates_data.json:', e);
   }
   return memoryStore;
 }
 
 export function saveStore(store: AffiliatesStore) {
   memoryStore = store;
-  try {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(store, null, 2), 'utf-8');
-  } catch (e) {
-    console.error('Erro ao salvar .affiliates_data.json:', e);
+  const paths = getStoragePaths();
+  for (const filePath of paths) {
+    try {
+      fs.writeFileSync(filePath, JSON.stringify(store, null, 2), 'utf-8');
+    } catch (e) {
+      // In serverless environments (like Vercel), process.cwd() may be read-only, but /tmp will succeed
+    }
   }
+}
+
+/**
+ * Register pending PIX transaction to associate affiliateCode with transactionId and customer email
+ */
+export function registerPendingTransaction(tx: PendingTransaction) {
+  const store = loadStore();
+  if (!store.pendingTransactions) store.pendingTransactions = [];
+  
+  // Remove older entry for same transactionId if exists
+  store.pendingTransactions = store.pendingTransactions.filter(
+    p => p.transactionId !== tx.transactionId && p.clientIdentifier !== tx.clientIdentifier
+  );
+
+  // Keep last 300 pending transactions
+  store.pendingTransactions.unshift(tx);
+  if (store.pendingTransactions.length > 300) {
+    store.pendingTransactions = store.pendingTransactions.slice(0, 300);
+  }
+
+  saveStore(store);
+  console.log(`[AFILIADOS SERVER] Transação pendente registrada: ${tx.transactionId} - Afiliado: ${tx.affiliateCode || 'NENHUM'} - Cliente: ${tx.email}`);
+}
+
+/**
+ * Retrieve pending transaction details by transactionId, clientIdentifier, or customer email
+ */
+export function getPendingTransaction(idOrEmail: string): PendingTransaction | null {
+  const store = loadStore();
+  if (!store.pendingTransactions || !idOrEmail) return null;
+  const clean = idOrEmail.trim().toLowerCase();
+
+  const found = store.pendingTransactions.find(
+    p => (p.transactionId && p.transactionId.toLowerCase() === clean) ||
+         (p.clientIdentifier && p.clientIdentifier.toLowerCase() === clean) ||
+         (p.email && p.email.toLowerCase() === clean)
+  );
+
+  return found || null;
 }
 
 export function recordAffiliateSaleOnServer(params: {
@@ -108,15 +189,28 @@ export function recordAffiliateSaleOnServer(params: {
     return null;
   }
 
-  // Prevent duplicate sales by transactionId
+  const cleanCustomerEmail = (params.customerEmail || '').toLowerCase().trim();
+
+  // 1. Prevent duplicate sales by transactionId
   if (params.transactionId) {
     const existing = store.sales.find(s => s.transactionId === params.transactionId);
     if (existing) {
+      console.log(`[AFILIADOS SERVER] Venda com transactionId ${params.transactionId} já registrada anteriormente. Retornando existente.`);
       return existing;
     }
   }
 
-  const cleanCustomerEmail = (params.customerEmail || '').toLowerCase().trim();
+  // 2. Prevent duplicate sales by customerEmail + plan within 15 minutes
+  const recentDuplicate = store.sales.find(s => 
+    s.customerEmail.toLowerCase() === cleanCustomerEmail &&
+    s.plan === params.plan &&
+    Math.abs(Date.now() - (s.createdAt || 0)) < 15 * 60 * 1000
+  );
+  if (recentDuplicate) {
+    console.log(`[AFILIADOS SERVER] Venda duplicada ignorada para ${cleanCustomerEmail} (já registrada há menos de 15 minutos).`);
+    return recentDuplicate;
+  }
+
   const isSelfPurchase = cleanCustomerEmail === affiliate.email.toLowerCase().trim();
   const commissionPercent = affiliate.commissionPercent || 50;
   const commissionAmount = Number(((params.totalAmount * commissionPercent) / 100).toFixed(2));

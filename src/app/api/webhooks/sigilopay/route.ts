@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { validateAndSanitizePayload, isValidEmail } from "@/lib/security";
+import { recordAffiliateSaleOnServer, getPendingTransaction } from "@/app/api/affiliates/route";
 
 export const dynamic = 'force-dynamic';
 
@@ -26,9 +27,27 @@ export async function POST(req: Request) {
 
     // Extract customer & order details (SigiloPay payload structure)
     const client = body.client || body.customer || body.payer || body.data?.client || body.data?.customer || {};
-    const email = (client.email || body.email || body.data?.email || "").toLowerCase().trim();
     const status = (body.status || body.event || body.type || body.data?.status || "").toUpperCase();
     const transactionId = body.transactionId || body.id || body.data?.id || body.clientIdentifier || body.identifier;
+
+    // Check local pending transaction registry for fallback data
+    const pendingLocal = transactionId ? getPendingTransaction(transactionId) : null;
+
+    let email = (client.email || body.email || body.data?.email || pendingLocal?.email || "").toLowerCase().trim();
+    let affiliateCode = 
+      body.metadata?.affiliateCode || 
+      body.metadata?.affiliate_code || 
+      body.data?.metadata?.affiliateCode || 
+      body.affiliateCode || 
+      pendingLocal?.affiliateCode || 
+      null;
+
+    let plan = body.metadata?.plan || pendingLocal?.plan || 'lifetime';
+    let bumps = body.items || body.metadata?.bumps || pendingLocal?.bumps || [];
+    let total = Number(body.amount || body.total || pendingLocal?.total || (plan === 'monthly' ? 97 : 147));
+    let customerName = client.name || pendingLocal?.name;
+    let customerPhone = client.phone || pendingLocal?.phone;
+    let customerCpf = client.document || pendingLocal?.cpf;
 
     if (!email || !isValidEmail(email)) {
       // If email is not in payload, check if we stored it in pending_orders via transactionId
@@ -37,19 +56,36 @@ export async function POST(req: Request) {
           const supabaseCheck = createClient(supabaseUrl, supabaseKey);
           const { data: pending } = await supabaseCheck
             .from('pending_orders')
-            .select('email, plan, bumps')
+            .select('email, plan, bumps, affiliate_code, total, name, phone, cpf')
             .eq('transaction_id', transactionId)
             .maybeSingle();
 
           if (pending && pending.email) {
-            console.log(`[SigiloPay Webhook] E-mail recuperado via pending_orders (${transactionId}): ${pending.email}`);
-            return await processApproval(pending.email, pending.plan, pending.bumps, supabaseUrl, supabaseKey);
+            console.log(`[SigiloPay Webhook] Dados recuperados via pending_orders (${transactionId}): ${pending.email}`);
+            email = pending.email.toLowerCase().trim();
+            if (pending.plan) plan = pending.plan;
+            if (pending.bumps) bumps = pending.bumps;
+            if (pending.total) total = Number(pending.total);
+            if (pending.name) customerName = pending.name;
+            if (pending.phone) customerPhone = pending.phone;
+            if (pending.cpf) customerCpf = pending.cpf;
+            if (!affiliateCode && pending.affiliate_code) affiliateCode = pending.affiliate_code;
           }
         } catch {}
       }
 
-      console.warn("[SigiloPay Webhook] E-mail do cliente não encontrado no payload ou na tabela pending_orders:", body);
-      return NextResponse.json({ success: true, message: "Aguardando e-mail do cliente" }, { status: 200 });
+      if (!email || !isValidEmail(email)) {
+        console.warn("[SigiloPay Webhook] E-mail do cliente não encontrado no payload ou na tabela pending_orders:", body);
+        return NextResponse.json({ success: true, message: "Aguardando e-mail do cliente" }, { status: 200 });
+      }
+    }
+
+    // Fallback: check pending store by email if affiliateCode still not found
+    if (!affiliateCode && email) {
+      const pendingByEmail = getPendingTransaction(email);
+      if (pendingByEmail?.affiliateCode) {
+        affiliateCode = pendingByEmail.affiliateCode;
+      }
     }
 
     // Protect administrative email
@@ -65,12 +101,22 @@ export async function POST(req: Request) {
       status.includes("CONFIRMED") ||
       status.includes("COMPLETED");
 
-    console.log(`SigiloPay Webhook: Cliente ${email} - Status: ${status} (Aprovado: ${isApproved})`);
+    console.log(`SigiloPay Webhook: Cliente ${email} - Status: ${status} (Aprovado: ${isApproved}) - Afiliado: ${affiliateCode || 'Nenhum'}`);
 
-    if (isApproved && supabaseUrl && supabaseKey) {
-      const items = body.items || body.metadata?.bumps || [];
-      const plan = body.metadata?.plan || 'lifetime';
-      return await processApproval(email, plan, items, supabaseUrl, supabaseKey, client.name);
+    if (isApproved) {
+      return await processApproval({
+        email,
+        plan,
+        bumps,
+        total,
+        name: customerName,
+        phone: customerPhone,
+        cpf: customerCpf,
+        transactionId,
+        affiliateCode,
+        supabaseUrl,
+        supabaseKey
+      });
     }
 
     return NextResponse.json({ success: true, message: "Webhook SigiloPay processado (status não-aprovador)" }, { status: 200 });
@@ -81,56 +127,103 @@ export async function POST(req: Request) {
   }
 }
 
-async function processApproval(
-  email: string, 
-  plan: string = 'lifetime', 
-  bumps: any[] = [], 
-  supabaseUrl: string, 
-  supabaseKey: string,
-  name?: string
-) {
-  const supabase = createClient(supabaseUrl, supabaseKey, {
-    db: { schema: 'next_auth' }
-  });
-
-  const { data: user } = await supabase
-    .from('users')
-    .select('*')
-    .eq('email', email)
-    .maybeSingle();
-
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + 3650); // 10 anos para lifetime
+async function processApproval(options: {
+  email: string;
+  plan?: string;
+  bumps?: any[];
+  total?: number;
+  name?: string;
+  phone?: string;
+  cpf?: string;
+  transactionId?: string;
+  affiliateCode?: string | null;
+  supabaseUrl?: string;
+  supabaseKey?: string;
+}) {
+  const { email, plan = 'lifetime', bumps = [], total, name, phone, cpf, transactionId, affiliateCode, supabaseUrl, supabaseKey } = options;
 
   const safeBumps = Array.isArray(bumps) ? bumps.map((b: any) => String(b.name || b.id || b)) : [];
 
-  if (user) {
-    const existingBumps = Array.isArray(user.order_bumps) ? user.order_bumps : [];
-    const newBumps = Array.from(new Set([...existingBumps, ...safeBumps]));
-
-    await supabase
-      .from('users')
-      .update({
-        plan: plan || 'lifetime',
-        plan_expires_at: expiresAt.toISOString(),
-        status: 'active',
-        order_bumps: newBumps
-      })
-      .eq('email', email);
-    console.log(`[SigiloPay Webhook] Usuário ${email} atualizado para ativo com sucesso!`);
-  } else {
-    await supabase
-      .from('users')
-      .insert({
-        email,
-        name: name || email.split('@')[0],
-        plan: plan || 'lifetime',
-        plan_expires_at: expiresAt.toISOString(),
-        status: 'active',
-        order_bumps: safeBumps
+  // 1. Atualiza/cria usuário no banco de dados se Supabase estiver ativo
+  if (supabaseUrl && supabaseKey) {
+    try {
+      const supabase = createClient(supabaseUrl, supabaseKey, {
+        db: { schema: 'next_auth' }
       });
-    console.log(`[SigiloPay Webhook] Novo usuário ${email} criado e ativado com sucesso!`);
+
+      const { data: user } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .maybeSingle();
+
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + (plan === 'monthly' ? 30 : 3650));
+
+      if (user) {
+        const existingBumps = Array.isArray(user.order_bumps) ? user.order_bumps : [];
+        const newBumps = Array.from(new Set([...existingBumps, ...safeBumps]));
+
+        await supabase
+          .from('users')
+          .update({
+            plan: plan || 'lifetime',
+            plan_expires_at: expiresAt.toISOString(),
+            status: 'active',
+            order_bumps: newBumps
+          })
+          .eq('email', email);
+        console.log(`[SigiloPay Webhook] Usuário ${email} atualizado para ativo com sucesso!`);
+      } else {
+        await supabase
+          .from('users')
+          .insert({
+            email,
+            name: name || email.split('@')[0],
+            plan: plan || 'lifetime',
+            plan_expires_at: expiresAt.toISOString(),
+            status: 'active',
+            order_bumps: safeBumps
+          });
+        console.log(`[SigiloPay Webhook] Novo usuário ${email} criado e ativado com sucesso!`);
+      }
+    } catch (dbErr) {
+      console.warn('[SigiloPay Webhook] Aviso ao salvar usuário no Supabase:', dbErr);
+    }
   }
 
-  return NextResponse.json({ success: true, message: "Usuário ativado com sucesso via SigiloPay" }, { status: 200 });
+  // 2. REGISTRO 100% GARANTIDO DA COMISSÃO DO AFILIADO
+  if (affiliateCode && plan !== 'taxa_antecipacao') {
+    try {
+      const userPlan = (plan === 'monthly' ? 'monthly' : 'lifetime') as 'monthly' | 'lifetime';
+      const planBase = userPlan === 'monthly' ? 97 : 147;
+      const totalAmount = Number(total) || planBase;
+      const sale = recordAffiliateSaleOnServer({
+        affiliateCode,
+        plan: userPlan,
+        planPrice: planBase,
+        bumps: safeBumps,
+        bumpPrices: Math.max(0, totalAmount - planBase),
+        totalAmount,
+        customerName: name || email.split('@')[0],
+        customerEmail: email,
+        customerPhone: phone || undefined,
+        customerCpf: cpf || undefined,
+        transactionId: transactionId || undefined,
+      });
+
+      if (sale) {
+        console.log(`[SigiloPay Webhook] 🎉 Venda de afiliado (${affiliateCode}) creditada com sucesso para ${email}! Comissão: R$ ${sale.commissionAmount}`);
+      }
+    } catch (affErr) {
+      console.error('[SigiloPay Webhook] Erro ao registrar comissão de afiliado:', affErr);
+    }
+  }
+
+  return NextResponse.json({ 
+    success: true, 
+    message: "Pagamento aprovado, usuário ativado e comissão atribuída com sucesso!",
+    email,
+    affiliateCode: affiliateCode || null
+  }, { status: 200 });
 }

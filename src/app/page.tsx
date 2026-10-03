@@ -95,8 +95,13 @@ export default function AppContainer() {
         'configuracoes'
       ];
       if (rawPath && validViews.includes(rawPath as ViewType)) {
-        if (rawPath === 'afiliados' && !isAdmin) {
-          setCurrentView('dashboard');
+        if (rawPath === 'afiliados') {
+          // Só redireciona se a sessão já foi validada e o usuário definitivamente não for admin
+          if (status === 'authenticated' && !isAdmin) {
+            setCurrentView('dashboard');
+          } else {
+            setCurrentView('afiliados');
+          }
         } else {
           setCurrentView(rawPath as ViewType);
         }
@@ -112,7 +117,7 @@ export default function AppContainer() {
     if (saved) {
       setSavedProducts(JSON.parse(saved));
     }
-  }, [isAdmin]);
+  }, [isAdmin, status]);
 
   const handleSaveProduct = (id: string) => {
     let newSaved = [...savedProducts];

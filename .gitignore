@@ -23,6 +23,7 @@
 # misc
 .DS_Store
 *.pem
+.affiliates_data.json
 
 # debug
 npm-debug.log*

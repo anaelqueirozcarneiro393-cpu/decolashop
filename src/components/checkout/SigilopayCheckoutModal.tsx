@@ -226,6 +226,7 @@ export default function SigilopayCheckoutModal({
           planPrice: planBasePrice,
           bumps: selectedBumps,
           total: totalPrice,
+          affiliateCode: getAffiliateRef(),
           customer: {
             name: name.trim(),
             email: email.trim().toLowerCase(),

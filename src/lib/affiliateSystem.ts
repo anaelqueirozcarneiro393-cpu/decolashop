@@ -42,8 +42,37 @@ export interface AffiliateSale {
 
 const AFFILIATES_STORAGE_KEY = 'decolashop_affiliates_real_v2';
 const AFFILIATE_SALES_STORAGE_KEY = 'decolashop_affiliate_sales_real_v2';
+const DELETED_AFFILIATES_KEY = 'decolashop_deleted_affiliates_real_v2';
 const AFFILIATE_REF_COOKIE = 'decolashop_af';
 const AFFILIATE_REF_STORAGE = 'decolashop_affiliate_ref';
+
+function getDeletedAffiliateIds(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = localStorage.getItem(DELETED_AFFILIATES_KEY);
+    return new Set(raw ? JSON.parse(raw) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function addDeletedAffiliateId(id: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    const set = getDeletedAffiliateIds();
+    set.add(id);
+    localStorage.setItem(DELETED_AFFILIATES_KEY, JSON.stringify(Array.from(set)));
+  } catch {}
+}
+
+function removeDeletedAffiliateId(id: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    const set = getDeletedAffiliateIds();
+    set.delete(id);
+    localStorage.setItem(DELETED_AFFILIATES_KEY, JSON.stringify(Array.from(set)));
+  } catch {}
+}
 
 // Clean real affiliate system - 100% real data only
 const DEFAULT_AFFILIATES: Affiliate[] = [];
@@ -172,11 +201,63 @@ export async function syncAffiliatesFromServer(): Promise<{ affiliates: Affiliat
     if (res.ok) {
       const data = await res.json();
       if (data.success && Array.isArray(data.affiliates)) {
-        localStorage.setItem(AFFILIATES_STORAGE_KEY, JSON.stringify(data.affiliates));
-        localStorage.setItem(AFFILIATE_SALES_STORAGE_KEY, JSON.stringify(data.sales || []));
+        const localAffiliates = getAffiliates();
+        const localSales = getAffiliateSales();
+
+        // Se o servidor estiver vazio mas o cliente tiver dados locais, envia os dados locais para salvar no servidor!
+        if (data.affiliates.length === 0 && localAffiliates.length > 0) {
+          fetch('/api/affiliates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'sync_all', affiliates: localAffiliates, sales: localSales })
+          }).catch(() => {});
+          return { affiliates: localAffiliates, sales: localSales };
+        }
+
+        const deletedIds = getDeletedAffiliateIds();
+        // Merge bidirecional inteligente: preserva afiliados locais e remotos (excluindo deletados)
+        const mergedAffiliatesMap = new Map<string, Affiliate>();
+        localAffiliates.filter(a => !deletedIds.has(a.id)).forEach(a => mergedAffiliatesMap.set(a.code.toLowerCase(), a));
+        data.affiliates.filter((serverAff: Affiliate) => !deletedIds.has(serverAff.id)).forEach((serverAff: Affiliate) => {
+          const key = serverAff.code.toLowerCase();
+          const existing = mergedAffiliatesMap.get(key);
+          if (existing) {
+            mergedAffiliatesMap.set(key, {
+              ...existing,
+              ...serverAff,
+              totalRevenue: Math.max(existing.totalRevenue || 0, serverAff.totalRevenue || 0),
+              totalSalesCount: Math.max(existing.totalSalesCount || 0, serverAff.totalSalesCount || 0),
+              pendingCommission: Math.max(existing.pendingCommission || 0, serverAff.pendingCommission || 0),
+              paidCommission: Math.max(existing.paidCommission || 0, serverAff.paidCommission || 0),
+            });
+          } else {
+            mergedAffiliatesMap.set(key, serverAff);
+          }
+        });
+
+        const mergedAffiliates = Array.from(mergedAffiliatesMap.values());
+
+        // Mescla vendas por ID
+        const mergedSalesMap = new Map<string, AffiliateSale>();
+        localSales.forEach(s => mergedSalesMap.set(s.id, s));
+        (data.sales || []).forEach((s: AffiliateSale) => mergedSalesMap.set(s.id, s));
+        const mergedSales = Array.from(mergedSalesMap.values()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+        localStorage.setItem(AFFILIATES_STORAGE_KEY, JSON.stringify(mergedAffiliates));
+        localStorage.setItem(AFFILIATE_SALES_STORAGE_KEY, JSON.stringify(mergedSales));
+
+        // Se havia afiliados ou vendas locais que não estavam no servidor, sincroniza o servidor
+        if (mergedAffiliates.length > data.affiliates.length || mergedSales.length > (data.sales || []).length) {
+          fetch('/api/affiliates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'sync_all', affiliates: mergedAffiliates, sales: mergedSales })
+          }).catch(() => {});
+        }
+
         window.dispatchEvent(new Event('decolashop_affiliates_updated'));
         window.dispatchEvent(new Event('decolashop_affiliate_sales_updated'));
-        return { affiliates: data.affiliates, sales: data.sales || [] };
+        return { affiliates: mergedAffiliates, sales: mergedSales };
       }
     }
   } catch (e) {
@@ -271,6 +352,7 @@ export function addAffiliate(data: {
   };
 
   const updated = [newAffiliate, ...affiliates];
+  removeDeletedAffiliateId(newAffiliate.id);
   saveAffiliates(updated);
   postAffiliatesApi({ action: 'create', affiliate: newAffiliate });
   return newAffiliate;
@@ -322,6 +404,7 @@ export function updateAffiliateCommission(id: string, newPercent: number): boole
  * Delete affiliate
  */
 export function deleteAffiliate(id: string): boolean {
+  addDeletedAffiliateId(id);
   const affiliates = getAffiliates();
   const filtered = affiliates.filter(a => a.id !== id);
   if (filtered.length === affiliates.length) return false;
@@ -391,7 +474,8 @@ export function recordAffiliateSale(params: {
   const affiliate = affiliates.find(a => a.code.toLowerCase() === activeCode.toLowerCase() && a.active);
 
   if (!affiliate) {
-    console.warn(`[AFILIADOS] Código "${activeCode}" não encontrado ou inativo.`);
+    console.warn(`[AFILIADOS] Código "${activeCode}" não encontrado localmente. Encaminhando registro ao servidor...`);
+    postAffiliatesApi({ action: 'record_sale', sale: { affiliateCode: activeCode, ...params } });
     return null;
   }
 

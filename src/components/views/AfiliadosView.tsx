@@ -51,7 +51,7 @@ const BUMP_NAMES: Record<string, string> = {
 };
 
 export default function AfiliadosView() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const rawEmail = session?.user?.email || '';
   const userEmail = rawEmail.toLowerCase().trim();
   const userRole = (session?.user as any)?.role || '';
@@ -65,8 +65,8 @@ export default function AfiliadosView() {
     userRole === 'admin'
   );
 
-  const [affiliates, setAffiliates] = useState<Affiliate[]>([]);
-  const [sales, setSales] = useState<AffiliateSale[]>([]);
+  const [affiliates, setAffiliates] = useState<Affiliate[]>(() => getAffiliates());
+  const [sales, setSales] = useState<AffiliateSale[]>(() => getAffiliateSales());
   const [searchTerm, setSearchTerm] = useState('');
   const [salesFilter, setSalesFilter] = useState<'all' | 'pending' | 'paid' | 'self_purchase'>('all');
   
@@ -275,6 +275,15 @@ export default function AfiliadosView() {
     setPayingAffiliate(null);
     loadData();
   };
+
+  if (status === 'loading') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-6 space-y-4 animate-in fade-in duration-200">
+        <div className="w-10 h-10 border-3 border-[#22c55e] border-t-transparent rounded-full animate-spin" />
+        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Carregando dados dos afiliados...</p>
+      </div>
+    );
+  }
 
   if (!isAuthorized) {
     return (

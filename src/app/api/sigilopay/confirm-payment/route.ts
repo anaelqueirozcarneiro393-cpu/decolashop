@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { validateAndSanitizePayload, isValidEmail, sanitizeString } from '@/lib/security';
-import { recordAffiliateSaleOnServer } from '@/app/api/affiliates/route';
+import { recordAffiliateSaleOnServer, getPendingTransaction } from '@/app/api/affiliates/route';
 
 export const dynamic = 'force-dynamic';
 
@@ -166,7 +166,21 @@ export async function POST(req: Request) {
     if (plan !== 'taxa_antecipacao') {
       const cookiesHeader = req.headers.get('cookie') || '';
       const matchAf = cookiesHeader.match(/(?:^|;\s*)decolashop_af=([^;]+)/);
-      const affiliateCode = rawBody.affiliateCode || (matchAf ? decodeURIComponent(matchAf[1]) : null);
+      let affiliateCode = rawBody.affiliateCode || (matchAf ? decodeURIComponent(matchAf[1]) : null);
+
+      if (!affiliateCode && transactionId) {
+        const pending = getPendingTransaction(transactionId);
+        if (pending?.affiliateCode) {
+          affiliateCode = pending.affiliateCode;
+        }
+      }
+
+      if (!affiliateCode && cleanEmail) {
+        const pending = getPendingTransaction(cleanEmail);
+        if (pending?.affiliateCode) {
+          affiliateCode = pending.affiliateCode;
+        }
+      }
 
       if (affiliateCode) {
         try {
