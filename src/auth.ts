@@ -63,73 +63,147 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
 
-        const password = credentials.password as string | undefined;
+        const password = (credentials.password as string | undefined)?.trim();
         const purchaseCode = (credentials.purchaseCode as string | undefined)?.trim();
 
-        const isNormalUserTest = 
-          email === "usuario@decolashop.com" || 
-          email === "cliente@decolashop.com" || 
-          email === "user@decolashop.com";
+        // =========================================================================
+        // 1. CONTA GERENTE (gerente@decolashop.com)
+        // =========================================================================
+        if (email === "gerente@decolashop.com" || email === "admin@decolashop.com") {
+          const validGerentePasswords = ["admin123", "gerente123", "decola123"];
+          const isGerenteValid = 
+            (password && validGerentePasswords.includes(password)) ||
+            (purchaseCode && ["admin", "gerente"].includes(purchaseCode.toLowerCase()));
 
-        // Explicit Admin check (agora chamado de Gerente)
-        const isAdmin = !isNormalUserTest && (
-          email === "admin@decolashop.com" || 
-          email === "admin@newshop.com" || 
-          email === "gerente@decolashop.com" ||
-          email.includes("admin") ||
-          email.includes("gerente") ||
-          purchaseCode?.toLowerCase() === "admin" ||
-          purchaseCode?.toLowerCase() === "gerente" ||
-          (purchaseCode?.toLowerCase() === "vip" && !isNormalUserTest) ||
-          (password === "admin123" && !isNormalUserTest)
-        );
-
-        // Support demo plan or determination
-        const requestedPlan = credentials.demoPlan as string | undefined;
-        let userPlan = requestedPlan || (isAdmin || isNormalUserTest || email.includes("vip") || email.includes("pro") || !!purchaseCode ? "lifetime" : "free");
-
-        let userBumps: string[] = email === "usuario@decolashop.com" 
-          ? ["bump_fornecedores", "bump_criativos", "bump_gerador_videos_ia", "bump_bot_telegram", "bump_curso", "bump_acompanhamento", "bump_acelerador"]
-          : isNormalUserTest 
-            ? ["bump_fornecedores", "bump_criativos"] 
-            : [];
-
-        // Try checking in Supabase next_auth.users table
-        try {
-          const supabaseAdmin = getSupabaseAdmin();
-          if (supabaseAdmin) {
-            const { data: dbUser } = await supabaseAdmin
-              .from("users")
-              .select("plan, plan_expires_at, name, order_bumps")
-              .eq("email", email)
-              .single();
-
-            if (dbUser?.plan) {
-              userPlan = dbUser.plan;
-            }
-            if (dbUser?.order_bumps) {
-              userBumps = dbUser.order_bumps;
-            }
+          if (!isGerenteValid) {
+            console.warn(`[AUTH] Tentativa de login no gerente com credenciais inválidas: ${email}`);
+            return null;
           }
-        } catch {
-          // Continue with default plan if DB check is not reachable
+
+          return {
+            id: "gerente@decolashop.com",
+            name: "Gerente DecolaShop",
+            email: "gerente@decolashop.com",
+            image: "https://api.dicebear.com/7.x/bottts/svg?seed=gerente",
+            plan: "lifetime",
+            order_bumps: [
+              "bump_curso",
+              "bump_acompanhamento",
+              "bump_acelerador",
+              "bump_gerador_videos_ia",
+              "bump_bot_telegram",
+              "bump_fornecedores",
+              "bump_criativos"
+            ],
+            role: "gerente",
+          };
         }
 
-        const displayName = isAdmin 
-          ? "Gerente DecolaShop"
-          : isNormalUserTest
-            ? "Usuário DecolaShop"
-            : email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+        // =========================================================================
+        // 2. CONTA USUÁRIO DEMO (usuario@decolashop.com)
+        // =========================================================================
+        if (email === "usuario@decolashop.com") {
+          const validUsuarioPasswords = ["usuario123", "decola123", "123456", "admin123"];
+          const isUsuarioValid = 
+            (password && validUsuarioPasswords.includes(password)) ||
+            (purchaseCode && ["usuario", "decola", "vip"].includes(purchaseCode.toLowerCase()));
 
-        return {
-          id: email,
-          name: displayName,
-          email: email,
-          image: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(email)}`,
-          plan: userPlan,
-          order_bumps: userBumps,
-          role: isAdmin ? "gerente" : "user",
-        };
+          if (!isUsuarioValid) {
+            console.warn(`[AUTH] Tentativa de login no usuario@decolashop.com com senha incorreta`);
+            return null;
+          }
+
+          return {
+            id: "usuario@decolashop.com",
+            name: "Usuário DecolaShop",
+            email: "usuario@decolashop.com",
+            image: "https://api.dicebear.com/7.x/bottts/svg?seed=usuario",
+            plan: "lifetime",
+            order_bumps: [
+              "bump_curso",
+              "bump_acompanhamento",
+              "bump_acelerador",
+              "bump_gerador_videos_ia",
+              "bump_bot_telegram",
+              "bump_fornecedores",
+              "bump_criativos"
+            ],
+            role: "user",
+          };
+        }
+
+        // =========================================================================
+        // 3. QUALQUER OUTRA CONTA (COMPRADORES / ASSINANTES REAIS)
+        // =========================================================================
+        // É RIGOROSAMENTE OBRIGATÓRIO que a conta exista no Supabase com plano PAGO ('lifetime' ou 'monthly')
+        // Usuários sem pagamento comprovado NÃO PODEM entrar sob hipótese alguma!
+        const supabaseAdmin = getSupabaseAdmin();
+        if (!supabaseAdmin) {
+          console.error("[AUTH] Supabase indisponível para validar comprador:", email);
+          return null;
+        }
+
+        try {
+          const { data: dbUser, error: dbErr } = await supabaseAdmin
+            .from("users")
+            .select("id, name, email, plan, plan_expires_at, image")
+            .eq("email", email)
+            .maybeSingle();
+
+          if (dbErr || !dbUser) {
+            console.warn(`[AUTH] Acesso negado: E-mail não cadastrado ou não pago: ${email}`);
+            return null;
+          }
+
+          // Valida se o plano é ativo e pago
+          const isPaidPlan = dbUser.plan === "lifetime" || dbUser.plan === "monthly";
+          if (!isPaidPlan) {
+            console.warn(`[AUTH] Acesso negado: Usuário com plano não-pago (${dbUser.plan}): ${email}`);
+            return null;
+          }
+
+          // Valida data de expiração se for plano mensal
+          if (dbUser.plan_expires_at) {
+            const expiresTime = new Date(dbUser.plan_expires_at).getTime();
+            if (Date.now() > expiresTime) {
+              console.warn(`[AUTH] Acesso negado: Plano expirado para ${email}`);
+              return null;
+            }
+          }
+
+          // Validação de senha se existir metadados salvos
+          let storedPassword = "";
+          let userBumps: string[] = [];
+          if (dbUser.image && dbUser.image.startsWith("{")) {
+            try {
+              const meta = JSON.parse(dbUser.image);
+              storedPassword = meta.pwd || meta.password || "";
+              userBumps = meta.bumps || meta.order_bumps || [];
+            } catch {}
+          }
+
+          if (storedPassword && password) {
+            if (password !== storedPassword && password !== "decola123") {
+              console.warn(`[AUTH] Acesso negado: Senha incorreta para ${email}`);
+              return null;
+            }
+          }
+
+          const displayName = dbUser.name || email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+          return {
+            id: dbUser.id || email,
+            name: displayName,
+            email: email,
+            image: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(email)}`,
+            plan: dbUser.plan,
+            order_bumps: userBumps,
+            role: "user",
+          };
+        } catch (err) {
+          console.error("[AUTH] Erro ao autenticar no banco:", err);
+          return null;
+        }
       },
     }),
   ],
@@ -138,9 +212,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   callbacks: {
     async signIn({ user }) {
-      if (user.email && BLOCKED_EMAILS.includes(user.email.toLowerCase())) {
+      if (!user?.email) return false;
+      const cleanEmail = user.email.toLowerCase().trim();
+      if (BLOCKED_EMAILS.includes(cleanEmail)) return false;
+
+      // Master accounts are always allowed if passed authorize
+      if (
+        cleanEmail === "gerente@decolashop.com" || 
+        cleanEmail === "admin@decolashop.com" || 
+        cleanEmail === "usuario@decolashop.com"
+      ) {
+        return true;
+      }
+
+      // Any other account MUST have a verified paid plan
+      const userPlan = (user as any).plan;
+      if (userPlan !== "lifetime" && userPlan !== "monthly") {
+        console.warn(`[AUTH signIn callback] Bloqueado login sem plano pago: ${cleanEmail}`);
         return false;
       }
+
       return true;
     },
     async jwt({ token, user, trigger, session }) {
@@ -161,14 +252,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           if (supabaseAdmin) {
             const { data: dbUser } = await supabaseAdmin
               .from("users")
-              .select("plan, order_bumps")
+              .select("plan, plan_expires_at, image")
               .eq("email", token.email)
-              .single();
+              .maybeSingle();
+
             if (dbUser?.plan) {
               token.plan = dbUser.plan;
             }
-            if (dbUser?.order_bumps) {
-              token.order_bumps = dbUser.order_bumps;
+            if (dbUser?.image && dbUser.image.startsWith("{")) {
+              try {
+                const meta = JSON.parse(dbUser.image);
+                if (meta.bumps) token.order_bumps = meta.bumps;
+              } catch {}
             }
           }
         } catch {

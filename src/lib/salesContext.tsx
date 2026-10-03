@@ -146,7 +146,7 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
   const cleanEmailKey = userEmail.replace(/[^a-z0-9]/g, '_');
   const userStorageKey = `decolashop_sales_state_${cleanEmailKey}`;
 
-  const isNormalUser = userEmail === 'usuario@decolashop.com' || userEmail === 'cliente@decolashop.com' || userEmail === 'user@decolashop.com';
+  const isNormalUser = userEmail === 'usuario@decolashop.com';
   const isAdmin = !isNormalUser && (
     userEmail === 'admin@decolashop.com' || 
     userEmail === 'admin@newshop.com' || 

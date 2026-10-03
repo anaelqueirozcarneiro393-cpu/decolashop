@@ -17,14 +17,9 @@ export async function GET(req: Request) {
   // Ação de reset explícita (limpa estado em memória e cookies)
   if (action === 'reset') {
     memorySyncStore.delete(email);
-    if (email === 'usuario@decolashop.com') {
-      memorySyncStore.delete('cliente@decolashop.com');
-      memorySyncStore.delete('user@decolashop.com');
-    }
     const res = NextResponse.json({ success: true, message: `Estado de ${email} redefinido com sucesso` });
     res.cookies.delete(`decola_sync_${email.replace(/[^a-z0-9]/g, '_')}`);
     res.cookies.delete(`decola_sync_usuario_decolashop_com`);
-    res.cookies.delete(`decola_sync_cliente_decolashop_com`);
     return res;
   }
 
@@ -60,10 +55,6 @@ export async function POST(req: Request) {
 
     if (action === 'reset' || body.reset === true) {
       memorySyncStore.delete(email);
-      if (email === 'usuario@decolashop.com') {
-        memorySyncStore.delete('cliente@decolashop.com');
-        memorySyncStore.delete('user@decolashop.com');
-      }
       const res = NextResponse.json({ success: true, message: `Conta ${email} redefinida com sucesso` });
       res.cookies.delete(`decola_sync_${email.replace(/[^a-z0-9]/g, '_')}`);
       res.cookies.delete(`decola_sync_usuario_decolashop_com`);

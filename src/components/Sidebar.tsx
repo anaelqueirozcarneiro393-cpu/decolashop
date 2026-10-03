@@ -54,8 +54,9 @@ export default function Sidebar({ currentView, onNavigate, isOpen, setIsOpen }: 
   const rawEmail = session?.user?.email || 'usuario@decolashop.com';
   const userEmail = rawEmail.toLowerCase().trim();
   const userRole = (session?.user as any)?.role || '';
-  const isNormalUser = userEmail === 'usuario@decolashop.com' || userEmail === 'cliente@decolashop.com' || userEmail === 'user@decolashop.com';
+  const isNormalUser = userEmail === 'usuario@decolashop.com';
   const isAdmin = !isNormalUser && (
+    userEmail === 'gerente@decolashop.com' ||
     userEmail.includes('admin') || 
     userEmail.includes('gerente') || 
     userRole === 'gerente' || 

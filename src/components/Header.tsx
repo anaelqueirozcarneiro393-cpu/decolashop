@@ -17,8 +17,9 @@ export default function Header({ onMenuClick, session: propSession }: HeaderProp
   const isAuthenticated = !!session;
   const userEmail = session?.user?.email?.toLowerCase().trim() || '';
   const userRole = (session?.user as any)?.role || '';
-  const isNormalUser = userEmail === 'usuario@decolashop.com' || userEmail === 'cliente@decolashop.com' || userEmail === 'user@decolashop.com';
+  const isNormalUser = userEmail === 'usuario@decolashop.com';
   const isAdmin = !isNormalUser && (
+    userEmail === 'gerente@decolashop.com' ||
     userEmail.includes('admin') || 
     userEmail.includes('gerente') || 
     userRole === 'gerente' || 

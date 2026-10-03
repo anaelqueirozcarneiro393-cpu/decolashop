@@ -56,7 +56,7 @@ export default function AfiliadosView() {
   const userEmail = rawEmail.toLowerCase().trim();
   const userRole = (session?.user as any)?.role || '';
 
-  const isNormalUser = userEmail === 'usuario@decolashop.com' || userEmail === 'cliente@decolashop.com' || userEmail === 'user@decolashop.com';
+  const isNormalUser = userEmail === 'usuario@decolashop.com';
   const isAuthorized = !isNormalUser && (
     userEmail === 'gerente@decolashop.com' || 
     userEmail.includes('gerente') || 

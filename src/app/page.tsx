@@ -62,7 +62,15 @@ export default function AppContainer() {
   const rawEmail = session?.user?.email || '';
   const userEmail = rawEmail.toLowerCase().trim();
   const userRole = (session?.user as any)?.role || '';
-  const isNormalUser = userEmail === 'usuario@decolashop.com' || userEmail === 'cliente@decolashop.com' || userEmail === 'user@decolashop.com';
+  const isMasterAccount = 
+    userEmail === 'gerente@decolashop.com' || 
+    userEmail === 'admin@decolashop.com' || 
+    userEmail === 'usuario@decolashop.com';
+
+  const userPlan = (session?.user as any)?.plan;
+  const isPaidPlan = userPlan === 'lifetime' || userPlan === 'monthly' || isMasterAccount;
+
+  const isNormalUser = userEmail === 'usuario@decolashop.com';
   const isAdmin = !isNormalUser && (
     userEmail === 'gerente@decolashop.com' || 
     userEmail.includes('gerente') || 
@@ -154,7 +162,8 @@ export default function AppContainer() {
     );
   }
 
-  if (status === "unauthenticated") {
+  // Se não estiver autenticado OU se não possuir plano pago nem conta autorizada, bloqueia e exibe LoginView
+  if (status === "unauthenticated" || (status === "authenticated" && !isPaidPlan)) {
     if (typeof window !== 'undefined' && window.location.pathname !== '/') {
       window.history.replaceState(null, '', '/');
     }

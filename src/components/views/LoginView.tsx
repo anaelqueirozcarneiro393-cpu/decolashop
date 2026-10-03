@@ -31,7 +31,9 @@ export default function LoginView() {
       });
 
       if (res?.error) {
-        toast.error('Erro ao autenticar. Verifique seus dados.');
+        toast.error('Acesso não encontrado ou plano não pago. Adquira seu plano clicando em CADASTRE-SE.', {
+          duration: 5000,
+        });
       } else {
         toast.success(
           (email.toLowerCase().includes('admin') || email.toLowerCase().includes('gerente'))

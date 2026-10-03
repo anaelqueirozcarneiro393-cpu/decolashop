@@ -160,33 +160,25 @@ async function processApproval(options: {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + (plan === 'monthly' ? 30 : 3650));
 
-      if (user) {
-        const existingBumps = Array.isArray(user.order_bumps) ? user.order_bumps : [];
-        const newBumps = Array.from(new Set([...existingBumps, ...safeBumps]));
+      const userMetadata = JSON.stringify({
+        avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(email)}`,
+        pwd: 'decola123',
+        bumps: safeBumps,
+        phone: phone || null,
+        cpf: cpf || null
+      });
 
-        await supabase
-          .from('users')
-          .update({
-            plan: plan || 'lifetime',
-            plan_expires_at: expiresAt.toISOString(),
-            status: 'active',
-            order_bumps: newBumps
-          })
-          .eq('email', email);
-        console.log(`[SigiloPay Webhook] Usuário ${email} atualizado para ativo com sucesso!`);
-      } else {
-        await supabase
-          .from('users')
-          .insert({
-            email,
-            name: name || email.split('@')[0],
-            plan: plan || 'lifetime',
-            plan_expires_at: expiresAt.toISOString(),
-            status: 'active',
-            order_bumps: safeBumps
-          });
-        console.log(`[SigiloPay Webhook] Novo usuário ${email} criado e ativado com sucesso!`);
-      }
+      await supabase
+        .from('users')
+        .upsert({
+          email,
+          name: name || email.split('@')[0],
+          plan: plan || 'lifetime',
+          plan_expires_at: expiresAt.toISOString(),
+          image: userMetadata
+        }, { onConflict: 'email' });
+
+      console.log(`[SigiloPay Webhook] Usuário pago ${email} registrado/atualizado no plano ${plan}!`);
     } catch (dbErr) {
       console.warn('[SigiloPay Webhook] Aviso ao salvar usuário no Supabase:', dbErr);
     }

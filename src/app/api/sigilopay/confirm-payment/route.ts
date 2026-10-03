@@ -53,46 +53,65 @@ export async function POST(req: Request) {
       );
     }
 
-    // 4. Verificação estrita de pagamento real junto ao Gateway SigiloPay
-    if (transactionId) {
-      const sigiloPublicKey = process.env.SIGILOPAY_PUBLIC_KEY || 'kaiofredy2908_1cmq6fd3bmq2s24u';
-      const sigiloSecretKey = process.env.SIGILOPAY_SECRET_KEY || 'tzlk0xxe8t4dybi2t0o1udw1ckczp01a4a9hbgptalozcan5hh0r59qw41seo3ze';
-      const sigiloBaseUrl = process.env.SIGILOPAY_BASE_URL || 'https://app.sigilopay.com.br';
+    // 4. Verificação estrita de pagamento real junto ao Gateway SigiloPay (OBRIGATÓRIO)
+    if (!transactionId) {
+      return NextResponse.json(
+        { success: false, error: 'Identificador de transação (transactionId) é obrigatório para validação de pagamento.' },
+        { status: 400 }
+      );
+    }
 
-      try {
-        let checkRes = await fetch(`${sigiloBaseUrl}/api/v1/gateway/transactions?id=${encodeURIComponent(transactionId)}`, {
+    const sigiloPublicKey = process.env.SIGILOPAY_PUBLIC_KEY || 'kaiofredy2908_1cmq6fd3bmq2s24u';
+    const sigiloSecretKey = process.env.SIGILOPAY_SECRET_KEY || 'tzlk0xxe8t4dybi2t0o1udw1ckczp01a4a9hbgptalozcan5hh0r59qw41seo3ze';
+    const sigiloBaseUrl = process.env.SIGILOPAY_BASE_URL || 'https://app.sigilopay.com.br';
+
+    let isPaid = false;
+    let txStatus = '';
+
+    try {
+      let checkRes = await fetch(`${sigiloBaseUrl}/api/v1/gateway/transactions?id=${encodeURIComponent(transactionId)}`, {
+        headers: {
+          'x-public-key': sigiloPublicKey,
+          'x-secret-key': sigiloSecretKey
+        }
+      });
+
+      if (!checkRes.ok) {
+        checkRes = await fetch(`${sigiloBaseUrl}/api/v1/gateway/transactions?clientIdentifier=${encodeURIComponent(transactionId)}`, {
           headers: {
             'x-public-key': sigiloPublicKey,
             'x-secret-key': sigiloSecretKey
           }
         });
-
-        if (!checkRes.ok) {
-          checkRes = await fetch(`${sigiloBaseUrl}/api/v1/gateway/transactions?clientIdentifier=${encodeURIComponent(transactionId)}`, {
-            headers: {
-              'x-public-key': sigiloPublicKey,
-              'x-secret-key': sigiloSecretKey
-            }
-          });
-        }
-
-        if (checkRes.ok) {
-          const txData = await checkRes.json();
-          const txStatus = String(txData.status || '').toUpperCase();
-          const isPaid = txStatus === 'PAID' || txStatus === 'COMPLETED' || txStatus === 'APPROVED' || txStatus === 'CONFIRMED' || !!txData.payedAt;
-
-          if (!isPaid) {
-            return NextResponse.json({
-              success: false,
-              paid: false,
-              status: txStatus,
-              error: 'Pagamento via PIX ainda não identificado no sistema bancário. Por favor, conclua o pagamento no aplicativo do seu banco e tente novamente.'
-            }, { status: 400 });
-          }
-        }
-      } catch (gatewayErr) {
-        console.error('Erro ao verificar status na SigiloPay:', gatewayErr);
       }
+
+      if (checkRes.ok) {
+        const txData = await checkRes.json();
+        txStatus = String(txData.status || '').toUpperCase();
+        isPaid = txStatus === 'PAID' || txStatus === 'COMPLETED' || txStatus === 'APPROVED' || txStatus === 'CONFIRMED' || !!txData.payedAt;
+      } else {
+        return NextResponse.json({
+          success: false,
+          paid: false,
+          error: 'Transação não encontrada ou inválida na SigiloPay.'
+        }, { status: 400 });
+      }
+    } catch (gatewayErr) {
+      console.error('Erro ao verificar status na SigiloPay:', gatewayErr);
+      return NextResponse.json({
+        success: false,
+        paid: false,
+        error: 'Erro de comunicação com o gateway bancário. Tente novamente em instantes.'
+      }, { status: 502 });
+    }
+
+    if (!isPaid) {
+      return NextResponse.json({
+        success: false,
+        paid: false,
+        status: txStatus,
+        error: 'Pagamento via PIX ainda não identificado no sistema bancário. Por favor, conclua o pagamento no aplicativo do seu banco e tente novamente.'
+      }, { status: 400 });
     }
 
     const cleanName = sanitizeString(name || cleanEmail.split('@')[0]);
@@ -119,44 +138,25 @@ export async function POST(req: Request) {
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + (userPlan === 'monthly' ? 30 : 3650)); // 10 years for lifetime
 
-        // Check if user exists
-        const { data: existingUser } = await supabase
-          .from('users')
-          .select('id, email, password, order_bumps')
-          .eq('email', cleanEmail)
-          .maybeSingle();
+        const userMetadata = JSON.stringify({
+          avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(cleanEmail)}`,
+          pwd: cleanPassword || 'decola123',
+          bumps: safeBumps,
+          phone: cleanPhone || null,
+          cpf: cleanCpf || null
+        });
 
-        if (existingUser) {
-          const existingBumps = Array.isArray(existingUser.order_bumps) ? existingUser.order_bumps : [];
-          const newBumps = Array.from(new Set([...existingBumps, ...safeBumps]));
-          await supabase
-            .from('users')
-            .update({
-              name: cleanName,
-              plan: userPlan,
-              plan_expires_at: expiresAt.toISOString(),
-              status: 'active',
-              order_bumps: newBumps,
-              phone: cleanPhone || null,
-              cpf: cleanCpf || null,
-              password: cleanPassword || existingUser.password || 'decola123'
-            })
-            .eq('email', cleanEmail);
-        } else {
-          await supabase
-            .from('users')
-            .insert({
-              email: cleanEmail,
-              name: cleanName,
-              plan: userPlan,
-              plan_expires_at: expiresAt.toISOString(),
-              status: 'active',
-              order_bumps: safeBumps,
-              phone: cleanPhone || null,
-              cpf: cleanCpf || null,
-              password: cleanPassword || 'decola123'
-            });
-        }
+        await supabase
+          .from('users')
+          .upsert({
+            email: cleanEmail,
+            name: cleanName,
+            plan: userPlan,
+            plan_expires_at: expiresAt.toISOString(),
+            image: userMetadata
+          }, { onConflict: 'email' });
+
+        console.log(`[SigiloPay Confirm] Usuário pago ${cleanEmail} registrado com sucesso no plano ${userPlan}!`);
       } catch (dbErr) {
         console.error('Erro ao registrar usuário no Supabase:', dbErr);
       }
