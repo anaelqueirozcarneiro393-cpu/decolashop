@@ -227,24 +227,33 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
 
     async function initializeSalesState() {
       try {
+        const isUsuarioDemo = userEmail === 'usuario@decolashop.com';
         const NORMAL_USER_RESET_KEY = 'decolashop_normal_user_reset_trigger_2026_10_03';
-        if (isNormalUser && localStorage.getItem(NORMAL_USER_RESET_KEY) !== 'done') {
+        const USUARIO_DEMO_APPLY_KEY = 'decolashop_usuario_history_700_1k_apply_v1';
+
+        // Para os outros usuários normais (cliente, user, etc.), mantém reset inicial zerado
+        if (isNormalUser && !isUsuarioDemo && localStorage.getItem(NORMAL_USER_RESET_KEY) !== 'done') {
           try {
             localStorage.setItem(NORMAL_USER_RESET_KEY, 'done');
             localStorage.removeItem(userStorageKey);
-            localStorage.removeItem('decolashop_sales_state_usuario_decolashop_com');
             localStorage.removeItem('decolashop_sales_state_cliente_decolashop_com');
             localStorage.removeItem('decolashop_sales_state_user_decolashop_com');
-            localStorage.removeItem('decolashop_saldo_antecipado_usuario_decolashop_com');
-            localStorage.removeItem('decolashop_saldo_antecipado_pago_usuario_decolashop_com');
-            localStorage.removeItem('decolashop_has_withdrawn_usuario_decolashop_com');
-            localStorage.removeItem('decolashop_notified_unlock_250_usuario_decolashop_com');
             localStorage.removeItem('decolashop_saldo_antecipado_cliente_decolashop_com');
             localStorage.removeItem('decolashop_saldo_antecipado_pago_cliente_decolashop_com');
             localStorage.removeItem('decolashop_has_withdrawn_cliente_decolashop_com');
             localStorage.removeItem('decolashop_notified_unlock_250_cliente_decolashop_com');
             localStorage.removeItem('decolashop_divulgados');
             localStorage.removeItem('decolashop_next_sale_target');
+          } catch {}
+        }
+
+        // Aplicação do histórico pequeno (700-1k/dia) exclusivamente na conta usuario@decolashop.com
+        if (isUsuarioDemo && localStorage.getItem(USUARIO_DEMO_APPLY_KEY) !== 'done') {
+          try {
+            localStorage.setItem(USUARIO_DEMO_APPLY_KEY, 'done');
+            localStorage.removeItem(userStorageKey);
+            localStorage.removeItem('decolashop_sales_state_usuario_decolashop_com');
+            localStorage.removeItem(`decolashop_notified_unlock_250_${cleanEmailKey}`);
             fetch('/api/user/sync-state?action=reset&email=usuario@decolashop.com').catch(() => {});
           } catch {}
         }
@@ -304,9 +313,37 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
               }).catch(() => {});
             } catch {}
           }
+        } else if (isUsuarioDemo) {
+          // =========================================================================
+          // CENÁRIO 2: CONTA USUÁRIO DEMO (Histórico Pequeno de 700 a 1k/dia)
+          // =========================================================================
+          if (!parsed || typeof parsed.vendasTotais !== 'number' || parsed.vendasTotais < 1000) {
+            try {
+              let syncRes = await fetch(`/api/user/sync-state?email=usuario@decolashop.com`);
+              let syncJson = await syncRes.json();
+              if (syncJson?.success && syncJson?.data && syncJson.data.vendasTotais >= 1000) {
+                parsed = syncJson.data;
+              }
+            } catch {}
+
+            if (!parsed || typeof parsed.vendasTotais !== 'number' || parsed.vendasTotais < 1000) {
+              parsed = getDeterministicBaseline(userEmail, Date.now());
+            }
+
+            try {
+              const str = JSON.stringify(parsed);
+              localStorage.setItem(userStorageKey, str);
+              localStorage.setItem('decolashop_sales_state_usuario_decolashop_com', str);
+              fetch('/api/user/sync-state', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: userEmail, state: parsed })
+              }).catch(() => {});
+            } catch {}
+          }
         } else {
           // =========================================================================
-          // CENÁRIO 2: CONTAS DE MEMBROS REAIS (Histórico REAL de Verdade - Zero Mock)
+          // CENÁRIO 3: DEMAIS CONTAS DE USUÁRIOS REAIS (Começam 100% Zeradas)
           // =========================================================================
           // Se houver dados válidos salvos no localStorage ou na nuvem, PRESERVA 100%!
           // Nunca apaga faturamento ou saldo acumulado da conta do usuário.
@@ -903,22 +940,62 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
   };
 
   const resetData = () => {
-    setVendasTotais(0);
-    setSaldoDisponivel(0);
-    setVisitas(0);
-    setCliques(0);
-    setPedidos(0);
-    setUnidades(0);
-    setHourlyData(CLEAN_HOURLY);
-    setRecentSales([]);
-    setAutoSimulate(true);
+    let baseline: any = null;
+    if (isGerenteUser) {
+      baseline = getDeterministicBaseline('gerente@decolashop.com', Date.now());
+    } else if (userEmail === 'usuario@decolashop.com') {
+      baseline = getDeterministicBaseline('usuario@decolashop.com', Date.now());
+    }
+
+    if (baseline) {
+      setVendasTotais(baseline.vendasTotais);
+      setSaldoDisponivel(baseline.saldoDisponivel);
+      setVisitas(baseline.visitas);
+      setCliques(baseline.cliques);
+      setPedidos(baseline.pedidos);
+      setUnidades(baseline.unidades);
+      setHourlyData(baseline.hourlyData);
+      setRecentSales(baseline.recentSales);
+      setAutoSimulate(true);
+
+      try {
+        const str = JSON.stringify(baseline);
+        localStorage.setItem(userStorageKey, str);
+        if (isGerenteUser) {
+          localStorage.setItem('decolashop_sales_state_gerente_decolashop_com', str);
+          localStorage.setItem('decolashop_sales_state_admin_decolashop_com', str);
+        } else {
+          localStorage.setItem('decolashop_sales_state_usuario_decolashop_com', str);
+        }
+        fetch('/api/user/sync-state', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: userEmail, state: baseline })
+        }).catch(() => {});
+      } catch {}
+    } else {
+      setVendasTotais(0);
+      setSaldoDisponivel(0);
+      setVisitas(0);
+      setCliques(0);
+      setPedidos(0);
+      setUnidades(0);
+      setHourlyData(CLEAN_HOURLY);
+      setRecentSales([]);
+      setAutoSimulate(true);
+
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(userStorageKey);
+        localStorage.removeItem('decolashop_sales_state_v2');
+        localStorage.removeItem('decolashop_sales_state');
+        localStorage.removeItem(`decolashop_sales_state_${cleanEmailKey}`);
+        fetch(`/api/user/sync-state?action=reset&email=${encodeURIComponent(userEmail)}`).catch(() => {});
+      } catch {}
+    }
 
     try {
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem(userStorageKey);
-      localStorage.removeItem('decolashop_sales_state_v2');
-      localStorage.removeItem('decolashop_sales_state');
-      localStorage.removeItem(`decolashop_sales_state_${cleanEmailKey}`);
+      localStorage.removeItem('decolashop_saldo_antecipado');
       localStorage.removeItem(`decolashop_saldo_antecipado_${cleanEmailKey}`);
       localStorage.removeItem(`decolashop_saldo_antecipado_pago_${cleanEmailKey}`);
       localStorage.removeItem(`decolashop_has_withdrawn_${cleanEmailKey}`);
@@ -926,7 +1003,6 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('decolashop_divulgados');
       localStorage.removeItem('decolashop_next_sale_target');
       window.dispatchEvent(new Event('decolashop_divulgados_updated'));
-      fetch(`/api/user/sync-state?action=reset&email=${encodeURIComponent(userEmail)}`).catch(() => {});
     } catch {}
 
     toast.success('Conta redefinida com sucesso para o estado inicial.');

@@ -59,6 +59,11 @@ export function isGerenteAccount(email: string): boolean {
   );
 }
 
+export function isUsuarioDemoAccount(email: string): boolean {
+  const clean = (email || '').toLowerCase().trim();
+  return clean === 'usuario@decolashop.com';
+}
+
 /**
  * Maracutaia Genial de Semente Temporal:
  * Gera um estado de vendas determinístico, hiper-realista e cronologicamente perfeito
@@ -290,11 +295,180 @@ export function getDeterministicBaseline(email: string, nowMs: number = Date.now
   }
 
   // =========================================================================
-  // CENÁRIO 2: CONTAS DE MEMBROS / USUÁRIOS REAIS (Começam 100% Zeradas!)
+  // CENÁRIO 2: CONTA USUÁRIO DEMO (EXCLUSIVO usuario@decolashop.com)
+  // Histórico pequeno e consistente entre R$ 700 e R$ 1.000 por dia nos últimos 7 dias!
   // =========================================================================
-  // Somente a conta de Gerente possui histórico demonstrativo pré-populado.
-  // Contas de membros e novos usuários iniciam com seu histórico REAL:
-  // zero vendas, zero pedidos, zero comissões e lista de transações limpa.
+  const isUsuarioDemo = isUsuarioDemoAccount(email);
+  if (isUsuarioDemo) {
+    const yesterdayHourlyTemplateUsuario: Record<string, number> = {
+      '00': 0.00,
+      '02': 0.00,
+      '04': 0.00,
+      '06': 79.90,   // Fone Bluetooth TWS Lenovo GM2 Pro
+      '08': 0.00,
+      '10': 149.90,  // Smartwatch W9 Pro Ultra
+      '12': 119.90,  // Carregador Magnético 3 em 1
+      '14': 249.90,  // Mini Projetor Portátil 4K
+      '16': 0.00,
+      '18': 149.90,  // Smartwatch W9 Pro Ultra
+      '20': 89.90,   // Câmera Lâmpada 360 Wifi
+      '22': 0.00,
+    }; // Total Ontem = R$ 839,40
+
+    const todayHourlyTemplateUsuario: Record<string, number> = {
+      '00': 0.00,
+      '02': 0.00,
+      '04': 0.00,
+      '06': 79.90,   // Fone Lenovo GM2 Pro
+      '08': 149.90,  // Smartwatch W9 Pro Ultra
+      '10': 119.90,  // Carregador Magnético 3 em 1
+      '12': 89.90,   // Câmera Lâmpada 360 Wifi
+      '14': 149.90,  // Smartwatch W9 Pro Ultra
+      '16': 79.90,   // Fone Bluetooth TWS Gamer
+      '18': 119.90,  // Carregador Magnético 3 em 1
+      '20': 89.90,   // Câmera Lâmpada 360 Wifi
+      '22': 0.00,
+    };
+
+    const currentHour = new Date(nowMs).getHours();
+    const currentBracket = Math.floor(currentHour / 2) * 2;
+
+    const hourlyData: ChartHour[] = [
+      '00', '02', '04', '06', '08', '10', '12', '14', '16', '18', '20', '22'
+    ].map(h => {
+      const hNum = parseInt(h, 10);
+      const valOntem = yesterdayHourlyTemplateUsuario[h] || 0;
+      const valHoje = hNum <= currentBracket ? (todayHourlyTemplateUsuario[h] || 0) : 0;
+      return { hour: h, valHoje, valOntem };
+    });
+
+    const todaySalesSum = hourlyData.reduce((acc, h) => acc + (h.valHoje || 0), 0);
+
+    // Faturamento acumulado dos 6 dias anteriores (entre R$ 700 e R$ 1.000 por dia):
+    // D-6: R$ 749,50
+    // D-5: R$ 889,40
+    // D-4: R$ 799,50
+    // D-3: R$ 949,40
+    // D-2: R$ 779,50
+    // D-1 (Ontem): R$ 839,40
+    // Soma dias anteriores = R$ 5.006,70 (Média de R$ 834,45/dia)
+    const pastDaysGross = 5006.70;
+    const totalGross = Math.round((pastDaysGross + todaySalesSum) * 100) / 100;
+    const totalCommission = Math.round(totalGross * 0.32 * 100) / 100;
+
+    // Pedidos: 33 pedidos nos dias anteriores + pedidos de hoje
+    const todayOrders = hourlyData.filter(h => (h.valHoje || 0) > 0).length;
+    const totalOrders = 33 + todayOrders;
+    const totalVisits = Math.round(totalOrders * 15.8);
+    const totalClicks = Math.round(totalOrders * 31.4);
+    const totalUnits = totalOrders + 2;
+
+    // Lista de transações cronológicas dos últimos 7 dias
+    const recentSales: SaleItem[] = [];
+
+    const addSalesForDay = (daysAgo: number, count: number, startHour: number, endHour: number) => {
+      const dayDate = new Date(nowMs - daysAgo * 86400000);
+      const isToday = daysAgo === 0;
+      const isYesterday = daysAgo === 1;
+
+      for (let s = 0; s < count; s++) {
+        const prod = catalog[Math.floor(rand() * catalog.length)];
+        const rawPrice = getProductPrice(prod);
+        const comm = Math.round(rawPrice * 0.32 * 100) / 100;
+
+        let saleHour = startHour + Math.floor(rand() * (endHour - startHour + 1));
+        let saleMinute = Math.floor(rand() * 59);
+
+        if (isToday) {
+          if (saleHour > currentHour) {
+            saleHour = Math.max(0, currentHour - 1);
+          }
+          if (saleHour === currentHour) {
+            const currentMin = new Date(nowMs).getMinutes();
+            saleMinute = Math.max(0, Math.min(saleMinute, Math.max(0, currentMin - 4)));
+          }
+        }
+
+        const saleTimestamp = new Date(
+          dayDate.getFullYear(),
+          dayDate.getMonth(),
+          dayDate.getDate(),
+          saleHour,
+          saleMinute
+        ).getTime();
+
+        const hh = String(saleHour).padStart(2, '0');
+        const mm = String(saleMinute).padStart(2, '0');
+
+        let formattedTime = '';
+        if (isToday) {
+          formattedTime = `Hoje, ${hh}:${mm}`;
+        } else if (isYesterday) {
+          formattedTime = `Ontem, ${hh}:${mm}`;
+        } else {
+          const dd = String(dayDate.getDate()).padStart(2, '0');
+          const mo = String(dayDate.getMonth() + 1).padStart(2, '0');
+          formattedTime = `${dd}/${mo}, ${hh}:${mm}`;
+        }
+
+        const txSeed = Math.floor(1000 + rand() * 8999);
+        recentSales.push({
+          id: `TX-${txSeed}`,
+          product: prod.name || (prod as any).title || 'Produto DecolaShop',
+          value: rawPrice,
+          commission: comm,
+          time: formattedTime,
+          timestamp: saleTimestamp,
+          image: prod.image_url,
+        });
+      }
+    };
+
+    // Vendas de hoje (proporcional às horas decorridas)
+    const todaySalesCount = Math.max(0, Math.min(6, Math.floor(currentHour / 3)));
+    if (todaySalesCount > 0) {
+      addSalesForDay(0, todaySalesCount, 6, Math.min(currentHour, 22));
+    }
+
+    // Ontem: 6 vendas (~R$ 840)
+    addSalesForDay(1, 6, 6, 21);
+
+    // 2 dias atrás: 5 vendas (~R$ 780)
+    addSalesForDay(2, 5, 8, 21);
+
+    // 3 dias atrás: 6 vendas (~R$ 950)
+    addSalesForDay(3, 6, 7, 22);
+
+    // 4 dias atrás: 5 vendas (~R$ 800)
+    addSalesForDay(4, 5, 8, 20);
+
+    // 5 dias atrás: 6 vendas (~R$ 890)
+    addSalesForDay(5, 6, 7, 22);
+
+    // 6 dias atrás: 5 vendas (~R$ 750)
+    addSalesForDay(6, 5, 9, 21);
+
+    recentSales.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    return {
+      vendasTotais: totalGross,
+      saldoDisponivel: totalCommission,
+      visitas: totalVisits,
+      cliques: totalClicks,
+      pedidos: totalOrders,
+      unidades: totalUnits,
+      hourlyData,
+      recentSales,
+      lastActiveTimestamp: nowMs,
+      lastSavedDate: new Date(nowMs).toDateString(),
+    };
+  }
+
+  // =========================================================================
+  // CENÁRIO 3: DEMAIS CONTAS DE USUÁRIOS REAIS (Começam 100% Zeradas!)
+  // =========================================================================
+  // As contas reais de clientes e novos compradores iniciam com histórico REAL:
+  // zero vendas, zero pedidos, zero comissões e lista limpa.
   // Elas acumulam dados apenas a partir do momento em que o usuário utiliza a plataforma.
   const cleanHourly: ChartHour[] = [
     { hour: '00', valHoje: 0, valOntem: 0 },
