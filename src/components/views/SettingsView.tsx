@@ -100,7 +100,7 @@ export default function SettingsView() {
             </div>
             <div>
               <h3 className="font-bold text-white">Status da Assinatura</h3>
-              <p className="text-xs text-muted-foreground">Processamento instantâneo via Pix Seguro (SigiloPay)</p>
+              <p className="text-xs text-muted-foreground">Processamento instantâneo via Pix 100% Seguro</p>
             </div>
           </div>
 

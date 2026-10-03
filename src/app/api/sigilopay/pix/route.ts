@@ -196,24 +196,24 @@ export async function POST(req: Request) {
           }
         } else {
           console.warn("[SigiloPay API Status]", sigiloResponse.status, sigiloData);
-          const detail = sigiloData?.message || sigiloData?.details?.[0]?.message || 'Erro ao processar na SigiloPay.';
+          const detail = sigiloData?.message || sigiloData?.details?.[0]?.message || 'Erro ao processar chave Pix.';
           return NextResponse.json({
             success: false,
-            error: `SigiloPay: ${detail}`
+            error: detail
           }, { status: 400 });
         }
       } catch (sigiloError: any) {
         console.warn("[SigiloPay Direct API Warning]:", sigiloError.message);
         return NextResponse.json({
           success: false,
-          error: `SigiloPay Conexão: ${sigiloError.message}`
+          error: 'Falha temporária ao gerar chave Pix. Tente novamente em instantes.'
         }, { status: 502 });
       }
     }
 
     return NextResponse.json({
       success: false,
-      error: 'Gateway SigiloPay não configurado ou chaves ausentes.'
+      error: 'Sistema de pagamento temporariamente indisponível.'
     }, { status: 500 });
 
   } catch (error: any) {

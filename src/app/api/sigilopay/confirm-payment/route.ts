@@ -207,7 +207,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      message: 'Pagamento confirmado e conta liberada com sucesso via SigiloPay!',
+      message: 'Pagamento confirmado e conta liberada com sucesso!',
       email: cleanEmail,
       plan: userPlan,
       transactionId: transactionId || null
