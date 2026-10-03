@@ -227,6 +227,28 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
 
     async function initializeSalesState() {
       try {
+        const NORMAL_USER_RESET_KEY = 'decolashop_normal_user_reset_trigger_2026_10_03';
+        if (isNormalUser && localStorage.getItem(NORMAL_USER_RESET_KEY) !== 'done') {
+          try {
+            localStorage.setItem(NORMAL_USER_RESET_KEY, 'done');
+            localStorage.removeItem(userStorageKey);
+            localStorage.removeItem('decolashop_sales_state_usuario_decolashop_com');
+            localStorage.removeItem('decolashop_sales_state_cliente_decolashop_com');
+            localStorage.removeItem('decolashop_sales_state_user_decolashop_com');
+            localStorage.removeItem('decolashop_saldo_antecipado_usuario_decolashop_com');
+            localStorage.removeItem('decolashop_saldo_antecipado_pago_usuario_decolashop_com');
+            localStorage.removeItem('decolashop_has_withdrawn_usuario_decolashop_com');
+            localStorage.removeItem('decolashop_notified_unlock_250_usuario_decolashop_com');
+            localStorage.removeItem('decolashop_saldo_antecipado_cliente_decolashop_com');
+            localStorage.removeItem('decolashop_saldo_antecipado_pago_cliente_decolashop_com');
+            localStorage.removeItem('decolashop_has_withdrawn_cliente_decolashop_com');
+            localStorage.removeItem('decolashop_notified_unlock_250_cliente_decolashop_com');
+            localStorage.removeItem('decolashop_divulgados');
+            localStorage.removeItem('decolashop_next_sale_target');
+            fetch('/api/user/sync-state?action=reset&email=usuario@decolashop.com').catch(() => {});
+          } catch {}
+        }
+
         let saved = localStorage.getItem(userStorageKey);
 
         const isGerenteUser = userEmail === 'gerente@decolashop.com' || userEmail === 'admin@decolashop.com' || isAdmin;
@@ -889,15 +911,25 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     setUnidades(0);
     setHourlyData(CLEAN_HOURLY);
     setRecentSales([]);
-    setAutoSimulate(false);
+    setAutoSimulate(true);
 
     try {
       localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(userStorageKey);
       localStorage.removeItem('decolashop_sales_state_v2');
       localStorage.removeItem('decolashop_sales_state');
+      localStorage.removeItem(`decolashop_sales_state_${cleanEmailKey}`);
+      localStorage.removeItem(`decolashop_saldo_antecipado_${cleanEmailKey}`);
+      localStorage.removeItem(`decolashop_saldo_antecipado_pago_${cleanEmailKey}`);
+      localStorage.removeItem(`decolashop_has_withdrawn_${cleanEmailKey}`);
+      localStorage.removeItem(`decolashop_notified_unlock_250_${cleanEmailKey}`);
+      localStorage.removeItem('decolashop_divulgados');
+      localStorage.removeItem('decolashop_next_sale_target');
+      window.dispatchEvent(new Event('decolashop_divulgados_updated'));
+      fetch(`/api/user/sync-state?action=reset&email=${encodeURIComponent(userEmail)}`).catch(() => {});
     } catch {}
 
-    toast.success('Métricas do painel redefinidas com sucesso.');
+    toast.success('Conta redefinida com sucesso para o estado inicial.');
   };
 
   const setSaldoDisponivelDirect = (val: number) => {

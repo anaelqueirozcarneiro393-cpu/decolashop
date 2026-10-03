@@ -8,9 +8,24 @@ const memorySyncStore = new Map<string, any>();
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const email = (searchParams.get('email') || '').toLowerCase().trim();
+  const action = (searchParams.get('action') || '').toLowerCase().trim();
 
   if (!email) {
     return NextResponse.json({ success: false, error: 'E-mail não fornecido' }, { status: 400 });
+  }
+
+  // Ação de reset explícita (limpa estado em memória e cookies)
+  if (action === 'reset') {
+    memorySyncStore.delete(email);
+    if (email === 'usuario@decolashop.com') {
+      memorySyncStore.delete('cliente@decolashop.com');
+      memorySyncStore.delete('user@decolashop.com');
+    }
+    const res = NextResponse.json({ success: true, message: `Estado de ${email} redefinido com sucesso` });
+    res.cookies.delete(`decola_sync_${email.replace(/[^a-z0-9]/g, '_')}`);
+    res.cookies.delete(`decola_sync_usuario_decolashop_com`);
+    res.cookies.delete(`decola_sync_cliente_decolashop_com`);
+    return res;
   }
 
   let stored = memorySyncStore.get(email);
@@ -37,9 +52,26 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const email = (body.email || '').toLowerCase().trim();
-    const state = body.state;
+    const action = (body.action || '').toLowerCase().trim();
 
-    if (!email || !state) {
+    if (!email) {
+      return NextResponse.json({ success: false, error: 'E-mail não fornecido' }, { status: 400 });
+    }
+
+    if (action === 'reset' || body.reset === true) {
+      memorySyncStore.delete(email);
+      if (email === 'usuario@decolashop.com') {
+        memorySyncStore.delete('cliente@decolashop.com');
+        memorySyncStore.delete('user@decolashop.com');
+      }
+      const res = NextResponse.json({ success: true, message: `Conta ${email} redefinida com sucesso` });
+      res.cookies.delete(`decola_sync_${email.replace(/[^a-z0-9]/g, '_')}`);
+      res.cookies.delete(`decola_sync_usuario_decolashop_com`);
+      return res;
+    }
+
+    const state = body.state;
+    if (!state) {
       return NextResponse.json({ success: false, error: 'Dados insuficientes' }, { status: 400 });
     }
 
