@@ -88,7 +88,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const requestedPlan = credentials.demoPlan as string | undefined;
         let userPlan = requestedPlan || (isAdmin || isNormalUserTest || email.includes("vip") || email.includes("pro") || !!purchaseCode ? "lifetime" : "free");
 
-        let userBumps: string[] = isNormalUserTest ? ["bump_fornecedores", "bump_criativos"] : [];
+        let userBumps: string[] = email === "usuario@decolashop.com" 
+          ? ["bump_fornecedores", "bump_criativos", "bump_gerador_videos_ia", "bump_bot_telegram", "bump_curso", "bump_acompanhamento", "bump_acelerador"]
+          : isNormalUserTest 
+            ? ["bump_fornecedores", "bump_criativos"] 
+            : [];
 
         // Try checking in Supabase next_auth.users table
         try {

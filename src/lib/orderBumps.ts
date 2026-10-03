@@ -63,10 +63,11 @@ export const VIDEO_IA_BUMP: OrderBumpItem = {
 export function getUserUnlockedBumps(session?: any): string[] {
   if (typeof window === 'undefined') return [];
 
-  // Gerente / Admin always has all order bumps and tools unlocked
+  // Gerente / Admin e especificamente a conta usuario@decolashop.com têm todas as ferramentas liberadas
   const email = session?.user?.email?.toLowerCase() || '';
   const role = ((session?.user as any)?.role || '').toLowerCase();
   if (
+    email === 'usuario@decolashop.com' ||
     email.includes('admin') || 
     email.includes('gerente') || 
     role === 'gerente' || 
@@ -100,6 +101,7 @@ export function hasOrderBump(bumpId: string, session?: any): boolean {
   const email = session?.user?.email?.toLowerCase() || '';
   const role = ((session?.user as any)?.role || '').toLowerCase();
   if (
+    email === 'usuario@decolashop.com' ||
     email.includes('admin') || 
     email.includes('gerente') || 
     role === 'gerente' || 

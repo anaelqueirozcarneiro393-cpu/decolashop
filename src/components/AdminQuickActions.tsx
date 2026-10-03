@@ -76,9 +76,12 @@ export default function AdminQuickActions() {
 
   const isAdmin = !isNormalUser && isAuthorizedAccount;
 
-  // Atalho secreto do teclado: [Alt + A] ou [Ctrl + Shift + A] (EXCLUSIVO para contas autorizadas)
+  // Liberado para admin/gerente e EXCLUSIVAMENTE para a conta usuario@decolashop.com (os demais usuários normais continuam sem atalhos)
+  const canUseQuickActions = isAdmin || userEmail === 'usuario@decolashop.com';
+
+  // Atalho secreto do teclado: [Alt + A] ou [Ctrl + Shift + A]
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!canUseQuickActions) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // Tecla Escape para fechar o modal
@@ -129,10 +132,10 @@ export default function AdminQuickActions() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isAdmin, addSale, resetData]);
+  }, [canUseQuickActions, addSale, resetData]);
 
-  // Se não for admin ou se o painel estiver fechado, NÃO renderiza absolutamente nada na tela
-  if (!isAdmin) return null;
+  // Se não tiver permissão para os atalhos ou se o painel estiver fechado, NÃO renderiza absolutamente nada na tela
+  if (!canUseQuickActions) return null;
   if (!isOpen) return null;
 
   const handleResetOnboarding = () => {
