@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { validateAndSanitizePayload, isValidEmail } from "@/lib/security";
-import { recordAffiliateSaleOnServer, getPendingTransaction } from "@/app/api/affiliates/route";
+import { recordAffiliateSaleOnServer, getPendingTransaction, getPendingTransactionAsync } from "@/app/api/affiliates/route";
 
 export const dynamic = 'force-dynamic';
 
@@ -30,8 +30,8 @@ export async function POST(req: Request) {
     const status = (body.status || body.event || body.type || body.data?.status || "").toUpperCase();
     const transactionId = body.transactionId || body.id || body.data?.id || body.clientIdentifier || body.identifier;
 
-    // Check local pending transaction registry for fallback data
-    const pendingLocal = transactionId ? getPendingTransaction(transactionId) : null;
+    // Check pending transaction registry for fallback data
+    const pendingLocal = transactionId ? await getPendingTransactionAsync(transactionId) : null;
 
     let email = (client.email || body.email || body.data?.email || pendingLocal?.email || "").toLowerCase().trim();
     let affiliateCode = 
@@ -82,7 +82,7 @@ export async function POST(req: Request) {
 
     // Fallback: check pending store by email if affiliateCode still not found
     if (!affiliateCode && email) {
-      const pendingByEmail = getPendingTransaction(email);
+      const pendingByEmail = await getPendingTransactionAsync(email);
       if (pendingByEmail?.affiliateCode) {
         affiliateCode = pendingByEmail.affiliateCode;
       }

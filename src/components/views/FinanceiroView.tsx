@@ -194,7 +194,7 @@ export default function FinanceiroView() {
           total: feeToCharge,
           customer: {
             name: session?.user?.name || 'Cliente DecolaShop',
-            email: session?.user?.email || 'cliente@decolashop.com',
+            email: session?.user?.email || '',
             cpf: userCpf,
             phone: '11999999999'
           }
@@ -234,7 +234,7 @@ export default function FinanceiroView() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: session?.user?.email || 'cliente@decolashop.com',
+          email: session?.user?.email || '',
           plan: 'taxa_antecipacao',
           transactionId: pixData?.transactionId
         })

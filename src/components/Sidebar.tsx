@@ -51,8 +51,15 @@ const navItems = [
 
 export default function Sidebar({ currentView, onNavigate, isOpen, setIsOpen }: SidebarProps) {
   const { data: session } = useSession();
-  const rawEmail = session?.user?.email || 'usuario@decolashop.com';
+  const rawEmail = session?.user?.email || (typeof window !== 'undefined' ? localStorage.getItem('decolashop_user_email') || '' : '');
   const userEmail = rawEmail.toLowerCase().trim();
+
+  React.useEffect(() => {
+    if (session?.user?.email) {
+      localStorage.setItem('decolashop_user_email', session.user.email);
+    }
+  }, [session?.user?.email]);
+
   const userRole = (session?.user as any)?.role || '';
   const isNormalUser = userEmail === 'usuario@decolashop.com';
   const isAdmin = !isNormalUser && (

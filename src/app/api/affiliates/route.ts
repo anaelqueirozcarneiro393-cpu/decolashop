@@ -78,12 +78,38 @@ function getStoragePaths(): string[] {
   return paths;
 }
 
+import { createClient } from '@supabase/supabase-js';
+
+const SUPABASE_STORE_KEY = 'system:affiliates_store_v1';
+
+function getSupabase() {
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = 
+    process.env.SUPABASE_SERVICE_ROLE_KEY || 
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!supabaseUrl || !supabaseKey) return null;
+  return createClient(supabaseUrl, supabaseKey, { db: { schema: 'next_auth' } });
+}
+
 // In-memory cache
 let memoryStore: AffiliatesStore = {
   affiliates: [],
   sales: [],
   pendingTransactions: [],
 };
+
+export function saveLocalStore(store: AffiliatesStore) {
+  memoryStore = store;
+  const paths = getStoragePaths();
+  for (const filePath of paths) {
+    try {
+      fs.writeFileSync(filePath, JSON.stringify(store, null, 2), 'utf-8');
+    } catch (e) {
+      // In serverless environments (like Vercel), process.cwd() may be read-only, but /tmp will succeed
+    }
+  }
+}
 
 export function loadStore(): AffiliatesStore {
   const paths = getStoragePaths();
@@ -93,7 +119,6 @@ export function loadStore(): AffiliatesStore {
         const raw = fs.readFileSync(filePath, 'utf-8');
         const parsed = JSON.parse(raw);
         if (parsed && Array.isArray(parsed.affiliates) && Array.isArray(parsed.sales)) {
-          // If parsed has more affiliates or sales than memoryStore, update memoryStore
           if (parsed.affiliates.length >= memoryStore.affiliates.length) {
             memoryStore.affiliates = parsed.affiliates;
           }
@@ -106,22 +131,71 @@ export function loadStore(): AffiliatesStore {
         }
       }
     } catch (e) {
-      // Ignore read errors from non-existent or inaccessible paths
+      // Ignore read errors
     }
   }
   return memoryStore;
 }
 
-export function saveStore(store: AffiliatesStore) {
-  memoryStore = store;
-  const paths = getStoragePaths();
-  for (const filePath of paths) {
-    try {
-      fs.writeFileSync(filePath, JSON.stringify(store, null, 2), 'utf-8');
-    } catch (e) {
-      // In serverless environments (like Vercel), process.cwd() may be read-only, but /tmp will succeed
+export async function loadStoreFromSupabase(): Promise<AffiliatesStore> {
+  try {
+    const supabase = getSupabase();
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('verification_tokens')
+        .select('token')
+        .eq('identifier', SUPABASE_STORE_KEY)
+        .maybeSingle();
+
+      if (data?.token) {
+        const parsed = JSON.parse(data.token);
+        if (parsed && Array.isArray(parsed.affiliates) && Array.isArray(parsed.sales)) {
+          memoryStore = {
+            affiliates: parsed.affiliates,
+            sales: parsed.sales,
+            pendingTransactions: parsed.pendingTransactions || []
+          };
+          saveLocalStore(memoryStore);
+          return memoryStore;
+        }
+      }
     }
+  } catch (err) {
+    console.warn('[AFILIADOS] Erro ao carregar do Supabase, usando cache local:', err);
   }
+  return loadStore();
+}
+
+export async function saveStoreToSupabase(store: AffiliatesStore) {
+  saveLocalStore(store);
+  try {
+    const supabase = getSupabase();
+    if (supabase) {
+      const token = JSON.stringify(store);
+      const { error } = await supabase
+        .from('verification_tokens')
+        .update({ token, expires: new Date('2099-01-01').toISOString() })
+        .eq('identifier', SUPABASE_STORE_KEY);
+
+      if (error) {
+        await supabase
+          .from('verification_tokens')
+          .insert({
+            identifier: SUPABASE_STORE_KEY,
+            token,
+            expires: new Date('2099-01-01').toISOString()
+          });
+      }
+    }
+  } catch (err) {
+    console.error('[AFILIADOS] Erro ao sincronizar com Supabase:', err);
+  }
+}
+
+export function saveStore(store: AffiliatesStore) {
+  saveLocalStore(store);
+  // Persist to Supabase asynchronously without blocking
+  saveStoreToSupabase(store).catch(() => {});
 }
 
 /**
@@ -144,6 +218,26 @@ export function registerPendingTransaction(tx: PendingTransaction) {
 
   saveStore(store);
   console.log(`[AFILIADOS SERVER] Transação pendente registrada: ${tx.transactionId} - Afiliado: ${tx.affiliateCode || 'NENHUM'} - Cliente: ${tx.email}`);
+}
+
+/**
+ * Retrieve pending transaction details asynchronously checking both cache and Supabase
+ */
+export async function getPendingTransactionAsync(idOrEmail: string): Promise<PendingTransaction | null> {
+  const local = getPendingTransaction(idOrEmail);
+  if (local) return local;
+
+  const store = await loadStoreFromSupabase();
+  if (!store.pendingTransactions || !idOrEmail) return null;
+  const clean = idOrEmail.trim().toLowerCase();
+
+  const found = store.pendingTransactions.find(
+    p => (p.transactionId && p.transactionId.toLowerCase() === clean) ||
+         (p.clientIdentifier && p.clientIdentifier.toLowerCase() === clean) ||
+         (p.email && p.email.toLowerCase() === clean)
+  );
+
+  return found || null;
 }
 
 /**
@@ -249,7 +343,7 @@ export function recordAffiliateSaleOnServer(params: {
 }
 
 export async function GET() {
-  const store = loadStore();
+  const store = await loadStoreFromSupabase();
   return NextResponse.json({
     success: true,
     affiliates: store.affiliates,
@@ -261,7 +355,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const action = body.action;
-    const store = loadStore();
+    const store = await loadStoreFromSupabase();
 
     if (action === 'create') {
       const data = body.affiliate;
@@ -294,7 +388,7 @@ export async function POST(req: Request) {
       };
 
       store.affiliates.unshift(newAffiliate);
-      saveStore(store);
+      await saveStoreToSupabase(store);
       return NextResponse.json({ success: true, affiliate: newAffiliate });
     }
 
@@ -306,14 +400,14 @@ export async function POST(req: Request) {
       }
 
       store.affiliates[idx] = { ...store.affiliates[idx], ...updates };
-      saveStore(store);
+      await saveStoreToSupabase(store);
       return NextResponse.json({ success: true, affiliate: store.affiliates[idx] });
     }
 
     if (action === 'delete') {
       const { id } = body;
       store.affiliates = store.affiliates.filter(a => a.id !== id);
-      saveStore(store);
+      await saveStoreToSupabase(store);
       return NextResponse.json({ success: true });
     }
 
@@ -332,20 +426,20 @@ export async function POST(req: Request) {
           }
         });
 
-        saveStore(store);
+        await saveStoreToSupabase(store);
       }
       return NextResponse.json({ success: true, affiliate: aff });
     }
 
     if (action === 'record_sale') {
       const sale = recordAffiliateSaleOnServer(body.sale);
+      await saveStoreToSupabase(store);
       return NextResponse.json({ success: true, sale });
     }
 
     if (action === 'sync_all') {
       // Sync from admin interface
       if (Array.isArray(body.affiliates)) {
-        // Merge affiliates preserving metrics
         const existingCodes = new Set(store.affiliates.map(a => a.code.toLowerCase()));
         for (const aff of body.affiliates) {
           if (!existingCodes.has(aff.code.toLowerCase())) {
@@ -361,7 +455,7 @@ export async function POST(req: Request) {
           }
         }
       }
-      saveStore(store);
+      await saveStoreToSupabase(store);
       return NextResponse.json({ success: true, store });
     }
 

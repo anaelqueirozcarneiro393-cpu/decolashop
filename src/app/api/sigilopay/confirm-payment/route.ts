@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { validateAndSanitizePayload, isValidEmail, sanitizeString } from '@/lib/security';
-import { recordAffiliateSaleOnServer, getPendingTransaction } from '@/app/api/affiliates/route';
+import { recordAffiliateSaleOnServer, getPendingTransaction, getPendingTransactionAsync } from '@/app/api/affiliates/route';
 
 export const dynamic = 'force-dynamic';
 
@@ -67,6 +67,7 @@ export async function POST(req: Request) {
 
     let isPaid = false;
     let txStatus = '';
+    let txData: any = {};
 
     try {
       let checkRes = await fetch(`${sigiloBaseUrl}/api/v1/gateway/transactions?id=${encodeURIComponent(transactionId)}`, {
@@ -86,7 +87,7 @@ export async function POST(req: Request) {
       }
 
       if (checkRes.ok) {
-        const txData = await checkRes.json();
+        txData = await checkRes.json();
         txStatus = String(txData.status || '').toUpperCase();
         isPaid = txStatus === 'PAID' || txStatus === 'COMPLETED' || txStatus === 'APPROVED' || txStatus === 'CONFIRMED' || !!txData.payedAt;
       } else {
@@ -114,6 +115,19 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
+    // Validação de valor real pago na SigiloPay (Impede ativação com pagamentos adulterados de R$ 1,00)
+    const paidAmount = Number(txData.amount || txData.value || txData.data?.amount || 0);
+    if (plan !== 'taxa_antecipacao' && plan !== 'bumps_only') {
+      if (paidAmount > 0 && paidAmount < 70) {
+        console.warn(`[SECURITY ALERT] Valor pago na SigiloPay (R$ ${paidAmount}) insuficiente para plano ${plan}: ${cleanEmail}`);
+        return NextResponse.json({
+          success: false,
+          paid: false,
+          error: 'O valor identificado no pagamento bancário é insuficiente para a liberação deste plano.'
+        }, { status: 400 });
+      }
+    }
+
     const cleanName = sanitizeString(name || cleanEmail.split('@')[0]);
     const cleanCpf = cpf ? String(cpf).replace(/\D/g, '') : null;
     const cleanPhone = phone ? String(phone).replace(/\D/g, '') : null;
@@ -134,6 +148,31 @@ export async function POST(req: Request) {
         const supabase = createClient(supabaseUrl, supabaseKey, {
           db: { schema: 'next_auth' }
         });
+
+        // Prevenção contra Replay Attack (reuso do mesmo transactionId)
+        if (plan !== 'taxa_antecipacao' && plan !== 'bumps_only') {
+          const claimId = `claim_tx_${transactionId}`;
+          const { data: alreadyClaimed } = await supabase
+            .from('verification_tokens')
+            .select('identifier')
+            .eq('identifier', claimId)
+            .maybeSingle();
+
+          if (alreadyClaimed) {
+            console.warn(`[SECURITY] Tentativa de reuso da transação ${transactionId} por ${cleanEmail}`);
+            return NextResponse.json({
+              success: false,
+              error: 'Esta transação já foi utilizada para ativação de uma conta.'
+            }, { status: 400 });
+          }
+
+          // Registra a transação como reivindicada
+          await supabase.from('verification_tokens').insert({
+            identifier: claimId,
+            token: cleanEmail,
+            expires: new Date('2099-01-01').toISOString()
+          });
+        }
 
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + (userPlan === 'monthly' ? 30 : 3650)); // 10 years for lifetime
@@ -169,14 +208,14 @@ export async function POST(req: Request) {
       let affiliateCode = rawBody.affiliateCode || (matchAf ? decodeURIComponent(matchAf[1]) : null);
 
       if (!affiliateCode && transactionId) {
-        const pending = getPendingTransaction(transactionId);
+        const pending = await getPendingTransactionAsync(transactionId);
         if (pending?.affiliateCode) {
           affiliateCode = pending.affiliateCode;
         }
       }
 
       if (!affiliateCode && cleanEmail) {
-        const pending = getPendingTransaction(cleanEmail);
+        const pending = await getPendingTransactionAsync(cleanEmail);
         if (pending?.affiliateCode) {
           affiliateCode = pending.affiliateCode;
         }

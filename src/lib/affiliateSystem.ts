@@ -243,8 +243,13 @@ export async function syncAffiliatesFromServer(): Promise<{ affiliates: Affiliat
         (data.sales || []).forEach((s: AffiliateSale) => mergedSalesMap.set(s.id, s));
         const mergedSales = Array.from(mergedSalesMap.values()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
-        localStorage.setItem(AFFILIATES_STORAGE_KEY, JSON.stringify(mergedAffiliates));
-        localStorage.setItem(AFFILIATE_SALES_STORAGE_KEY, JSON.stringify(mergedSales));
+        const prevRawAff = localStorage.getItem(AFFILIATES_STORAGE_KEY) || '[]';
+        const prevRawSales = localStorage.getItem(AFFILIATE_SALES_STORAGE_KEY) || '[]';
+        const nextRawAff = JSON.stringify(mergedAffiliates);
+        const nextRawSales = JSON.stringify(mergedSales);
+
+        localStorage.setItem(AFFILIATES_STORAGE_KEY, nextRawAff);
+        localStorage.setItem(AFFILIATE_SALES_STORAGE_KEY, nextRawSales);
 
         // Se havia afiliados ou vendas locais que não estavam no servidor, sincroniza o servidor
         if (mergedAffiliates.length > data.affiliates.length || mergedSales.length > (data.sales || []).length) {
@@ -255,8 +260,12 @@ export async function syncAffiliatesFromServer(): Promise<{ affiliates: Affiliat
           }).catch(() => {});
         }
 
-        window.dispatchEvent(new Event('decolashop_affiliates_updated'));
-        window.dispatchEvent(new Event('decolashop_affiliate_sales_updated'));
+        if (prevRawAff !== nextRawAff) {
+          window.dispatchEvent(new Event('decolashop_affiliates_updated'));
+        }
+        if (prevRawSales !== nextRawSales) {
+          window.dispatchEvent(new Event('decolashop_affiliate_sales_updated'));
+        }
         return { affiliates: mergedAffiliates, sales: mergedSales };
       }
     }

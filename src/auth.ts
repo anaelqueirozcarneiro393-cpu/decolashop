@@ -258,6 +258,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
             if (dbUser?.plan) {
               token.plan = dbUser.plan;
+            } else if (
+              token.email !== "gerente@decolashop.com" && 
+              token.email !== "admin@decolashop.com" && 
+              token.email !== "usuario@decolashop.com"
+            ) {
+              // Conta foi excluída ou desativada no banco de dados
+              token.plan = "unauthorized";
             }
             if (dbUser?.image && dbUser.image.startsWith("{")) {
               try {

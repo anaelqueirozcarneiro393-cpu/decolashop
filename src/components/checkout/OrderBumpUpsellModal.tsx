@@ -152,7 +152,7 @@ export default function OrderBumpUpsellModal() {
           total: totalPrice,
           customer: {
             name: session?.user?.name || 'Cliente DecolaShop',
-            email: session?.user?.email || 'cliente@decolashop.com',
+            email: session?.user?.email || '',
             cpf: userCpf,
             phone: '11999999999'
           }
@@ -189,26 +189,37 @@ export default function OrderBumpUpsellModal() {
   };
 
   const handleConfirmPix = async () => {
+    if (!session?.user?.email) {
+      toast.error('Sessão expirada. Faça login novamente.');
+      return;
+    }
     setIsConfirming(true);
 
     try {
-      // 1. Activate in database
-      await fetch('/api/sigilopay/confirm-payment', {
+      // 1. Activate in database with verified payment check
+      const confirmRes = await fetch('/api/sigilopay/confirm-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: session?.user?.email,
+          email: session.user.email,
           bumps: selectedBumps,
+          total: totalPrice,
           transactionId: pixData?.transactionId
         })
       });
 
-      // 2. Unlock locally immediately
-      unlockOrderBumpsLocally(selectedBumps);
-      toast.success('🎉 Pacotes adicionais liberados na sua conta!');
-      setStep('success');
+      const confirmData = await confirmRes.json();
+
+      if (confirmRes.ok && confirmData.success) {
+        // 2. Unlock locally only after payment is strictly confirmed
+        unlockOrderBumpsLocally(selectedBumps);
+        toast.success('🎉 Pagamento confirmado! Pacotes adicionais liberados na sua conta!');
+        setStep('success');
+      } else {
+        toast.error(confirmData.error || 'Pagamento via PIX ainda não identificado. Conclua a transferência no app do seu banco e tente novamente em instantes.');
+      }
     } catch {
-      toast.error('Erro ao confirmar pagamento. Tente novamente.');
+      toast.error('Erro de conexão ao confirmar pagamento. Tente novamente em instantes.');
     } finally {
       setIsConfirming(false);
     }

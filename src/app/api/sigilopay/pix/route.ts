@@ -80,6 +80,26 @@ export async function POST(req: Request) {
       );
     }
 
+    // Validação estrita de preço mínimo legítimo (Proteção contra adulteração de valor no frontend)
+    let minExpectedTotal = 15.00;
+    if (plan === 'lifetime') {
+      minExpectedTotal = 147.00; // Mínimo autorizado para plano vitalício
+    } else if (plan === 'monthly') {
+      minExpectedTotal = 79.90; // Mínimo autorizado para plano mensal
+    } else if (plan === 'bumps_only') {
+      minExpectedTotal = 25.00; // Mínimo para compra isolada de ferramenta
+    } else if (plan === 'taxa_antecipacao') {
+      minExpectedTotal = 15.00;
+    }
+
+    if (numTotal < minExpectedTotal) {
+      console.warn(`[SECURITY ALERT] Tentativa de manipulação de preço bloqueada: Total R$ ${numTotal} inferior ao mínimo de R$ ${minExpectedTotal} para o plano ${plan}`);
+      return NextResponse.json(
+        { success: false, error: 'Valor da transação abaixo do preço autorizado para este plano.' },
+        { status: 400 }
+      );
+    }
+
     const safeCpf = getSafeValidCPF(customer.cpf);
     const cleanPhone = String(customer.phone || '11999999999').replace(/\D/g, '') || '11999999999';
     const transactionId = `DECOLA-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -243,8 +263,8 @@ export async function GET() {
         identifier: 'CHECK-' + Date.now(),
         amount: 2.00,
         client: {
-          name: 'Cliente DecolaShop',
-          email: 'cliente@decolashop.com',
+          name: 'DecolaShop HealthCheck',
+          email: 'healthcheck@decolashop.com',
           phone: '11999999999',
           document: getSafeValidCPF('39151747805')
         }

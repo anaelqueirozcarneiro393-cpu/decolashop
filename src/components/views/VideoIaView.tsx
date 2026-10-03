@@ -105,7 +105,7 @@ export default function VideoIaView({ product, onNavigate }: VideoIaViewProps) {
           total: 27.90,
           customer: {
             name: session?.user?.name || 'Cliente DecolaShop',
-            email: session?.user?.email || 'cliente@decolashop.com',
+            email: session?.user?.email || '',
             cpf: userCpf,
             phone: '11999999999'
           }
@@ -136,27 +136,38 @@ export default function VideoIaView({ product, onNavigate }: VideoIaViewProps) {
   };
 
   const handleConfirmPix = async () => {
+    if (!session?.user?.email) {
+      toast.error('Sessão expirada. Faça login novamente.');
+      return;
+    }
     setIsConfirmingPix(true);
     try {
-      await fetch('/api/sigilopay/confirm-payment', {
+      const confirmRes = await fetch('/api/sigilopay/confirm-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: session?.user?.email || 'cliente@decolashop.com',
+          email: session.user.email,
           bumps: ['bump_gerador_videos_ia'],
+          total: 27.90,
           transactionId: pixData?.transactionId
         })
       });
 
-      unlockOrderBumpsLocally('bump_gerador_videos_ia');
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('decolashop_unlocked_video_ia', 'true');
+      const confirmData = await confirmRes.json();
+
+      if (confirmRes.ok && confirmData.success) {
+        unlockOrderBumpsLocally('bump_gerador_videos_ia');
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('decolashop_unlocked_video_ia', 'true');
+        }
+        setIsUnlockedGenerator(true);
+        setShowPixModal(false);
+        toast.success('🎉 Pagamento confirmado! Gerador de Vídeos com IA liberado com Acesso Vitalício!');
+      } else {
+        toast.error(confirmData.error || 'Pagamento via PIX ainda não identificado no sistema bancário. Conclua a transferência no app do seu banco e tente novamente.');
       }
-      setIsUnlockedGenerator(true);
-      setShowPixModal(false);
-      toast.success('🎉 Pagamento confirmado! Gerador de Vídeos com IA liberado com Acesso Vitalício!');
     } catch {
-      toast.error('Erro ao confirmar pagamento. Tente novamente.');
+      toast.error('Erro de conexão ao confirmar pagamento. Tente novamente.');
     } finally {
       setIsConfirmingPix(false);
     }
