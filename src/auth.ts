@@ -58,6 +58,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (email === "admin" || email === "gerente" || email === "admin@decolashop.com") {
           email = "gerente@decolashop.com";
         }
+        if (email === "usuario" || email === "user" || email === "demo") {
+          email = "usuario@decolashop.com";
+        }
+        if (email === "carlos" || email === "carlossouza" || email === "carlos souza" || email === "carlos.souza") {
+          email = "carlos.souza@decolashop.com";
+        }
 
         if (BLOCKED_EMAILS.includes(email)) {
           return null;
