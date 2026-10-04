@@ -11,7 +11,8 @@ export default function PerfilView() {
   const rawEmail = session?.user?.email || 'usuario@decolashop.com';
   const userEmail = rawEmail.toLowerCase().trim();
   const userRole = (session?.user as any)?.role || '';
-  const isNormalUser = userEmail === 'usuario@decolashop.com';
+  const isCarlos = userEmail === 'carlos.souza@decolashop.com' || userEmail === 'carlos@decolashop.com';
+  const isNormalUser = userEmail === 'usuario@decolashop.com' || isCarlos;
   const isAdmin = !isNormalUser && (
     userEmail === 'gerente@decolashop.com' ||
     userEmail.includes('admin') || 

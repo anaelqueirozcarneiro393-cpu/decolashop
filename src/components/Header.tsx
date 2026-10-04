@@ -17,7 +17,8 @@ export default function Header({ onMenuClick, session: propSession }: HeaderProp
   const isAuthenticated = !!session;
   const userEmail = session?.user?.email?.toLowerCase().trim() || '';
   const userRole = (session?.user as any)?.role || '';
-  const isNormalUser = userEmail === 'usuario@decolashop.com';
+  const isCarlos = userEmail === 'carlos.souza@decolashop.com' || userEmail === 'carlos@decolashop.com';
+  const isNormalUser = userEmail === 'usuario@decolashop.com' || isCarlos;
   const isAdmin = !isNormalUser && (
     userEmail === 'gerente@decolashop.com' ||
     userEmail.includes('admin') || 
@@ -26,6 +27,7 @@ export default function Header({ onMenuClick, session: propSession }: HeaderProp
     userRole === 'admin'
   );
   const userBadge = isAdmin ? 'Gerente' : 'Membro VIP';
+  const canUseQuickActions = isAdmin || userEmail === 'usuario@decolashop.com' || isCarlos;
 
   const { isSoundEnabled, toggleSound, recentSales } = useSales();
   const { hideEmail, toggleHideEmail, maskEmail } = usePrivacy();
@@ -181,7 +183,15 @@ export default function Header({ onMenuClick, session: propSession }: HeaderProp
         <div className="h-6 w-[1px] bg-white/10 mx-1 hidden sm:block" />
 
         {isAuthenticated ? (
-          <div className="flex items-center gap-3 pl-1 cursor-pointer group">
+          <div 
+            onClick={() => {
+              if (canUseQuickActions) {
+                window.dispatchEvent(new CustomEvent('decolashop_open_admin_actions'));
+              }
+            }}
+            title={canUseQuickActions ? "Atalhos & Simulação (clique para abrir)" : undefined}
+            className="flex items-center gap-3 pl-1 cursor-pointer group"
+          >
             <div className="flex flex-col items-end hidden sm:flex">
               <span className="text-xs font-bold text-slate-200 group-hover:text-[#4ade80] transition-colors">
                 {hideEmail ? maskEmail(session.user?.email || 'gerente@decolashop.com') : (session.user?.name || session.user?.email || 'gerente@decolashop.com')}

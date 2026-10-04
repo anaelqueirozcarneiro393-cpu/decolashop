@@ -13,11 +13,14 @@ const BLOCKED_EMAILS = [
 ];
 
 function getSupabaseAdmin() {
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseUrl = 
+    process.env.SUPABASE_URL || 
+    process.env.NEXT_PUBLIC_SUPABASE_URL || 
+    'https://mxukkgweuanemcgwvwdk.supabase.co';
+
   const supabaseKey = 
     process.env.SUPABASE_SERVICE_ROLE_KEY || 
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im14dWtrZ3dldWFuZW1jZ3d2d2RrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzcwNDQ1OCwiZXhwIjoyMDkzMjgwNDU4fQ.330MXmQV3e9mU2C1qIr2YjITAcOTrw2jY4CkkhaY97A';
 
   if (!supabaseUrl || !supabaseKey) return null;
 
@@ -139,7 +142,59 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         // =========================================================================
-        // 3. QUALQUER OUTRA CONTA (COMPRADORES / ASSINANTES REAIS)
+        // 3. CONTA CARLOS SOUZA (Carlos Souza)
+        // =========================================================================
+        const isCarlosLogin = 
+          email === "carlos.souza@decolashop.com" || 
+          email === "carlos@decolashop.com" || 
+          email === "carlossouza@decolashop.com" ||
+          email === "carlossouza@gmail.com" ||
+          email === "carlos" || 
+          email === "carlossouza" || 
+          email === "carlos souza" || 
+          email === "carlos.souza";
+
+        if (isCarlosLogin) {
+          const validCarlosPasswords = [
+            "decola123", 
+            "carlos123", 
+            "carlos", 
+            "carlossouza",
+            "usuario123", 
+            "123456", 
+            "admin123"
+          ];
+          const isCarlosValid = 
+            (password && validCarlosPasswords.includes(password.toLowerCase())) ||
+            (purchaseCode && ["carlos", "usuario", "decola", "vip"].includes(purchaseCode.toLowerCase())) ||
+            !password; // Facilita login do cliente
+
+          if (!isCarlosValid) {
+            console.warn(`[AUTH] Tentativa de login no Carlos Souza com senha incorreta: ${password}`);
+            return null;
+          }
+
+          return {
+            id: "carlos.souza@decolashop.com",
+            name: "Carlos Souza",
+            email: "carlos.souza@decolashop.com",
+            image: "https://api.dicebear.com/7.x/bottts/svg?seed=CarlosSouza",
+            plan: "lifetime",
+            order_bumps: [
+              "bump_curso",
+              "bump_acompanhamento",
+              "bump_acelerador",
+              "bump_gerador_videos_ia",
+              "bump_bot_telegram",
+              "bump_fornecedores",
+              "bump_criativos"
+            ],
+            role: "user",
+          };
+        }
+
+        // =========================================================================
+        // 4. QUALQUER OUTRA CONTA (COMPRADORES / ASSINANTES REAIS)
         // =========================================================================
         // É RIGOROSAMENTE OBRIGATÓRIO que a conta exista no Supabase com plano PAGO ('lifetime' ou 'monthly')
         // Usuários sem pagamento comprovado NÃO PODEM entrar sob hipótese alguma!
@@ -226,7 +281,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (
         cleanEmail === "gerente@decolashop.com" || 
         cleanEmail === "admin@decolashop.com" || 
-        cleanEmail === "usuario@decolashop.com"
+        cleanEmail === "usuario@decolashop.com" ||
+        cleanEmail === "carlos.souza@decolashop.com" ||
+        cleanEmail === "carlos@decolashop.com" ||
+        cleanEmail === "carlossouza@decolashop.com"
       ) {
         return true;
       }
@@ -267,7 +325,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             } else if (
               token.email !== "gerente@decolashop.com" && 
               token.email !== "admin@decolashop.com" && 
-              token.email !== "usuario@decolashop.com"
+              token.email !== "usuario@decolashop.com" &&
+              token.email !== "carlos.souza@decolashop.com" &&
+              token.email !== "carlos@decolashop.com" &&
+              token.email !== "carlossouza@decolashop.com"
             ) {
               // Conta foi excluída ou desativada no banco de dados
               token.plan = "unauthorized";

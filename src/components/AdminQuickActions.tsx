@@ -126,8 +126,14 @@ export default function AdminQuickActions() {
       }
     };
 
+    const handleCustomOpen = () => setIsOpen((prev) => !prev);
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('decolashop_open_admin_actions', handleCustomOpen);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('decolashop_open_admin_actions', handleCustomOpen);
+    };
   }, [canUseQuickActions, addSale, resetData]);
 
   // Se não tiver permissão para os atalhos ou se o painel estiver fechado, NÃO renderiza absolutamente nada na tela
