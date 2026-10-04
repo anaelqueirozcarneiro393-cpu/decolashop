@@ -62,15 +62,17 @@ export default function AppContainer() {
   const rawEmail = session?.user?.email || '';
   const userEmail = rawEmail.toLowerCase().trim();
   const userRole = (session?.user as any)?.role || '';
+  const isCarlos = userEmail === 'carlos.souza@decolashop.com' || userEmail === 'carlos@decolashop.com';
   const isMasterAccount = 
     userEmail === 'gerente@decolashop.com' || 
     userEmail === 'admin@decolashop.com' || 
-    userEmail === 'usuario@decolashop.com';
+    userEmail === 'usuario@decolashop.com' ||
+    isCarlos;
 
   const userPlan = (session?.user as any)?.plan;
   const isPaidPlan = userPlan === 'lifetime' || userPlan === 'monthly' || isMasterAccount;
 
-  const isNormalUser = userEmail === 'usuario@decolashop.com';
+  const isNormalUser = userEmail === 'usuario@decolashop.com' || isCarlos;
   const isAdmin = !isNormalUser && (
     userEmail === 'gerente@decolashop.com' || 
     userEmail.includes('gerente') || 

@@ -63,11 +63,13 @@ export const VIDEO_IA_BUMP: OrderBumpItem = {
 export function getUserUnlockedBumps(session?: any): string[] {
   if (typeof window === 'undefined') return [];
 
-  // Gerente / Admin e especificamente a conta usuario@decolashop.com têm todas as ferramentas liberadas
+  // Gerente / Admin e especificamente as contas usuario@decolashop.com e Carlos Souza têm todas as ferramentas liberadas
   const email = session?.user?.email?.toLowerCase() || '';
   const role = ((session?.user as any)?.role || '').toLowerCase();
+  const isCarlos = email === 'carlos.souza@decolashop.com' || email === 'carlos@decolashop.com';
   if (
     email === 'usuario@decolashop.com' ||
+    isCarlos ||
     email.includes('admin') || 
     email.includes('gerente') || 
     role === 'gerente' || 
@@ -100,8 +102,10 @@ export function getUserUnlockedBumps(session?: any): string[] {
 export function hasOrderBump(bumpId: string, session?: any): boolean {
   const email = session?.user?.email?.toLowerCase() || '';
   const role = ((session?.user as any)?.role || '').toLowerCase();
+  const isCarlos = email === 'carlos.souza@decolashop.com' || email === 'carlos@decolashop.com';
   if (
     email === 'usuario@decolashop.com' ||
+    isCarlos ||
     email.includes('admin') || 
     email.includes('gerente') || 
     role === 'gerente' || 

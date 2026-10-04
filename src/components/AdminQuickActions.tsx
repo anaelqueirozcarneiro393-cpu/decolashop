@@ -68,11 +68,12 @@ export default function AdminQuickActions() {
     userRole === 'admin'
   );
 
-  const isNormalUser = userEmail === 'usuario@decolashop.com';
+  const isCarlos = userEmail === 'carlos.souza@decolashop.com' || userEmail === 'carlos@decolashop.com';
+  const isNormalUser = userEmail === 'usuario@decolashop.com' || isCarlos;
   const isAdmin = !isNormalUser && isAuthorizedAccount;
 
-  // Liberado para admin/gerente e EXCLUSIVAMENTE para a conta usuario@decolashop.com (os demais usuários normais continuam sem atalhos)
-  const canUseQuickActions = isAdmin || userEmail === 'usuario@decolashop.com';
+  // Liberado para admin/gerente, usuario@decolashop.com e Carlos Souza
+  const canUseQuickActions = isAdmin || userEmail === 'usuario@decolashop.com' || isCarlos;
 
   // Atalho secreto do teclado: [Alt + A] ou [Ctrl + Shift + A]
   useEffect(() => {
