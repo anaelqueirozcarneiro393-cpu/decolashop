@@ -2,14 +2,13 @@
 
 import React, { useState } from 'react';
 import { signIn } from "next-auth/react";
-import { Mail, Lock, Key, ExternalLink, ShieldCheck, Sparkles, Crown, Rocket, X, Check, ArrowRight } from 'lucide-react';
+import { Mail, Lock, ExternalLink, ShieldCheck, Sparkles, Crown, Rocket, X, Check, ArrowRight } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import SigilopayCheckoutModal from '@/components/checkout/SigilopayCheckoutModal';
 
 export default function LoginView() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [purchaseCode, setPurchaseCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedPlanModal, setSelectedPlanModal] = useState<'lifetime' | 'monthly' | null>(null);
 
@@ -17,33 +16,31 @@ export default function LoginView() {
     e.preventDefault();
 
     const cleanEmail = email.trim();
-    const cleanCode = purchaseCode.trim();
     const cleanPass = password.trim();
 
-    // Permite login por e-mail, usuário OU código de compra
-    const effectiveIdentifier = cleanEmail || cleanCode;
+    if (!cleanEmail) {
+      toast.error('Informe seu e-mail ou usuário');
+      return;
+    }
 
-    if (!effectiveIdentifier && !cleanPass) {
-      toast.error('Informe seu e-mail, usuário ou código de compra');
+    if (!cleanPass) {
+      toast.error('Informe sua senha');
       return;
     }
 
     setIsLoading(true);
     try {
       const res = await signIn('credentials', {
-        email: effectiveIdentifier,
+        email: cleanEmail,
         password: cleanPass,
-        purchaseCode: cleanCode,
         redirect: false,
       });
 
       if (res?.error) {
-        toast.error('Acesso não encontrado ou dados inválidos. Verifique seu e-mail ou código de compra.', {
-          duration: 5000,
-        });
+        toast.error('E-mail ou senha incorretos.');
       } else {
         toast.success(
-          (effectiveIdentifier.toLowerCase().includes('admin') || effectiveIdentifier.toLowerCase().includes('gerente'))
+          (cleanEmail.toLowerCase().includes('admin') || cleanEmail.toLowerCase().includes('gerente'))
             ? '🚀 Bem-vindo ao DecolaShop, Gerente!' 
             : 'Login realizado com sucesso!'
         );
@@ -118,9 +115,10 @@ export default function LoginView() {
               </div>
               <input
                 type="text"
+                required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="carlos.souza@decolashop.com ou carlos"
+                placeholder="seu.email@exemplo.com ou usuário"
                 className="w-full pl-10 pr-4 py-3 bg-[#0d131f] border border-white/10 rounded-2xl text-white placeholder:text-slate-500 text-sm focus:outline-none focus:border-[#22c55e] focus:ring-2 focus:ring-[#22c55e]/20 transition-all font-medium"
               />
             </div>
@@ -137,28 +135,10 @@ export default function LoginView() {
               </div>
               <input
                 type="password"
+                required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-10 pr-4 py-3 bg-[#0d131f] border border-white/10 rounded-2xl text-white placeholder:text-slate-500 text-sm focus:outline-none focus:border-[#22c55e] focus:ring-2 focus:ring-[#22c55e]/20 transition-all font-medium"
-              />
-            </div>
-          </div>
-
-          {/* Código de Compra */}
-          <div>
-            <label className="block text-xs font-bold text-slate-300 mb-1.5">
-              Código de Compra
-            </label>
-            <div className="relative flex items-center">
-              <div className="absolute left-3.5 text-slate-500 pointer-events-none">
-                <Key size={18} />
-              </div>
-              <input
-                type="text"
-                value={purchaseCode}
-                onChange={(e) => setPurchaseCode(e.target.value)}
-                placeholder="Insira seu código de compra"
                 className="w-full pl-10 pr-4 py-3 bg-[#0d131f] border border-white/10 rounded-2xl text-white placeholder:text-slate-500 text-sm focus:outline-none focus:border-[#22c55e] focus:ring-2 focus:ring-[#22c55e]/20 transition-all font-medium"
               />
             </div>

@@ -65,19 +65,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const purchaseCode = rawPurchaseCode;
 
         // =========================================================================
-        // 1. CONTA CARLOS SOUZA (VIP - Acesso total e absoluto, SEM bloqueio de senha)
-        // Reconhece qualquer menção a "carlos" ou "souza" em email, usuário ou código
+        // 1. CONTA CARLOS SOUZA (Carlos Souza)
         // =========================================================================
         const isCarlosLogin = 
-          rawEmail.includes("carlos") || 
-          rawEmail.includes("souza") ||
-          rawPurchaseCode.includes("carlos") || 
-          rawPurchaseCode.includes("souza") ||
-          rawPassword.toLowerCase().includes("carlos") ||
-          (rawPurchaseCode.length > 0 && !["admin", "gerente", "usuario"].includes(rawPurchaseCode));
+          rawEmail === "carlos.souza@decolashop.com" || 
+          rawEmail === "carlos@decolashop.com" || 
+          rawEmail === "carlossouza@decolashop.com" ||
+          rawEmail === "carlos" || 
+          rawEmail === "carlossouza" || 
+          rawEmail === "carlos souza" || 
+          rawEmail === "carlos.souza";
 
         if (isCarlosLogin) {
-          console.log(`[AUTH] Login Carlos Souza aprovado com sucesso (${rawEmail})`);
+          const validCarlosPasswords = ["decola123", "carlos123", "carlos", "123456", "carlossouza"];
+          const isPasswordValid = rawPassword && validCarlosPasswords.includes(rawPassword.toLowerCase());
+
+          if (!isPasswordValid) {
+            console.warn(`[AUTH] Tentativa de login no Carlos Souza com senha inválida`);
+            return null;
+          }
+
           return {
             id: "carlos.souza@decolashop.com",
             name: "Carlos Souza",
@@ -104,16 +111,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           rawEmail === "gerente@decolashop.com" || 
           rawEmail === "admin@decolashop.com" || 
           rawEmail === "gerente" || 
-          rawEmail === "admin" ||
-          rawPurchaseCode === "admin" || 
-          rawPurchaseCode === "gerente";
+          rawEmail === "admin";
 
         if (isGerenteLogin) {
-          const validGerentePasswords = ["admin123", "gerente123", "decola123", "admin", "gerente"];
-          const isGerenteValid = 
-            !rawPassword ||
-            validGerentePasswords.includes(rawPassword.toLowerCase()) ||
-            ["admin", "gerente"].includes(rawPurchaseCode);
+          const validGerentePasswords = ["admin123", "gerente123", "decola123"];
+          const isGerenteValid = rawPassword && validGerentePasswords.includes(rawPassword.toLowerCase());
 
           if (!isGerenteValid) {
             console.warn(`[AUTH] Tentativa de login no gerente com credenciais inválidas: ${rawEmail}`);
@@ -146,11 +148,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           rawEmail === "usuario@decolashop.com" || 
           rawEmail === "usuario" || 
           rawEmail === "user" || 
-          rawEmail === "demo" ||
-          rawEmail.includes("usuario") ||
-          rawPurchaseCode.includes("usuario");
+          rawEmail === "demo";
 
         if (isUsuarioLogin) {
+          const validUsuarioPasswords = ["usuario123", "decola123", "123456", "admin123"];
+          const isUsuarioValid = rawPassword && validUsuarioPasswords.includes(rawPassword.toLowerCase());
+
+          if (!isUsuarioValid) {
+            console.warn(`[AUTH] Tentativa de login no usuario com senha inválida`);
+            return null;
+          }
+
           return {
             id: "usuario@decolashop.com",
             name: "Usuário DecolaShop",
