@@ -342,253 +342,254 @@ export default function SigilopayCheckoutModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="max-w-lg w-full bg-[#0d121f] border border-[#22c55e]/30 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-2xl relative my-auto text-white max-h-[96vh] overflow-y-auto scrollbar-none">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md overflow-hidden animate-in fade-in duration-200">
+      <div className="max-w-lg w-full bg-[#0d121f] border border-[#22c55e]/30 rounded-2xl sm:rounded-3xl shadow-2xl relative text-white max-h-[92dvh] sm:max-h-[88vh] flex flex-col min-h-0 overflow-hidden">
         
-        {/* Close Button */}
+        {/* Global Close Button */}
         <button
           onClick={onClose}
           type="button"
-          className="absolute top-3 right-3 sm:top-4 sm:right-4 text-slate-400 hover:text-white p-1 rounded-xl bg-white/5 hover:bg-white/10 transition-colors z-20 cursor-pointer"
+          className="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 text-slate-400 hover:text-white p-1.5 rounded-xl bg-white/5 hover:bg-white/10 transition-colors z-30 cursor-pointer"
+          aria-label="Fechar"
         >
           <X size={18} />
         </button>
 
         {/* ================= STEP 1: FORM & ORDER BUMPS ================= */}
         {step === 'form' && (
-          <form onSubmit={handleGeneratePix} className="space-y-3.5">
-            {/* Header */}
-            <div className="text-center pr-6 pl-1">
+          <form onSubmit={handleGeneratePix} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+            {/* Pinned Header */}
+            <div className="px-4 pt-4 pb-2.5 sm:px-6 sm:pt-5 sm:pb-3 shrink-0 border-b border-white/5 pr-14 text-left">
               <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#22c55e]/15 text-[#4ade80] border border-[#22c55e]/30 text-[10px] font-black uppercase tracking-wider mb-1">
                 <Sparkles size={11} className="text-[#22c55e]" />
                 <span>Checkout Direto DecolaShop</span>
               </div>
-              <h2 className="text-lg sm:text-xl font-black text-white leading-tight">
+              <h2 className="text-base sm:text-xl font-black text-white leading-tight">
                 Cadastre-se & Ative seu <span className="text-[#22c55e]">Acesso VIP</span>
               </h2>
             </div>
 
-            {/* Plan Selector (Horizontal Pills) */}
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setSelectedPlan('lifetime')}
-                className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
-                  selectedPlan === 'lifetime'
-                    ? 'bg-[#22c55e]/15 border-[#22c55e] shadow-sm shadow-[#22c55e]/20'
-                    : 'bg-white/[0.02] border-white/10 hover:border-white/20'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-black text-white flex items-center gap-1">
-                    👑 Vitalício VIP
-                  </span>
-                  <span className="text-[9px] bg-[#22c55e] text-black font-black px-1.5 py-0.2 rounded-full uppercase">
-                    Popular
-                  </span>
-                </div>
-                <div className="flex items-baseline gap-1 mt-0.5">
-                  <span className="text-sm font-black text-[#4ade80]">R$ 179,90</span>
-                  <span className="text-[9px] text-slate-400 line-through">R$ 297</span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSelectedPlan('monthly')}
-                className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
-                  selectedPlan === 'monthly'
-                    ? 'bg-[#22c55e]/15 border-[#22c55e] shadow-sm shadow-[#22c55e]/20'
-                    : 'bg-white/[0.02] border-white/10 hover:border-white/20'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-black text-slate-300">⚡ Mensal</span>
-                </div>
-                <div className="flex items-baseline gap-1 mt-0.5">
-                  <span className="text-sm font-black text-white">R$ 89,90</span>
-                  <span className="text-[9px] text-slate-400">/mês</span>
-                </div>
-              </button>
-            </div>
-
-            {/* Customer Inputs (Compact 2x2 + Password) */}
-            <div className="space-y-2 bg-white/[0.02] p-3 rounded-xl border border-white/10">
-              <div className="text-[10px] font-black uppercase tracking-wider text-slate-300 flex items-center gap-1">
-                <Lock size={12} className="text-[#22c55e]" />
-                <span>Dados de Cadastro & Login</span>
-              </div>
-
+            {/* Scrollable Form Body */}
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-3 sm:px-6 sm:py-4 space-y-3.5 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full">
+              {/* Plan Selector (Horizontal Pills) */}
               <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-300 block mb-0.5">Nome Completo</label>
-                  <input
-                    type="text"
-                    required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Carlos Silva"
-                    className="w-full bg-[#111726] border border-white/15 rounded-lg py-1.5 px-2.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-[#22c55e]"
-                  />
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedPlan('lifetime')}
+                  className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                    selectedPlan === 'lifetime'
+                      ? 'bg-[#22c55e]/15 border-[#22c55e] shadow-sm shadow-[#22c55e]/20'
+                      : 'bg-white/[0.02] border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-black text-white flex items-center gap-1">
+                      👑 Vitalício VIP
+                    </span>
+                    <span className="text-[9px] bg-[#22c55e] text-black font-black px-1.5 py-0.2 rounded-full uppercase">
+                      Popular
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-1 mt-0.5">
+                    <span className="text-sm font-black text-[#4ade80]">R$ 179,90</span>
+                    <span className="text-[9px] text-slate-400 line-through">R$ 297</span>
+                  </div>
+                </button>
 
-                <div>
-                  <label className="text-[10px] font-bold text-slate-300 block mb-0.5">WhatsApp</label>
-                  <input
-                    type="tel"
-                    required
-                    value={phone}
-                    onChange={handlePhoneChange}
-                    placeholder="(11) 99999-9999"
-                    className="w-full bg-[#111726] border border-white/15 rounded-lg py-1.5 px-2.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-[#22c55e]"
-                  />
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedPlan('monthly')}
+                  className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                    selectedPlan === 'monthly'
+                      ? 'bg-[#22c55e]/15 border-[#22c55e] shadow-sm shadow-[#22c55e]/20'
+                      : 'bg-white/[0.02] border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-black text-slate-300">⚡ Mensal</span>
+                  </div>
+                  <div className="flex items-baseline gap-1 mt-0.5">
+                    <span className="text-sm font-black text-white">R$ 89,90</span>
+                    <span className="text-[9px] text-slate-400">/mês</span>
+                  </div>
+                </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-300 block mb-0.5">E-mail de Acesso</label>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="seuemail@gmail.com"
-                    className="w-full bg-[#111726] border border-white/15 rounded-lg py-1.5 px-2.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-[#22c55e]"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-bold text-slate-300 block mb-0.5">CPF (Válido)</label>
-                  <input
-                    type="text"
-                    required
-                    value={cpf}
-                    onChange={handleCpfChange}
-                    placeholder="000.000.000-00"
-                    className="w-full bg-[#111726] border border-white/15 rounded-lg py-1.5 px-2.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-[#22c55e]"
-                  />
-                </div>
-              </div>
-
-              {/* Password field */}
-              <div>
-                <label className="text-[10px] font-bold text-slate-300 block mb-0.5">Crie sua Senha de Acesso</label>
-                <div className="relative flex items-center">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    required
-                    minLength={6}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Mínimo 6 dígitos (usará para logar no site)"
-                    className="w-full bg-[#111726] border border-white/15 rounded-lg py-1.5 pl-2.5 pr-8 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-[#22c55e]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-2 text-slate-400 hover:text-white"
-                  >
-                    {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* ================= ULTRA-COMPACT ORDER BUMPS ================= */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
+              {/* Customer Inputs (Compact 2x2 + Password) */}
+              <div className="space-y-2 bg-white/[0.02] p-3 rounded-xl border border-white/10">
                 <div className="text-[10px] font-black uppercase tracking-wider text-slate-300 flex items-center gap-1">
-                  <Flame size={12} className="text-amber-400" />
-                  <span>Turbine sua Operação (Order Bumps)</span>
+                  <Lock size={12} className="text-[#22c55e]" />
+                  <span>Dados de Cadastro & Login</span>
                 </div>
-                <span className="text-[9px] text-[#4ade80] font-black bg-[#22c55e]/15 px-1.5 py-0.5 rounded-full border border-[#22c55e]/30">
-                  Desconto de até 80%
-                </span>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-300 block mb-0.5">Nome Completo</label>
+                    <input
+                      type="text"
+                      required
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Carlos Silva"
+                      className="w-full bg-[#111726] border border-white/15 rounded-lg py-1.5 px-2.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-[#22c55e]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-300 block mb-0.5">WhatsApp</label>
+                    <input
+                      type="tel"
+                      required
+                      value={phone}
+                      onChange={handlePhoneChange}
+                      placeholder="(11) 99999-9999"
+                      className="w-full bg-[#111726] border border-white/15 rounded-lg py-1.5 px-2.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-[#22c55e]"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-300 block mb-0.5">E-mail de Acesso</label>
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="seuemail@gmail.com"
+                      className="w-full bg-[#111726] border border-white/15 rounded-lg py-1.5 px-2.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-[#22c55e]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-300 block mb-0.5">CPF (Válido)</label>
+                    <input
+                      type="text"
+                      required
+                      value={cpf}
+                      onChange={handleCpfChange}
+                      placeholder="000.000.000-00"
+                      className="w-full bg-[#111726] border border-white/15 rounded-lg py-1.5 px-2.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-[#22c55e]"
+                    />
+                  </div>
+                </div>
+
+                {/* Password field */}
+                <div>
+                  <label className="text-[10px] font-bold text-slate-300 block mb-0.5">Crie sua Senha de Acesso</label>
+                  <div className="relative flex items-center">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      required
+                      minLength={6}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Mínimo 6 dígitos (usará para logar no site)"
+                      className="w-full bg-[#111726] border border-white/15 rounded-lg py-1.5 pl-2.5 pr-8 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-[#22c55e]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-2 text-slate-400 hover:text-white cursor-pointer"
+                    >
+                      {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              <div className="space-y-1.5">
-                {AVAILABLE_ORDER_BUMPS.map((bump) => {
-                  const isSelected = selectedBumps.includes(bump.id);
-                  return (
-                    <div
-                      key={bump.id}
-                      onClick={() => toggleBump(bump.id)}
-                      className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-3 ${
-                        isSelected
-                          ? 'bg-[#22c55e]/15 border-[#22c55e] shadow-md shadow-[#22c55e]/15'
-                          : 'bg-white/[0.02] border-white/10 hover:border-white/20 opacity-85'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                        {/* Custom Checkbox */}
-                        <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
-                          isSelected ? 'bg-[#22c55e] border-[#22c55e]' : 'border-white/30 bg-black/40'
-                        }`}>
-                          {isSelected && <Check size={11} className="text-black stroke-[3]" />}
-                        </div>
+              {/* ================= ULTRA-COMPACT ORDER BUMPS ================= */}
+              <div className="space-y-1.5 pb-1">
+                <div className="flex items-center justify-between">
+                  <div className="text-[10px] font-black uppercase tracking-wider text-slate-300 flex items-center gap-1">
+                    <Flame size={12} className="text-amber-400" />
+                    <span>Turbine sua Operação (Order Bumps)</span>
+                  </div>
+                  <span className="text-[9px] text-[#4ade80] font-black bg-[#22c55e]/15 px-1.5 py-0.5 rounded-full border border-[#22c55e]/30">
+                    Desconto de até 80%
+                  </span>
+                </div>
 
-                        {/* Bump Neon Icon Thumbnail */}
-                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-black/50 border border-[#22c55e]/30 flex-shrink-0">
-                          <img
-                            src={bump.image}
-                            alt={bump.title}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5 mb-0.5">
-                            <span className="text-[8px] font-black px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 shrink-0">
-                              {bump.tag}
-                            </span>
-                            <h4 className="text-xs font-bold text-white truncate">
-                              {bump.title}
-                            </h4>
+                <div className="space-y-1.5">
+                  {AVAILABLE_ORDER_BUMPS.map((bump) => {
+                    const isSelected = selectedBumps.includes(bump.id);
+                    return (
+                      <div
+                        key={bump.id}
+                        onClick={() => toggleBump(bump.id)}
+                        className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2.5 ${
+                          isSelected
+                            ? 'bg-[#22c55e]/15 border-[#22c55e] shadow-md shadow-[#22c55e]/15'
+                            : 'bg-white/[0.02] border-white/10 hover:border-white/20 opacity-85'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                          {/* Custom Checkbox */}
+                          <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
+                            isSelected ? 'bg-[#22c55e] border-[#22c55e]' : 'border-white/30 bg-black/40'
+                          }`}>
+                            {isSelected && <Check size={11} className="text-black stroke-[3]" />}
                           </div>
-                          <p className="text-[10px] text-slate-400 line-clamp-1 leading-tight">
-                            {bump.shortDesc}
-                          </p>
+
+                          {/* Bump Neon Icon Thumbnail */}
+                          <div className="w-10 h-10 rounded-lg overflow-hidden bg-black/50 border border-[#22c55e]/30 flex-shrink-0">
+                            <img
+                              src={bump.image}
+                              alt={bump.title}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <span className="text-[8px] font-black px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 shrink-0">
+                                {bump.tag}
+                              </span>
+                              <h4 className="text-xs font-bold text-white truncate">
+                                {bump.title}
+                              </h4>
+                            </div>
+                            <p className="text-[10px] text-slate-400 line-clamp-1 leading-tight">
+                              {bump.shortDesc}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <span className="text-[10px] text-red-500 font-bold line-through decoration-red-500 block">
+                            de R$ {bump.originalPrice.toFixed(2).replace('.', ',')}
+                          </span>
+                          <span className="text-xs font-black text-[#4ade80]">
+                            por R$ {bump.price.toFixed(2).replace('.', ',')}
+                          </span>
                         </div>
                       </div>
-
-                      <div className="text-right shrink-0">
-                        <span className="text-[10px] text-red-500 font-bold line-through decoration-red-500 block">
-                          de R$ {bump.originalPrice.toFixed(2).replace('.', ',')}
-                        </span>
-                        <span className="text-xs font-black text-[#4ade80]">
-                          por R$ {bump.price.toFixed(2).replace('.', ',')}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
-            {/* Total & Submit Button */}
-            <div className="pt-2 border-t border-white/10 space-y-2">
-              <div className="flex items-center justify-between text-xs">
+            {/* Docked Action Footer (Always 100% visible on mobile) */}
+            <div className="shrink-0 p-3 sm:p-4 bg-[#090d17]/95 backdrop-blur-md border-t border-white/10 space-y-2 z-20 shadow-[0_-10px_20px_rgba(0,0,0,0.5)]">
+              <div className="flex items-center justify-between text-xs px-1">
                 <span className="text-slate-400 text-[11px]">Total com descontos:</span>
-                <span className="text-xl font-black text-[#22c55e]">
+                <span className="text-lg sm:text-xl font-black text-[#22c55e]">
                   R$ {totalPrice.toFixed(2).replace('.', ',')}
                 </span>
               </div>
 
               {apiError && (
-                <div className="p-3.5 rounded-xl bg-amber-500/15 border border-amber-500/35 text-amber-200 text-xs leading-relaxed flex items-start gap-2.5 animate-in fade-in">
-                  <AlertTriangle size={18} className="text-amber-400 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-bold text-amber-300">Aviso de Pagamento</p>
-                    <p className="text-[11px] text-amber-200/90 mt-0.5 leading-snug">{apiError}</p>
-                  </div>
+                <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/35 text-amber-200 text-xs leading-relaxed flex items-start gap-2 animate-in fade-in">
+                  <AlertTriangle size={15} className="text-amber-400 shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-amber-200/90 leading-snug">{apiError}</p>
                 </div>
               )}
 
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-[#080c14] font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-[#22c55e]/25 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                className="w-full py-3.5 sm:py-3 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-[#080c14] font-black text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-[#22c55e]/25 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
               >
                 {isLoading ? (
                   <div className="flex items-center gap-2">
@@ -597,13 +598,13 @@ export default function SigilopayCheckoutModal({
                   </div>
                 ) : (
                   <>
-                    <QrCode size={16} />
+                    <QrCode size={18} />
                     <span>GERAR PIX • R$ {totalPrice.toFixed(2).replace('.', ',')}</span>
                   </>
                 )}
               </button>
 
-              <div className="flex items-center justify-center gap-2 text-[9px] text-slate-500">
+              <div className="flex items-center justify-center gap-2 text-[9px] text-slate-400">
                 <span className="flex items-center gap-1">
                   <ShieldCheck size={11} className="text-[#22c55e]" /> Pagamento 100% Seguro via Pix Instantâneo
                 </span>
@@ -616,10 +617,10 @@ export default function SigilopayCheckoutModal({
 
         {/* ================= STEP 2: PIX QR CODE & PAYMENT ================= */}
         {step === 'pix' && pixData && (
-          <div className="space-y-3.5 text-center py-1 animate-in fade-in duration-300">
-            {/* Header */}
-            <div>
-              <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#22c55e]/15 text-[#4ade80] border border-[#22c55e]/30 text-[10px] font-bold mb-1">
+          <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+            {/* Pinned Header */}
+            <div className="px-4 pt-4 pb-2.5 sm:px-6 sm:pt-5 sm:pb-3 shrink-0 border-b border-white/5 pr-14 text-left">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#22c55e]/15 text-[#4ade80] border border-[#22c55e]/30 text-[10px] font-bold mb-1">
                 <span className="w-2 h-2 rounded-full bg-[#22c55e] animate-ping" />
                 <span>Pix Gerado • Aguardando Pagamento</span>
               </div>
@@ -628,54 +629,57 @@ export default function SigilopayCheckoutModal({
               </h2>
             </div>
 
-            {/* QR Code Container (Ultra Compact) */}
-            <div className="flex flex-col items-center justify-center">
-              <div className="p-2.5 bg-white rounded-2xl shadow-xl shadow-[#22c55e]/20 border-2 border-[#22c55e]">
-                <img 
-                  src={pixData.qrCodeImage} 
-                  alt="QR Code Pix"
-                  className="w-36 h-36 sm:w-44 sm:h-44 object-contain"
-                />
+            {/* Scrollable Body */}
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-3 sm:px-6 sm:py-4 space-y-3.5 text-center [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full">
+              {/* QR Code Container (Responsive & Clear) */}
+              <div className="flex flex-col items-center justify-center">
+                <div className="p-2.5 bg-white rounded-2xl shadow-xl shadow-[#22c55e]/20 border-2 border-[#22c55e]">
+                  <img 
+                    src={pixData.qrCodeImage} 
+                    alt="QR Code Pix"
+                    className="w-32 h-32 sm:w-40 sm:h-40 object-contain"
+                  />
+                </div>
+
+                <div className="mt-2 flex items-center gap-1 text-xs text-slate-300">
+                  <span>Valor:</span>
+                  <strong className="text-base text-[#4ade80] font-black">
+                    R$ {totalPrice.toFixed(2).replace('.', ',')}
+                  </strong>
+                </div>
               </div>
 
-              <div className="mt-2 flex items-center gap-1 text-xs text-slate-300">
-                <span>Valor:</span>
-                <strong className="text-base text-[#4ade80] font-black">
-                  R$ {totalPrice.toFixed(2).replace('.', ',')}
-                </strong>
+              {/* Pix Copia e Cola */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 block text-left">
+                  Código Pix Copia e Cola:
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    readOnly
+                    value={pixData.qrCodeText}
+                    className="flex-1 bg-[#111726] border border-white/15 rounded-lg py-2 px-2.5 text-[11px] text-slate-300 font-mono select-all focus:outline-none truncate"
+                  />
+                  <button
+                    type="button"
+                    onClick={copyPixCode}
+                    className="py-2 px-3 rounded-lg bg-[#22c55e] hover:bg-[#16a34a] text-black font-black text-xs uppercase flex items-center gap-1 shrink-0 shadow-md shadow-[#22c55e]/20 transition-all active:scale-95 cursor-pointer"
+                  >
+                    {copied ? <Check size={13} /> : <Copy size={13} />}
+                    <span>{copied ? 'Copiado!' : 'Copiar'}</span>
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Pix Copia e Cola */}
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 block text-left">
-                Código Pix Copia e Cola:
-              </label>
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="text"
-                  readOnly
-                  value={pixData.qrCodeText}
-                  className="flex-1 bg-[#111726] border border-white/15 rounded-lg py-2 px-2.5 text-[11px] text-slate-300 font-mono select-all focus:outline-none truncate"
-                />
-                <button
-                  type="button"
-                  onClick={copyPixCode}
-                  className="py-2 px-3 rounded-lg bg-[#22c55e] hover:bg-[#16a34a] text-black font-black text-xs uppercase flex items-center gap-1 shrink-0 shadow-md shadow-[#22c55e]/20 transition-all active:scale-95 cursor-pointer"
-                >
-                  {copied ? <Check size={13} /> : <Copy size={13} />}
-                  <span>{copied ? 'Copiado!' : 'Copiar'}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Big Action Button "JÁ FIZ O PIX / LIBERAR CONTA" */}
-            <div className="space-y-2 pt-1">
+            {/* Docked Action Footer */}
+            <div className="shrink-0 p-3 sm:p-4 bg-[#090d17]/95 backdrop-blur-md border-t border-white/10 space-y-2 z-20 shadow-[0_-10px_20px_rgba(0,0,0,0.5)]">
               <button
                 type="button"
                 disabled={isConfirming}
                 onClick={handleConfirmPayment}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-black font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-[#22c55e]/25 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                className="w-full py-3.5 sm:py-3 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-black font-black text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-[#22c55e]/25 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
               >
                 {isConfirming ? (
                   <div className="flex items-center gap-2">
@@ -684,7 +688,7 @@ export default function SigilopayCheckoutModal({
                   </div>
                 ) : (
                   <>
-                    <CheckCircle2 size={16} />
+                    <CheckCircle2 size={18} />
                     <span>JÁ FIZ O PIX • LIBERAR MINHA CONTA</span>
                   </>
                 )}
@@ -693,7 +697,7 @@ export default function SigilopayCheckoutModal({
               <button
                 type="button"
                 onClick={() => setStep('form')}
-                className="text-[11px] text-slate-500 hover:text-slate-300 underline font-semibold block mx-auto cursor-pointer"
+                className="text-[11px] text-slate-400 hover:text-white underline font-semibold block mx-auto cursor-pointer py-0.5"
               >
                 ← Voltar e alterar dados ou plano
               </button>
@@ -703,7 +707,7 @@ export default function SigilopayCheckoutModal({
 
         {/* ================= STEP 3: SUCCESS & CREDENTIALS ================= */}
         {step === 'success' && (
-          <div className="text-center py-4 space-y-3 animate-in zoom-in-95 duration-300">
+          <div className="flex flex-col flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 text-center space-y-3.5 justify-center [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full">
             <div className="w-12 h-12 rounded-full bg-[#22c55e]/20 border-2 border-[#22c55e] flex items-center justify-center mx-auto text-[#22c55e] shadow-lg shadow-[#22c55e]/30">
               <CheckCircle2 size={28} />
             </div>
@@ -716,7 +720,7 @@ export default function SigilopayCheckoutModal({
             </p>
 
             {/* Display Credentials */}
-            <div className="p-3 rounded-xl bg-[#22c55e]/10 border border-[#22c55e]/30 text-xs text-left space-y-1.5 max-w-sm mx-auto">
+            <div className="p-3.5 rounded-xl bg-[#22c55e]/10 border border-[#22c55e]/30 text-xs text-left space-y-1.5 max-w-sm w-full mx-auto">
               <div className="font-black text-[#4ade80] text-[11px] flex items-center gap-1">
                 <Lock size={12} /> Seus Dados de Acesso:
               </div>
@@ -736,7 +740,7 @@ export default function SigilopayCheckoutModal({
                 onClose();
                 window.location.href = '/';
               }}
-              className="w-full max-w-sm mx-auto py-3 rounded-xl bg-[#22c55e] hover:bg-[#16a34a] text-black font-black text-xs uppercase tracking-wider shadow-lg shadow-[#22c55e]/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full max-w-sm mx-auto py-3.5 rounded-xl bg-[#22c55e] hover:bg-[#16a34a] text-black font-black text-xs uppercase tracking-wider shadow-lg shadow-[#22c55e]/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <span>ACESSAR MEU PAINEL AGORA</span>
               <ArrowRight size={14} />
