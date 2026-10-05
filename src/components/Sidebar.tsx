@@ -60,8 +60,8 @@ export default function Sidebar({ currentView, onNavigate, isOpen, setIsOpen }: 
     }
   }, [session?.user?.email]);
 
-  const userRole = (session?.user as any)?.role || '';
-  const isCarlos = userEmail === 'carlos.souza@decolashop.com' || userEmail === 'carlos@decolashop.com';
+  const userRole = ((session?.user as any)?.role || '').toLowerCase();
+  const isCarlos = userEmail.includes('carlos') || userEmail.includes('souza');
   const isNormalUser = userEmail === 'usuario@decolashop.com' || isCarlos;
   const isAdmin = !isNormalUser && (
     userEmail === 'gerente@decolashop.com' ||

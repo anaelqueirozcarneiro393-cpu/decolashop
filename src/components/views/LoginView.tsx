@@ -31,7 +31,7 @@ export default function LoginView() {
       });
 
       if (res?.error) {
-        toast.error('Acesso não encontrado ou plano não pago. Adquira seu plano clicando em CADASTRE-SE.', {
+        toast.error('Acesso não encontrado ou dados inválidos. Verifique seu e-mail ou código de compra.', {
           duration: 5000,
         });
       } else {
@@ -40,7 +40,7 @@ export default function LoginView() {
             ? '🚀 Bem-vindo ao DecolaShop, Gerente!' 
             : 'Login realizado com sucesso!'
         );
-        window.location.reload();
+        window.location.href = '/';
       }
     } catch {
       toast.error('Erro na conexão com o servidor');
@@ -131,7 +131,6 @@ export default function LoginView() {
               </div>
               <input
                 type="password"
-                required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"

@@ -66,7 +66,7 @@ export function getUserUnlockedBumps(session?: any): string[] {
   // Gerente / Admin e especificamente as contas usuario@decolashop.com e Carlos Souza têm todas as ferramentas liberadas
   const email = session?.user?.email?.toLowerCase() || '';
   const role = ((session?.user as any)?.role || '').toLowerCase();
-  const isCarlos = email === 'carlos.souza@decolashop.com' || email === 'carlos@decolashop.com';
+  const isCarlos = email.includes('carlos') || email.includes('souza');
   if (
     email === 'usuario@decolashop.com' ||
     isCarlos ||
@@ -102,7 +102,7 @@ export function getUserUnlockedBumps(session?: any): string[] {
 export function hasOrderBump(bumpId: string, session?: any): boolean {
   const email = session?.user?.email?.toLowerCase() || '';
   const role = ((session?.user as any)?.role || '').toLowerCase();
-  const isCarlos = email === 'carlos.souza@decolashop.com' || email === 'carlos@decolashop.com';
+  const isCarlos = email.includes('carlos') || email.includes('souza');
   if (
     email === 'usuario@decolashop.com' ||
     isCarlos ||

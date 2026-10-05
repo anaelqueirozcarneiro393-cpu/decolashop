@@ -68,7 +68,7 @@ export default function AdminQuickActions() {
     userRole === 'admin'
   );
 
-  const isCarlos = userEmail === 'carlos.souza@decolashop.com' || userEmail === 'carlos@decolashop.com';
+  const isCarlos = userEmail.includes('carlos') || userEmail.includes('souza');
   const isNormalUser = userEmail === 'usuario@decolashop.com' || isCarlos;
   const isAdmin = !isNormalUser && isAuthorizedAccount;
 

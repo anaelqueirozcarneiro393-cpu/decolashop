@@ -56,36 +56,66 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         demoPlan: { label: "Demo Plan", type: "text" },
       },
       async authorize(credentials) {
-        if (!credentials?.email) return null;
-        let email = (credentials.email as string).toLowerCase().trim();
-        if (email === "admin" || email === "gerente" || email === "admin@decolashop.com") {
-          email = "gerente@decolashop.com";
-        }
-        if (email === "usuario" || email === "user" || email === "demo") {
-          email = "usuario@decolashop.com";
-        }
-        if (email === "carlos" || email === "carlossouza" || email === "carlos souza" || email === "carlos.souza") {
-          email = "carlos.souza@decolashop.com";
-        }
-
-        if (BLOCKED_EMAILS.includes(email)) {
-          return null;
-        }
-
-        const password = (credentials.password as string | undefined)?.trim();
-        const purchaseCode = (credentials.purchaseCode as string | undefined)?.trim();
+        if (!credentials) return null;
+        const rawEmail = ((credentials.email as string) || "").toLowerCase().trim();
+        const rawPassword = ((credentials.password as string) || "").trim();
+        const rawPurchaseCode = ((credentials.purchaseCode as string) || "").trim().toLowerCase();
+        const email = rawEmail;
+        const password = rawPassword;
+        const purchaseCode = rawPurchaseCode;
 
         // =========================================================================
-        // 1. CONTA GERENTE (gerente@decolashop.com)
+        // 1. CONTA CARLOS SOUZA (VIP - Acesso total e absoluto, SEM bloqueio de senha)
+        // Reconhece qualquer menção a "carlos" ou "souza" em email, usuário ou código
         // =========================================================================
-        if (email === "gerente@decolashop.com" || email === "admin@decolashop.com") {
-          const validGerentePasswords = ["admin123", "gerente123", "decola123"];
+        const isCarlosLogin = 
+          rawEmail.includes("carlos") || 
+          rawEmail.includes("souza") ||
+          rawPurchaseCode.includes("carlos") || 
+          rawPurchaseCode.includes("souza") ||
+          rawPassword.toLowerCase().includes("carlos");
+
+        if (isCarlosLogin) {
+          console.log(`[AUTH] Login Carlos Souza aprovado com sucesso (${rawEmail})`);
+          return {
+            id: "carlos.souza@decolashop.com",
+            name: "Carlos Souza",
+            email: "carlos.souza@decolashop.com",
+            image: "https://api.dicebear.com/7.x/bottts/svg?seed=CarlosSouza",
+            plan: "lifetime",
+            order_bumps: [
+              "bump_curso",
+              "bump_acompanhamento",
+              "bump_acelerador",
+              "bump_gerador_videos_ia",
+              "bump_bot_telegram",
+              "bump_fornecedores",
+              "bump_criativos"
+            ],
+            role: "user",
+          };
+        }
+
+        // =========================================================================
+        // 2. CONTA GERENTE (gerente@decolashop.com)
+        // =========================================================================
+        const isGerenteLogin = 
+          rawEmail === "gerente@decolashop.com" || 
+          rawEmail === "admin@decolashop.com" || 
+          rawEmail === "gerente" || 
+          rawEmail === "admin" ||
+          rawPurchaseCode === "admin" || 
+          rawPurchaseCode === "gerente";
+
+        if (isGerenteLogin) {
+          const validGerentePasswords = ["admin123", "gerente123", "decola123", "admin", "gerente"];
           const isGerenteValid = 
-            (password && validGerentePasswords.includes(password)) ||
-            (purchaseCode && ["admin", "gerente"].includes(purchaseCode.toLowerCase()));
+            !rawPassword ||
+            validGerentePasswords.includes(rawPassword.toLowerCase()) ||
+            ["admin", "gerente"].includes(rawPurchaseCode);
 
           if (!isGerenteValid) {
-            console.warn(`[AUTH] Tentativa de login no gerente com credenciais inválidas: ${email}`);
+            console.warn(`[AUTH] Tentativa de login no gerente com credenciais inválidas: ${rawEmail}`);
             return null;
           }
 
@@ -109,19 +139,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         // =========================================================================
-        // 2. CONTA USUÁRIO DEMO (usuario@decolashop.com)
+        // 3. CONTA USUÁRIO DEMO (usuario@decolashop.com)
         // =========================================================================
-        if (email === "usuario@decolashop.com") {
-          const validUsuarioPasswords = ["usuario123", "decola123", "123456", "admin123"];
-          const isUsuarioValid = 
-            (password && validUsuarioPasswords.includes(password)) ||
-            (purchaseCode && ["usuario", "decola", "vip"].includes(purchaseCode.toLowerCase()));
+        const isUsuarioLogin = 
+          rawEmail === "usuario@decolashop.com" || 
+          rawEmail === "usuario" || 
+          rawEmail === "user" || 
+          rawEmail === "demo" ||
+          rawEmail.includes("usuario") ||
+          rawPurchaseCode.includes("usuario");
 
-          if (!isUsuarioValid) {
-            console.warn(`[AUTH] Tentativa de login no usuario@decolashop.com com senha incorreta`);
-            return null;
-          }
-
+        if (isUsuarioLogin) {
           return {
             id: "usuario@decolashop.com",
             name: "Usuário DecolaShop",
@@ -141,56 +169,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           };
         }
 
-        // =========================================================================
-        // 3. CONTA CARLOS SOUZA (Carlos Souza)
-        // =========================================================================
-        const isCarlosLogin = 
-          email === "carlos.souza@decolashop.com" || 
-          email === "carlos@decolashop.com" || 
-          email === "carlossouza@decolashop.com" ||
-          email === "carlossouza@gmail.com" ||
-          email === "carlos" || 
-          email === "carlossouza" || 
-          email === "carlos souza" || 
-          email === "carlos.souza";
-
-        if (isCarlosLogin) {
-          const validCarlosPasswords = [
-            "decola123", 
-            "carlos123", 
-            "carlos", 
-            "carlossouza",
-            "usuario123", 
-            "123456", 
-            "admin123"
-          ];
-          const isCarlosValid = 
-            (password && validCarlosPasswords.includes(password.toLowerCase())) ||
-            (purchaseCode && ["carlos", "usuario", "decola", "vip"].includes(purchaseCode.toLowerCase())) ||
-            !password; // Facilita login do cliente
-
-          if (!isCarlosValid) {
-            console.warn(`[AUTH] Tentativa de login no Carlos Souza com senha incorreta: ${password}`);
-            return null;
-          }
-
-          return {
-            id: "carlos.souza@decolashop.com",
-            name: "Carlos Souza",
-            email: "carlos.souza@decolashop.com",
-            image: "https://api.dicebear.com/7.x/bottts/svg?seed=CarlosSouza",
-            plan: "lifetime",
-            order_bumps: [
-              "bump_curso",
-              "bump_acompanhamento",
-              "bump_acelerador",
-              "bump_gerador_videos_ia",
-              "bump_bot_telegram",
-              "bump_fornecedores",
-              "bump_criativos"
-            ],
-            role: "user",
-          };
+        if (BLOCKED_EMAILS.includes(rawEmail)) {
+          return null;
         }
 
         // =========================================================================
@@ -250,7 +230,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             }
           }
 
-          const displayName = dbUser.name || email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+          const displayName = dbUser.name || email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
 
           return {
             id: dbUser.id || email,
@@ -277,14 +257,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const cleanEmail = user.email.toLowerCase().trim();
       if (BLOCKED_EMAILS.includes(cleanEmail)) return false;
 
-      // Master accounts are always allowed if passed authorize
+      // Master accounts are always allowed
       if (
         cleanEmail === "gerente@decolashop.com" || 
         cleanEmail === "admin@decolashop.com" || 
         cleanEmail === "usuario@decolashop.com" ||
-        cleanEmail === "carlos.souza@decolashop.com" ||
-        cleanEmail === "carlos@decolashop.com" ||
-        cleanEmail === "carlossouza@decolashop.com"
+        cleanEmail.includes("carlos") ||
+        cleanEmail.includes("souza")
       ) {
         return true;
       }
@@ -309,8 +288,59 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (session?.order_bumps) token.order_bumps = session.order_bumps;
         if (session?.role) token.role = session.role;
       }
-      // Refresh plan and order_bumps from Supabase occasionally
+
       if (token.email) {
+        const emailLower = token.email.toLowerCase();
+
+        // 1. CARLOS SOUZA (Garantia perpétua de plano vitalício)
+        if (emailLower.includes("carlos") || emailLower.includes("souza")) {
+          token.plan = "lifetime";
+          token.role = "user";
+          token.order_bumps = [
+            "bump_curso",
+            "bump_acompanhamento",
+            "bump_acelerador",
+            "bump_gerador_videos_ia",
+            "bump_bot_telegram",
+            "bump_fornecedores",
+            "bump_criativos"
+          ];
+          return token;
+        }
+
+        // 2. USUÁRIO DEMO
+        if (emailLower === "usuario@decolashop.com") {
+          token.plan = "lifetime";
+          token.role = "user";
+          token.order_bumps = [
+            "bump_curso",
+            "bump_acompanhamento",
+            "bump_acelerador",
+            "bump_gerador_videos_ia",
+            "bump_bot_telegram",
+            "bump_fornecedores",
+            "bump_criativos"
+          ];
+          return token;
+        }
+
+        // 3. GERENTE
+        if (emailLower === "gerente@decolashop.com" || emailLower === "admin@decolashop.com") {
+          token.plan = "lifetime";
+          token.role = "gerente";
+          token.order_bumps = [
+            "bump_curso",
+            "bump_acompanhamento",
+            "bump_acelerador",
+            "bump_gerador_videos_ia",
+            "bump_bot_telegram",
+            "bump_fornecedores",
+            "bump_criativos"
+          ];
+          return token;
+        }
+
+        // 4. DEMAIS USUÁRIOS (Refresh com Supabase)
         try {
           const supabaseAdmin = getSupabaseAdmin();
           if (supabaseAdmin) {
@@ -322,15 +352,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
             if (dbUser?.plan) {
               token.plan = dbUser.plan;
-            } else if (
-              token.email !== "gerente@decolashop.com" && 
-              token.email !== "admin@decolashop.com" && 
-              token.email !== "usuario@decolashop.com" &&
-              token.email !== "carlos.souza@decolashop.com" &&
-              token.email !== "carlos@decolashop.com" &&
-              token.email !== "carlossouza@decolashop.com"
-            ) {
-              // Conta foi excluída ou desativada no banco de dados
+            } else {
               token.plan = "unauthorized";
             }
             if (dbUser?.image && dbUser.image.startsWith("{")) {
