@@ -16,17 +16,24 @@ export default function LoginView() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!email) {
-      toast.error('Informe seu e-mail');
+    const cleanEmail = email.trim();
+    const cleanCode = purchaseCode.trim();
+    const cleanPass = password.trim();
+
+    // Permite login por e-mail, usuário OU código de compra
+    const effectiveIdentifier = cleanEmail || cleanCode;
+
+    if (!effectiveIdentifier && !cleanPass) {
+      toast.error('Informe seu e-mail, usuário ou código de compra');
       return;
     }
 
     setIsLoading(true);
     try {
       const res = await signIn('credentials', {
-        email: email.trim(),
-        password: password.trim(),
-        purchaseCode: purchaseCode.trim(),
+        email: effectiveIdentifier,
+        password: cleanPass,
+        purchaseCode: cleanCode,
         redirect: false,
       });
 
@@ -36,7 +43,7 @@ export default function LoginView() {
         });
       } else {
         toast.success(
-          (email.toLowerCase().includes('admin') || email.toLowerCase().includes('gerente'))
+          (effectiveIdentifier.toLowerCase().includes('admin') || effectiveIdentifier.toLowerCase().includes('gerente'))
             ? '🚀 Bem-vindo ao DecolaShop, Gerente!' 
             : 'Login realizado com sucesso!'
         );
@@ -111,7 +118,6 @@ export default function LoginView() {
               </div>
               <input
                 type="text"
-                required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="carlos.souza@decolashop.com ou carlos"
