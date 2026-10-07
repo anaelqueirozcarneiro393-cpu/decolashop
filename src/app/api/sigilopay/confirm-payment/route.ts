@@ -257,7 +257,7 @@ export async function POST(req: Request) {
 
       if (affiliateCode) {
         try {
-          const planBase = userPlan === 'monthly' ? 97 : 147;
+          const planBase = userPlan === 'monthly' ? 89.90 : 179.90;
           const totalAmount = Number(rawBody.total) || planBase;
           recordAffiliateSaleOnServer({
             affiliateCode,

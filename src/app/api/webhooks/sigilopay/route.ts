@@ -45,7 +45,7 @@ export async function POST(req: Request) {
 
     let plan = body.metadata?.plan || pendingLocal?.plan || 'lifetime';
     let bumps = body.items || body.metadata?.bumps || pendingLocal?.bumps || [];
-    let total = Number(body.amount || body.total || pendingLocal?.total || (plan === 'monthly' ? 97 : 147));
+    let total = Number(body.amount || body.total || pendingLocal?.total || (plan === 'monthly' ? 89.90 : 179.90));
     let customerName = client.name || pendingLocal?.name;
     let customerPhone = client.phone || pendingLocal?.phone;
     let customerCpf = client.document || pendingLocal?.cpf;
@@ -216,7 +216,7 @@ async function processApproval(options: {
   if (affiliateCode && plan !== 'taxa_antecipacao') {
     try {
       const userPlan = (plan === 'monthly' ? 'monthly' : 'lifetime') as 'monthly' | 'lifetime';
-      const planBase = userPlan === 'monthly' ? 97 : 147;
+      const planBase = userPlan === 'monthly' ? 89.90 : 179.90;
       const totalAmount = Number(total) || planBase;
       const sale = recordAffiliateSaleOnServer({
         affiliateCode,

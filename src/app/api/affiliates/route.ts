@@ -111,6 +111,42 @@ export function saveLocalStore(store: AffiliatesStore) {
   }
 }
 
+export function normalizeAffiliateSales(store: AffiliatesStore): { store: AffiliatesStore; changed: boolean } {
+  let changed = false;
+
+  // 1. Remove qualquer venda indevida de taxa de saque
+  const originalSalesCount = store.sales.length;
+  store.sales = store.sales.filter(s => (s.plan as any) !== 'taxa_antecipacao');
+  if (store.sales.length !== originalSalesCount) changed = true;
+
+  // 2. Normaliza preços oficiais: Vitalício = R$ 179,90, Mensal = R$ 89,90
+  store.sales.forEach(sale => {
+    if (sale.plan === 'lifetime' && (sale.planPrice === 147 || sale.totalAmount === 147)) {
+      sale.planPrice = 179.90;
+      sale.totalAmount = Number((179.90 + (sale.bumpPrices || 0)).toFixed(2));
+      sale.commissionAmount = Number(((sale.totalAmount * (sale.commissionPercent || 50)) / 100).toFixed(2));
+      changed = true;
+    } else if (sale.plan === 'monthly' && (sale.planPrice === 97 || sale.totalAmount === 97)) {
+      sale.planPrice = 89.90;
+      sale.totalAmount = Number((89.90 + (sale.bumpPrices || 0)).toFixed(2));
+      sale.commissionAmount = Number(((sale.totalAmount * (sale.commissionPercent || 50)) / 100).toFixed(2));
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    store.affiliates.forEach(aff => {
+      const affSales = store.sales.filter(s => s.affiliateId === aff.id || s.affiliateCode.toLowerCase() === aff.code.toLowerCase());
+      aff.totalSalesCount = affSales.length;
+      aff.totalRevenue = Number(affSales.reduce((acc, s) => acc + (s.totalAmount || 0), 0).toFixed(2));
+      aff.pendingCommission = Number(affSales.filter(s => s.status === 'confirmed').reduce((acc, s) => acc + (s.commissionAmount || 0), 0).toFixed(2));
+      aff.paidCommission = Number(affSales.filter(s => s.status === 'paid_to_affiliate').reduce((acc, s) => acc + (s.commissionAmount || 0), 0).toFixed(2));
+    });
+  }
+
+  return { store, changed };
+}
+
 export function loadStore(): AffiliatesStore {
   const paths = getStoragePaths();
   for (const filePath of paths) {
@@ -134,7 +170,9 @@ export function loadStore(): AffiliatesStore {
       // Ignore read errors
     }
   }
-  return memoryStore;
+  const norm = normalizeAffiliateSales(memoryStore);
+  if (norm.changed) saveLocalStore(norm.store);
+  return norm.store;
 }
 
 export async function loadStoreFromSupabase(): Promise<AffiliatesStore> {
@@ -155,7 +193,12 @@ export async function loadStoreFromSupabase(): Promise<AffiliatesStore> {
             sales: parsed.sales,
             pendingTransactions: parsed.pendingTransactions || []
           };
+          const norm = normalizeAffiliateSales(memoryStore);
+          memoryStore = norm.store;
           saveLocalStore(memoryStore);
+          if (norm.changed) {
+            saveStoreToSupabase(memoryStore).catch(() => {});
+          }
           return memoryStore;
         }
       }

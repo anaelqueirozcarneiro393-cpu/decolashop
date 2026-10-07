@@ -83,9 +83,9 @@ export async function POST(req: Request) {
     // Validação estrita de preço mínimo legítimo (Proteção contra adulteração de valor no frontend)
     let minExpectedTotal = 15.00;
     if (plan === 'lifetime') {
-      minExpectedTotal = 147.00; // Mínimo autorizado para plano vitalício
+      minExpectedTotal = 179.90; // Mínimo autorizado para plano vitalício
     } else if (plan === 'monthly') {
-      minExpectedTotal = 79.90; // Mínimo autorizado para plano mensal
+      minExpectedTotal = 89.90; // Mínimo autorizado para plano mensal
     } else if (plan === 'bumps_only') {
       minExpectedTotal = 25.00; // Mínimo para compra isolada de ferramenta
     } else if (plan === 'taxa_antecipacao') {
@@ -178,9 +178,9 @@ export async function POST(req: Request) {
               cpf: safeCpf,
               phone: cleanPhone,
               plan: plan || 'lifetime',
-              planPrice: isTaxaAntecipacao ? numTotal : (Number(planPrice) || (plan === 'monthly' ? 97 : 147)),
+              planPrice: isTaxaAntecipacao ? numTotal : (Number(planPrice) || (plan === 'monthly' ? 89.90 : 179.90)),
               bumps: isTaxaAntecipacao ? [] : (bumps || []),
-              bumpPrices: isTaxaAntecipacao ? 0 : Math.max(0, numTotal - (Number(planPrice) || (plan === 'monthly' ? 97 : 147))),
+              bumpPrices: isTaxaAntecipacao ? 0 : Math.max(0, numTotal - (Number(planPrice) || (plan === 'monthly' ? 89.90 : 179.90))),
               total: numTotal,
               affiliateCode: effectiveAffiliateCode,
               createdAt: Date.now()

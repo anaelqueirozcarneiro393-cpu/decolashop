@@ -298,13 +298,31 @@ export function getAffiliateSales(): AffiliateSale[] {
     }
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
-      // Purge any fake seed sales or taxa_antecipacao sales
-      const filtered = parsed.filter(s => 
+      let changed = false;
+      // 1. Purge fake seed sales and taxa_antecipacao sales
+      let filtered = parsed.filter(s => 
         !s.id.startsWith('sale_af_10') && 
         !s.affiliateName?.includes('Pedro Alcântara') &&
         (s.plan as any) !== 'taxa_antecipacao'
       );
-      if (filtered.length !== parsed.length) {
+      if (filtered.length !== parsed.length) changed = true;
+
+      // 2. Normaliza preços oficiais: Vitalício = R$ 179,90, Mensal = R$ 89,90
+      filtered.forEach(sale => {
+        if (sale.plan === 'lifetime' && (sale.planPrice === 147 || sale.totalAmount === 147)) {
+          sale.planPrice = 179.90;
+          sale.totalAmount = Number((179.90 + (sale.bumpPrices || 0)).toFixed(2));
+          sale.commissionAmount = Number(((sale.totalAmount * (sale.commissionPercent || 50)) / 100).toFixed(2));
+          changed = true;
+        } else if (sale.plan === 'monthly' && (sale.planPrice === 97 || sale.totalAmount === 97)) {
+          sale.planPrice = 89.90;
+          sale.totalAmount = Number((89.90 + (sale.bumpPrices || 0)).toFixed(2));
+          sale.commissionAmount = Number(((sale.totalAmount * (sale.commissionPercent || 50)) / 100).toFixed(2));
+          changed = true;
+        }
+      });
+
+      if (changed) {
         localStorage.setItem(AFFILIATE_SALES_STORAGE_KEY, JSON.stringify(filtered));
       }
       return filtered;
