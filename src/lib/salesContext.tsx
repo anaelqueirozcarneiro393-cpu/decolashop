@@ -202,6 +202,22 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
   const [selectedProductId, setSelectedProductId] = useState<string>('all');
   const [availableProducts, setAvailableProducts] = useState<Product[]>(mockProducts);
 
+  // Monitor reativo de produtos divulgados ativos do usuário
+  const [activeCampaignsCount, setActiveCampaignsCount] = useState<number>(0);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const updateCount = () => {
+      const count = getDivulgados(userEmail).filter(c => c.status === 'active').length;
+      setActiveCampaignsCount(count);
+    };
+    updateCount();
+    window.addEventListener('decolashop_divulgados_updated', updateCount);
+    return () => {
+      window.removeEventListener('decolashop_divulgados_updated', updateCount);
+    };
+  }, [userEmail]);
+
   const autoSimulateRef = useRef(autoSimulate);
   autoSimulateRef.current = autoSimulate;
 
@@ -387,6 +403,24 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         let currUnidades = typeof parsed.unidades === 'number' ? parsed.unidades : 0;
         let currHourlyData: ChartHour[] = Array.isArray(parsed.hourlyData) ? [...parsed.hourlyData] : [...CLEAN_HOURLY];
         let currRecentSales: SaleItem[] = Array.isArray(parsed.recentSales) ? [...parsed.recentSales] : [];
+
+        // REGRA CRÍTICA: Se for usuário normal (não-gerente) e NÃO possuir produto divulgado ativo:
+        // A conta DEVE estar estritamente ZERADA (sem vendas, sem pedidos, sem histórico)!
+        const initialUserCampaigns = getDivulgados(userEmail);
+        const initialActiveCampaigns = initialUserCampaigns.filter(c => c.status === 'active');
+        if (!isGerenteUser && userEmail !== 'usuario@decolashop.com' && initialActiveCampaigns.length === 0) {
+          currVendasTotais = 0;
+          currSaldoDisponivel = 0;
+          currVisitas = 0;
+          currCliques = 0;
+          currPedidos = 0;
+          currUnidades = 0;
+          currHourlyData = [...CLEAN_HOURLY];
+          currRecentSales = [];
+          try {
+            localStorage.removeItem('decolashop_next_sale_target');
+          } catch {}
+        }
 
         const nowMs = Date.now();
         const todayDateStr = new Date(nowMs).toDateString();
@@ -780,6 +814,15 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
   const taxaAntecipacao = Math.min(150, Math.round(saldoDisponivel * 0.07 * 100) / 100);
 
   const addSale = (targetProduct?: Partial<Product>, customPrice?: number) => {
+    const isMgr = isGerenteUserRef.current;
+    const userDivs = getDivulgados(userEmail);
+    const activeCampaigns = userDivs.filter((d: any) => d.status === 'active');
+
+    // REGRA ABSOLUTA: Se for usuário normal e NÃO tiver produto divulgado ativo, NADA acontece!
+    if (!isMgr && !targetProduct && activeCampaigns.length === 0) {
+      return;
+    }
+
     // Escolhe produto alvo, ou o selecionado no admin, ou produtos registrados pelo usuário, ou catálogo geral
     let chosen: Product;
     if (targetProduct && targetProduct.name) {
@@ -787,41 +830,27 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     } else if (selectedProductId && selectedProductId !== 'all') {
       const found = availableProducts.find(p => p.id === selectedProductId);
       chosen = found || availableProducts[Math.floor(Math.random() * availableProducts.length)];
-    } else {
-      // Prioriza produtos registrados pelo usuário (campanhas ativas e salvos em favoritos)
-      let userProds: Product[] = [];
-      try {
-        const userDivs = getDivulgados(userEmail);
-        if (Array.isArray(userDivs)) {
-          userDivs.filter((d: any) => d.status === 'active').forEach((d: any) => {
-            userProds.push({
-              id: d.productId || d.id,
-              name: d.name,
-              price: typeof d.price === 'number' ? d.price : 99.90,
-              image_url: d.image_url,
-              category: d.category || 'Geral',
-              hype_score: 95,
-              url: 'https://shopee.com.br'
-            });
-          });
-        }
-        const rawSavs = localStorage.getItem('decolashop_saved_products');
-        if (rawSavs) {
-          const parsedSavs = JSON.parse(rawSavs);
-          if (Array.isArray(parsedSavs)) {
-            availableProducts.filter(p => parsedSavs.includes(p.id)).forEach(p => {
-              userProds.push(p);
-            });
-          }
-        }
-      } catch {}
-
-      // Se o usuário tiver produtos registrados, 75% das vendas saem desses produtos!
-      if (userProds.length > 0 && Math.random() < 0.75) {
-        chosen = userProds[Math.floor(Math.random() * userProds.length)];
-      } else {
-        chosen = availableProducts[Math.floor(Math.random() * availableProducts.length)];
+    } else if (!isMgr && activeCampaigns.length > 0) {
+      // Para usuários normais com campanhas ativas: 100% das vendas saem dos produtos que ele realmente divulgou!
+      const randCamp = activeCampaigns[Math.floor(Math.random() * activeCampaigns.length)];
+      let campPrice = 99.90;
+      if (typeof randCamp.price === 'number') {
+        campPrice = randCamp.price;
+      } else if (typeof randCamp.price === 'string') {
+        const clean = randCamp.price.replace('R$', '').replace(/\s/g, '').replace('.', '').replace(',', '.').trim();
+        campPrice = parseFloat(clean) || 99.90;
       }
+      chosen = {
+        id: randCamp.productId || randCamp.id,
+        name: randCamp.name,
+        price: campPrice,
+        image_url: randCamp.image_url,
+        category: randCamp.category || 'Geral',
+        hype_score: 95,
+        url: 'https://shopee.com.br'
+      };
+    } else {
+      chosen = availableProducts[Math.floor(Math.random() * availableProducts.length)];
     }
 
     if (!chosen) {
@@ -1052,10 +1081,19 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
   const isGerenteUserRef = useRef(isGerenteUser);
   isGerenteUserRef.current = isGerenteUser;
 
-  // Sistema Contínuo e Infalível de Vendas em Tempo Real (Gerente e Membros)
-  // As vendas NUNCA param de cair para nenhuma conta ativa!
+  // Sistema Contínuo e Infalível de Vendas em Tempo Real (Gerente e Membros com campanhas ativas)
+  // Vendas só caem se o usuário tiver pelo menos 1 produto divulgado ativo!
   useEffect(() => {
     if (!autoSimulate) return;
+    const isMgr = isGerenteUser;
+
+    // REGRA DE OURO: Para membros normais, se NÃO tiver produto divulgado ativo, NENHUMA venda cai!
+    if (!isMgr && activeCampaignsCount === 0) {
+      try {
+        localStorage.removeItem('decolashop_next_sale_target');
+      } catch {}
+      return;
+    }
 
     let timerId: NodeJS.Timeout | null = null;
     let isCancelled = false;
@@ -1063,8 +1101,15 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     const scheduleNextSale = () => {
       if (isCancelled) return;
 
+      const currentActive = getDivulgados(userEmail).filter(c => c.status === 'active');
+      if (!isMgr && currentActive.length === 0) {
+        try {
+          localStorage.removeItem('decolashop_next_sale_target');
+        } catch {}
+        return;
+      }
+
       let delayMs: number;
-      const isMgr = isGerenteUserRef.current;
       const now = Date.now();
 
       // Checa agendamento persistido no localStorage para não reiniciar o tempo ao navegar ou recarregar
@@ -1107,11 +1152,14 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
 
       timerId = setTimeout(() => {
         if (!isCancelled && autoSimulateRef.current) {
-          addSaleRef.current();
-          try {
-            localStorage.removeItem('decolashop_next_sale_target');
-          } catch {}
-          scheduleNextSale();
+          const currentActive = getDivulgados(userEmail).filter(c => c.status === 'active');
+          if (isMgr || currentActive.length > 0) {
+            addSaleRef.current();
+            try {
+              localStorage.removeItem('decolashop_next_sale_target');
+            } catch {}
+            scheduleNextSale();
+          }
         }
       }, delayMs);
     };
@@ -1121,6 +1169,9 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     // Quando o usuário volta para a aba do navegador após tê-la minimizado ou trocado de aba
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && !isCancelled && autoSimulateRef.current) {
+        const currentActive = getDivulgados(userEmail).filter(c => c.status === 'active');
+        if (!isMgr && currentActive.length === 0) return;
+
         const now = Date.now();
         let target = 0;
         try {
@@ -1146,7 +1197,7 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
       if (timerId) clearTimeout(timerId);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [autoSimulate, intervalMode, minSeconds, maxSeconds, fixedSeconds]);
+  }, [autoSimulate, intervalMode, minSeconds, maxSeconds, fixedSeconds, activeCampaignsCount, userEmail, isGerenteUser]);
 
   return (
     <SalesContext.Provider value={{
