@@ -65,7 +65,54 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const purchaseCode = rawPurchaseCode;
 
         // =========================================================================
-        // 0. CONTA ALE GHARTZ (aleghartz@gmail.com)
+        // 0. CONTA JOÃO EMPRESA (joaoempresa54@gmail.com)
+        // =========================================================================
+        const isJoaoLogin = 
+          rawEmail === "joaoempresa54@gmail.com" || 
+          rawEmail === "joaoempresa54" || 
+          rawEmail === "joaoempresa" || 
+          rawEmail === "joao" || 
+          rawEmail === "dec-54091-vip" ||
+          rawEmail === "decola-vip-joao";
+
+        if (isJoaoLogin) {
+          const validJoaoPasswords = [
+            "decola@54",
+            "decola54",
+            "decola123",
+            "123456",
+            "dec-54091-vip"
+          ];
+          const isJoaoPasswordValid = 
+            rawPassword === "Decola@54" || 
+            (rawPassword && validJoaoPasswords.includes(rawPassword.toLowerCase()));
+
+          if (!isJoaoPasswordValid) {
+            console.warn(`[AUTH] Tentativa de login no João Empresa com senha inválida`);
+            return null;
+          }
+
+          return {
+            id: "joaoempresa54@gmail.com",
+            name: "João Empresa",
+            email: "joaoempresa54@gmail.com",
+            image: "https://api.dicebear.com/7.x/bottts/svg?seed=joaoempresa54",
+            plan: "lifetime",
+            order_bumps: [
+              "bump_curso",
+              "bump_acompanhamento",
+              "bump_acelerador",
+              "bump_gerador_videos_ia",
+              "bump_bot_telegram",
+              "bump_fornecedores",
+              "bump_criativos"
+            ],
+            role: "user",
+          };
+        }
+
+        // =========================================================================
+        // 0.1 CONTA ALE GHARTZ (aleghartz@gmail.com)
         // =========================================================================
         const isAleLogin = 
           rawEmail === "aleghartz@gmail.com" || 
@@ -416,7 +463,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         cleanEmail.includes("souza") ||
         cleanEmail.includes("emanuel") ||
         cleanEmail.includes("digital") ||
-        cleanEmail.includes("aleghartz")
+        cleanEmail.includes("aleghartz") ||
+        cleanEmail.includes("joaoempresa") ||
+        cleanEmail.includes("joao")
       ) {
         return true;
       }
@@ -445,7 +494,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token.email) {
         const emailLower = token.email.toLowerCase();
 
-        // 0. ALE GHARTZ (Garantia perpétua de plano vitalício)
+        // 0. JOÃO EMPRESA (Garantia perpétua de plano vitalício)
+        if (emailLower.includes("joaoempresa") || emailLower.includes("joao")) {
+          token.plan = "lifetime";
+          token.role = "user";
+          token.order_bumps = [
+            "bump_curso",
+            "bump_acompanhamento",
+            "bump_acelerador",
+            "bump_gerador_videos_ia",
+            "bump_bot_telegram",
+            "bump_fornecedores",
+            "bump_criativos"
+          ];
+          return token;
+        }
+
+        // 0.1 ALE GHARTZ (Garantia perpétua de plano vitalício)
         if (emailLower.includes("aleghartz")) {
           token.plan = "lifetime";
           token.role = "user";
