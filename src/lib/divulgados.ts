@@ -149,30 +149,73 @@ export const INITIAL_DIVULGADOS: DivulgadoCampaign[] = [
 
 const STORAGE_KEY = 'decolashop_divulgados';
 
-export function getDivulgados(): DivulgadoCampaign[] {
-  if (typeof window === 'undefined') return INITIAL_DIVULGADOS;
+export function getActiveUserEmail(): string {
+  if (typeof window === 'undefined') return '';
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_DIVULGADOS));
-      return INITIAL_DIVULGADOS;
+    return localStorage.getItem('decolashop_active_user_email') || '';
+  } catch {
+    return '';
+  }
+}
+
+export function isGerenteOrAdminEmail(email?: string): boolean {
+  const e = (email || getActiveUserEmail()).toLowerCase().trim();
+  return (
+    e === 'gerente@decolashop.com' ||
+    e === 'admin@decolashop.com' ||
+    e === 'admin@newshop.com' ||
+    e.includes('gerente') ||
+    e.includes('admin')
+  );
+}
+
+export function getDivulgadosStorageKey(email?: string): string {
+  const e = (email || getActiveUserEmail()).toLowerCase().trim();
+  if (!e) return STORAGE_KEY;
+  const cleanKey = e.replace(/[^a-z0-9]/g, '_');
+  return `decolashop_divulgados_${cleanKey}`;
+}
+
+export function getDivulgados(email?: string): DivulgadoCampaign[] {
+  const isMgr = isGerenteOrAdminEmail(email);
+  if (typeof window === 'undefined') return isMgr ? INITIAL_DIVULGADOS : [];
+  try {
+    const key = getDivulgadosStorageKey(email);
+    let raw = localStorage.getItem(key);
+    
+    // Se for gerente e ainda não tiver a chave nova, lê da chave legada
+    if (isMgr && !raw) {
+      raw = localStorage.getItem(STORAGE_KEY);
     }
+
+    if (!raw) {
+      if (isMgr) {
+        localStorage.setItem(key, JSON.stringify(INITIAL_DIVULGADOS));
+        return INITIAL_DIVULGADOS;
+      }
+      // Usuários normais começam 100% ZERADOS, sem campanhas ou vendas preexistentes!
+      return [];
+    }
+
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed) || parsed.length === 0) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_DIVULGADOS));
-      return INITIAL_DIVULGADOS;
+    if (!Array.isArray(parsed)) {
+      return isMgr ? INITIAL_DIVULGADOS : [];
     }
     return parsed;
   } catch (e) {
     console.error('Erro ao ler produtos divulgados do localStorage:', e);
-    return INITIAL_DIVULGADOS;
+    return isMgr ? INITIAL_DIVULGADOS : [];
   }
 }
 
-export function saveDivulgados(campaigns: DivulgadoCampaign[]): void {
+export function saveDivulgados(campaigns: DivulgadoCampaign[], email?: string): void {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(campaigns));
+    const key = getDivulgadosStorageKey(email);
+    localStorage.setItem(key, JSON.stringify(campaigns));
+    if (isGerenteOrAdminEmail(email)) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(campaigns));
+    }
     window.dispatchEvent(new Event('decolashop_divulgados_updated'));
   } catch (e) {
     console.error('Erro ao salvar produtos divulgados:', e);
@@ -181,8 +224,8 @@ export function saveDivulgados(campaigns: DivulgadoCampaign[]): void {
 
 export const MAX_ACTIVE_CAMPAIGNS = 15;
 
-export function addDivulgado(newEntry: Omit<DivulgadoCampaign, 'id' | 'createdAt'>): DivulgadoCampaign {
-  const current = getDivulgados();
+export function addDivulgado(newEntry: Omit<DivulgadoCampaign, 'id' | 'createdAt'>, email?: string): DivulgadoCampaign {
+  const current = getDivulgados(email);
   const activeCount = current.filter(c => c.status === 'active').length;
   
   // Limite de no máximo 15 campanhas ativas
@@ -193,17 +236,19 @@ export function addDivulgado(newEntry: Omit<DivulgadoCampaign, 'id' | 'createdAt
 
   const created: DivulgadoCampaign = {
     ...newEntry,
+    salesCount: 0,
+    revenue: 0,
     status: initialStatus,
     id: `camp-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
     createdAt: new Date().toISOString(),
   };
   const updated = [created, ...current.filter(c => c.productId !== created.productId)];
-  saveDivulgados(updated);
+  saveDivulgados(updated, email);
   return created;
 }
 
-export function toggleDivulgadoStatus(id: string): { updated: DivulgadoCampaign[]; error?: string } {
-  const current = getDivulgados();
+export function toggleDivulgadoStatus(id: string, email?: string): { updated: DivulgadoCampaign[]; error?: string } {
+  const current = getDivulgados(email);
   const target = current.find(c => c.id === id);
   if (!target) return { updated: current };
 
@@ -227,21 +272,21 @@ export function toggleDivulgadoStatus(id: string): { updated: DivulgadoCampaign[
     }
     return c;
   });
-  saveDivulgados(updated);
+  saveDivulgados(updated, email);
   return { updated };
 }
 
-export function removeDivulgado(id: string): DivulgadoCampaign[] {
-  const current = getDivulgados();
+export function removeDivulgado(id: string, email?: string): DivulgadoCampaign[] {
+  const current = getDivulgados(email);
   const updated = current.filter(c => c.id !== id);
-  saveDivulgados(updated);
+  saveDivulgados(updated, email);
   return updated;
 }
 
-export function registerSaleForCampaign(productIdOrName: string, saleValue: number): void {
+export function registerSaleForCampaign(productIdOrName: string, saleValue: number, email?: string): void {
   if (typeof window === 'undefined') return;
   try {
-    const current = getDivulgados();
+    const current = getDivulgados(email);
     const cleanSearch = (productIdOrName || '').toLowerCase().trim();
     let matched = false;
     const updated = current.map(c => {
@@ -260,7 +305,7 @@ export function registerSaleForCampaign(productIdOrName: string, saleValue: numb
       return c;
     });
     if (matched) {
-      saveDivulgados(updated);
+      saveDivulgados(updated, email);
     }
   } catch {}
 }

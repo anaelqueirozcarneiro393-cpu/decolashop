@@ -31,6 +31,7 @@ import {
 import SafeImage from '@/components/SafeImage';
 import FindGroupsButton from '@/components/FindGroupsButton';
 import { toast } from 'react-hot-toast';
+import { useSession } from 'next-auth/react';
 import { 
   DivulgadoCampaign, 
   getDivulgados, 
@@ -39,7 +40,8 @@ import {
   removeDivulgado, 
   getDivulgadosStats,
   INITIAL_DIVULGADOS,
-  MAX_ACTIVE_CAMPAIGNS 
+  MAX_ACTIVE_CAMPAIGNS,
+  isGerenteOrAdminEmail 
 } from '@/lib/divulgados';
 
 interface DivulgadosViewProps {
@@ -47,6 +49,10 @@ interface DivulgadosViewProps {
 }
 
 export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
+  const { data: session } = useSession();
+  const userEmail = session?.user?.email?.toLowerCase().trim();
+  const isGerente = isGerenteOrAdminEmail(userEmail);
+
   const [campaigns, setCampaigns] = useState<DivulgadoCampaign[]>([]);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'paused'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -56,22 +62,22 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
 
   useEffect(() => {
     // Load from storage
-    const loaded = getDivulgados();
+    const loaded = getDivulgados(userEmail);
     setCampaigns(loaded);
 
     const handleUpdate = () => {
-      setCampaigns(getDivulgados());
+      setCampaigns(getDivulgados(userEmail));
     };
 
     window.addEventListener('decolashop_divulgados_updated', handleUpdate);
     return () => {
       window.removeEventListener('decolashop_divulgados_updated', handleUpdate);
     };
-  }, []);
+  }, [userEmail]);
 
   const handleToggle = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const result = toggleDivulgadoStatus(id);
+    const result = toggleDivulgadoStatus(id, userEmail);
     if (result.error) {
       toast.error(result.error, { icon: '⚠️', duration: 4500 });
       return;
@@ -88,14 +94,15 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
   const handleDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (confirm('Deseja remover esta divulgação da sua lista?')) {
-      const updated = removeDivulgado(id);
+      const updated = removeDivulgado(id, userEmail);
       setCampaigns(updated);
       toast.success('Divulgação removida.');
     }
   };
 
   const handleRestoreDefaults = () => {
-    saveDivulgados(INITIAL_DIVULGADOS);
+    if (!isGerente) return;
+    saveDivulgados(INITIAL_DIVULGADOS, userEmail);
     setCampaigns(INITIAL_DIVULGADOS);
     toast.success('Campanhas ativas sincronizadas com sucesso!');
   };
@@ -312,7 +319,7 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
             </p>
           </div>
           <div className="flex items-center justify-center gap-3">
-            {campaigns.length === 0 ? (
+            {campaigns.length === 0 && isGerente ? (
               <button
                 onClick={handleRestoreDefaults}
                 className="px-4 py-2 rounded-xl bg-white/10 text-white text-xs font-bold hover:bg-white/20 transition-all flex items-center gap-1.5 cursor-pointer"

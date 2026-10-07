@@ -17,6 +17,7 @@ import { toast } from 'react-hot-toast';
 import { useSales } from '@/lib/salesContext';
 import { getProductsFromSupabase } from '@/app/actions';
 import { Product, mockProducts } from '@/lib/mockData';
+import { useSession } from 'next-auth/react';
 import { addDivulgado, getDivulgados, MAX_ACTIVE_CAMPAIGNS } from '@/lib/divulgados';
 
 interface AdGeneratorViewProps {
@@ -25,6 +26,8 @@ interface AdGeneratorViewProps {
 }
 
 export default function AdGeneratorView({ product: initialProduct, onNavigate }: AdGeneratorViewProps) {
+  const { data: session } = useSession();
+  const userEmail = session?.user?.email?.toLowerCase().trim();
   const [products, setProducts] = useState<Product[]>(mockProducts);
   const [selectedProduct, setSelectedProduct] = useState<Product>(initialProduct || mockProducts[0]);
   const [selectedCategory, setSelectedCategory] = useState('Todos');
@@ -56,7 +59,7 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
   });
 
   const handleStartPublishing = () => {
-    const currentCampaigns = getDivulgados();
+    const currentCampaigns = getDivulgados(userEmail);
     const activeCount = currentCampaigns.filter(c => c.status === 'active').length;
     if (activeCount >= MAX_ACTIVE_CAMPAIGNS) {
       toast.error(`Limite atingido: você já possui ${MAX_ACTIVE_CAMPAIGNS} campanhas ativas! Acesse "Divulgados" e pause ou remova uma campanha antes de ativar uma nova.`, {
@@ -84,7 +87,7 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
       setPublishProgress(100);
       setPublishedNetwork('Finalizado! 6 redes conectadas e gerando tráfego.');
       setIsPublishing(false);
-      toast.success('🚀 Anúncio publicado nas 6 redes! Tráfego ativo. 1ª venda prevista em ~1 minuto.', {
+      toast.success('🚀 Anúncio publicado nas 6 redes! Tráfego ativo. 1ª venda prevista em ~10 minutos.', {
         duration: 4000
       });
       
@@ -92,7 +95,7 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
         ? parseFloat(selectedProduct.price.replace('R$', '').replace('.', '').replace(',', '.').trim()) || 99.90
         : (selectedProduct.price || 99.90);
 
-      // Não vende instantaneamente: espera 1 minuto para a 1ª venda, e depois de 1 a 5 minutos
+      // Não vende instantaneamente: cadência natural de 10 minutos
       triggerDelayedCampaignSales(selectedProduct, rawPrice);
 
       addDivulgado({
@@ -121,7 +124,7 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
           body: selectedProduct.description || 'Produto validado com alta taxa de satisfação e pronta entrega para todo o Brasil.',
           cta: '👉 CLIQUE AQUI PARA GARANTIR O SEU'
         }
-      });
+      }, userEmail);
     }, 2400);
   };
 

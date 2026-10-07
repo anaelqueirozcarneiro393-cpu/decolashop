@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { toast } from 'react-hot-toast';
 import { mockProducts, Product } from './mockData';
 import { getDeterministicBaseline } from './deterministicSales';
-import { registerSaleForCampaign } from './divulgados';
+import { registerSaleForCampaign, getDivulgados } from './divulgados';
 
 export interface SaleItem {
   id: string;
@@ -141,24 +141,34 @@ function playCashChime() {
 const STORAGE_KEY = 'decolashop_sales_state_v3';
 
 export function SalesProvider({ children }: { children: React.ReactNode }) {
-  const { data: session } = useSession();
-  const userEmail = session?.user?.email?.toLowerCase().trim() || 'usuario@decolashop.com';
-  const cleanEmailKey = userEmail.replace(/[^a-z0-9]/g, '_');
+  const { data: session, status } = useSession();
+  const sessionEmail = session?.user?.email?.toLowerCase().trim();
+  const userEmail = sessionEmail || (status === 'loading' ? '' : 'usuario@decolashop.com');
+  const cleanEmailKey = (userEmail || 'guest').replace(/[^a-z0-9]/g, '_');
   const userStorageKey = `decolashop_sales_state_${cleanEmailKey}`;
 
-  const isNormalUser = userEmail === 'usuario@decolashop.com';
-  const isAdmin = !isNormalUser && (
+  // Sincroniza e-mail ativo no localStorage para componentes periféricos (ex: divulgados)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && userEmail) {
+      try {
+        localStorage.setItem('decolashop_active_user_email', userEmail);
+      } catch {}
+    }
+  }, [userEmail]);
+
+  const isGerenteUser = Boolean(
+    userEmail === 'gerente@decolashop.com' || 
     userEmail === 'admin@decolashop.com' || 
     userEmail === 'admin@newshop.com' || 
-    userEmail === 'gerente@decolashop.com' ||
     userEmail.includes('admin') || 
     userEmail.includes('gerente') ||
     (session?.user as any)?.role === 'gerente' ||
     (session?.user as any)?.role === 'admin'
   );
-  const isGerenteUser = userEmail === 'gerente@decolashop.com' || userEmail === 'admin@decolashop.com' || isAdmin;
+  const isNormalUser = !isGerenteUser;
 
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
+  const currentLoadedEmailRef = useRef<string | null>(null);
   const [vendasTotais, setVendasTotais] = useState<number>(0);
   const [saldoDisponivel, setSaldoDisponivel] = useState<number>(0);
   const [visitas, setVisitas] = useState<number>(0);
@@ -184,11 +194,11 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  // Intervalo dinâmico configurável pelo admin (Gerente: 100s-400s, Membros: 180s-600s)
+  // Intervalo dinâmico (Gerente: 100s-400s, Usuários normais: 570s-630s = ~10 min)
   const [intervalMode, setIntervalMode] = useState<'range' | 'fixed'>('range');
-  const [minSeconds, setMinSeconds] = useState<number>(isGerenteUser ? 100 : 180);
-  const [maxSeconds, setMaxSeconds] = useState<number>(isGerenteUser ? 400 : 600);
-  const [fixedSeconds, setFixedSeconds] = useState<number>(180);
+  const [minSeconds, setMinSeconds] = useState<number>(isGerenteUser ? 100 : 570);
+  const [maxSeconds, setMaxSeconds] = useState<number>(isGerenteUser ? 400 : 630);
+  const [fixedSeconds, setFixedSeconds] = useState<number>(isGerenteUser ? 180 : 600);
   const [selectedProductId, setSelectedProductId] = useState<string>('all');
   const [availableProducts, setAvailableProducts] = useState<Product[]>(mockProducts);
 
@@ -223,27 +233,30 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
 
   // 1. Carrega dados persistidos do localStorage no mount + Sincronização Nuvem + Fallback Determinístico
   useEffect(() => {
+    if (status === 'loading' || !userEmail) return;
     let isCancelled = false;
 
     async function initializeSalesState() {
       try {
         const isUsuarioDemo = userEmail === 'usuario@decolashop.com';
-        const NORMAL_USER_RESET_KEY = 'decolashop_normal_user_reset_trigger_2026_10_03';
+        const NORMAL_USER_RESET_KEY = 'decolashop_normal_clean_zero_v10';
         const USUARIO_DEMO_APPLY_KEY = 'decolashop_usuario_history_700_1k_apply_v1';
 
-        // Para os outros usuários normais (cliente, user, etc.), mantém reset inicial zerado
-        if (isNormalUser && !isUsuarioDemo && localStorage.getItem(NORMAL_USER_RESET_KEY) !== 'done') {
+        // Para os outros usuários normais (cliente, user, joao, aleghartz, etc.), garante reset inicial 100% zerado
+        if (isNormalUser && !isUsuarioDemo && localStorage.getItem(`${NORMAL_USER_RESET_KEY}_${cleanEmailKey}`) !== 'done') {
           try {
-            localStorage.setItem(NORMAL_USER_RESET_KEY, 'done');
+            localStorage.setItem(`${NORMAL_USER_RESET_KEY}_${cleanEmailKey}`, 'done');
             localStorage.removeItem(userStorageKey);
-            localStorage.removeItem('decolashop_sales_state_cliente_decolashop_com');
-            localStorage.removeItem('decolashop_sales_state_user_decolashop_com');
-            localStorage.removeItem('decolashop_saldo_antecipado_cliente_decolashop_com');
-            localStorage.removeItem('decolashop_saldo_antecipado_pago_cliente_decolashop_com');
-            localStorage.removeItem('decolashop_has_withdrawn_cliente_decolashop_com');
-            localStorage.removeItem('decolashop_notified_unlock_250_cliente_decolashop_com');
+            localStorage.removeItem(`decolashop_sales_state_${cleanEmailKey}`);
+            localStorage.removeItem('decolashop_sales_state_usuario_decolashop_com');
+            localStorage.removeItem(`decolashop_saldo_antecipado_${cleanEmailKey}`);
+            localStorage.removeItem(`decolashop_saldo_antecipado_pago_${cleanEmailKey}`);
+            localStorage.removeItem(`decolashop_has_withdrawn_${cleanEmailKey}`);
+            localStorage.removeItem(`decolashop_notified_unlock_250_${cleanEmailKey}`);
             localStorage.removeItem('decolashop_divulgados');
+            localStorage.removeItem(`decolashop_divulgados_${cleanEmailKey}`);
             localStorage.removeItem('decolashop_next_sale_target');
+            fetch(`/api/user/sync-state?action=reset&email=${encodeURIComponent(userEmail)}`).catch(() => {});
           } catch {}
         }
 
@@ -259,8 +272,6 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         }
 
         let saved = localStorage.getItem(userStorageKey);
-
-        const isGerenteUser = userEmail === 'gerente@decolashop.com' || userEmail === 'admin@decolashop.com' || isAdmin;
 
         // TRANSFERÊNCIA / MIGRAÇÃO AUTOMÁTICA COMPLETA (EXCLUSIVO GERENTE):
         if (isGerenteUser && !saved) {
@@ -441,14 +452,15 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (parsed.intervalMode) setIntervalMode(parsed.intervalMode);
-        if (!isGerenteUser && parsed.minSeconds === 300 && parsed.maxSeconds === 900) {
-          setMinSeconds(180);
-          setMaxSeconds(600);
+        if (!isGerenteUser) {
+          setMinSeconds(570);
+          setMaxSeconds(630);
+          setFixedSeconds(600);
         } else {
           if (parsed.minSeconds && parsed.minSeconds >= 80) setMinSeconds(parsed.minSeconds);
           if (parsed.maxSeconds && parsed.maxSeconds >= 200) setMaxSeconds(parsed.maxSeconds);
+          if (parsed.fixedSeconds && parsed.fixedSeconds >= 60) setFixedSeconds(parsed.fixedSeconds);
         }
-        if (parsed.fixedSeconds && parsed.fixedSeconds >= 60) setFixedSeconds(parsed.fixedSeconds);
         if (parsed.selectedProductId) setSelectedProductId(parsed.selectedProductId);
 
         // Calcula vendas cronológicas retroativas de ausência (Para Gerente e para Membros com produtos/campanhas ativas)
@@ -460,20 +472,17 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         // Coleta produtos registrados pelo usuário (campanhas e favoritos)
         let userRegisteredProducts: any[] = [];
         try {
-          const rawDivs = localStorage.getItem('decolashop_divulgados');
-          if (rawDivs) {
-            const parsedDivs = JSON.parse(rawDivs);
-            if (Array.isArray(parsedDivs)) {
-              parsedDivs.filter((d: any) => d.status === 'active').forEach((d: any) => {
-                userRegisteredProducts.push({
-                  id: d.productId || d.id,
-                  name: d.name,
-                  price: typeof d.price === 'number' ? d.price : 99.90,
-                  image_url: d.image_url,
-                  category: d.category || 'Geral'
-                });
+          const userCampaigns = getDivulgados(userEmail);
+          if (Array.isArray(userCampaigns)) {
+            userCampaigns.filter((d: any) => d.status === 'active').forEach((d: any) => {
+              userRegisteredProducts.push({
+                id: d.productId || d.id,
+                name: d.name,
+                price: typeof d.price === 'number' ? d.price : 99.90,
+                image_url: d.image_url,
+                category: d.category || 'Geral'
               });
-            }
+            });
           }
           const rawSavs = localStorage.getItem('decolashop_saved_products');
           if (rawSavs) {
@@ -493,17 +502,15 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         } catch {}
 
         const hasUserProds = userRegisteredProducts.length > 0;
-        // Ativa se ficou fora por mais de 3 min OU se a última venda salva tem mais de 8 min
         const shouldCatchUpSales = elapsedMs >= 180_000 || (timeSinceNewestSale >= 480_000 && (hasUserProds || isGerenteUser));
 
-        if (shouldCatchUpSales || (hasUserProds && currRecentSales.length === 0)) {
-          const elapsedMinutes = Math.max(
-            Math.floor(elapsedMs / 60_000),
-            Math.floor(timeSinceNewestSale / 60_000)
-          );
-
-          let count = 0;
-          if (isGerenteUser) {
+        let count = 0;
+        if (isGerenteUser) {
+          if (shouldCatchUpSales) {
+            const elapsedMinutes = Math.max(
+              Math.floor(elapsedMs / 60_000),
+              Math.floor(timeSinceNewestSale / 60_000)
+            );
             if (elapsedMinutes < 60) {
               count = Math.max(1, Math.min(5, Math.floor(elapsedMinutes / 9)));
             } else if (elapsedMinutes < 360) {
@@ -513,26 +520,27 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
             } else {
               count = Math.floor(16 + Math.random() * 6);
             }
-          } else {
-            // CONTAS DE USUÁRIOS NORMAIS:
-            // Cadência: entre 3 e 10 minutos (média de ~5 a 7 min por venda)
-            if (elapsedMinutes < 15) {
-              count = Math.max(1, Math.floor(elapsedMinutes / 5));
+          }
+        } else {
+          // CONTAS DE USUÁRIOS NORMAIS:
+          // 1. Contas novas ou com 0 vendas NUNCA recebem vendas retroativas de ausência!
+          // 2. Se a conta já tiver vendas reais prévias e ficou ausente com campanhas ativas,
+          //    computa estritamente no ritmo de 1 venda a cada 10 minutos (com teto moderado).
+          if (currRecentSales.length > 0 && currVendasTotais > 0 && elapsedMs >= 600_000 && hasUserProds) {
+            const elapsedMinutes = Math.floor(elapsedMs / 60_000);
+            if (elapsedMinutes < 20) {
+              count = 1;
             } else if (elapsedMinutes < 60) {
-              count = Math.max(2, Math.min(8, Math.floor(elapsedMinutes / 6)));
-            } else if (elapsedMinutes < 360) {
-              count = Math.max(5, Math.min(22, Math.floor(elapsedMinutes / 8)));
-            } else if (elapsedMinutes < 1440) {
-              count = Math.max(12, Math.min(45, Math.floor(elapsedMinutes / 12)));
+              count = Math.min(2, Math.floor(elapsedMinutes / 20));
+            } else if (elapsedMinutes < 240) {
+              count = Math.min(4, Math.floor(elapsedMinutes / 40));
             } else {
-              count = Math.floor(25 + Math.random() * 15);
+              count = Math.min(6, Math.floor(4 + Math.random() * 2));
             }
+          } else {
+            count = 0;
           }
-
-          // Se tiver produtos registrados mas currRecentSales estiver vazio, garante 2 a 4 vendas iniciais
-          if (!isGerenteUser && hasUserProds && currRecentSales.length === 0 && count === 0) {
-            count = Math.floor(2 + Math.random() * 3);
-          }
+        }
 
           if (count > 0) {
             const catalog = userRegisteredProducts.length > 0 
@@ -623,9 +631,12 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
             currCliques = currCliques + count * 6;
             currVisitas = currVisitas + count * 4;
 
-            // Agenda a próxima venda ao vivo para breve (20 a 40s) após o usuário abrir a plataforma
+            // Agenda a próxima venda ao vivo (Gerente: 20-40s, Normal: ~10 minutos = 570s a 630s)
             try {
-              const liveNextTarget = Date.now() + Math.floor(Math.random() * 20 + 20) * 1000;
+              const liveDelaySec = isGerenteUser 
+                ? Math.floor(Math.random() * 20 + 20) 
+                : Math.floor(Math.random() * 60 + 570);
+              const liveNextTarget = Date.now() + liveDelaySec * 1000;
               localStorage.setItem('decolashop_next_sale_target', String(liveNextTarget));
             } catch {}
 
@@ -660,7 +671,6 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
               ), { duration: 7500 });
             }, 1200);
           }
-        }
 
         setVendasTotais(currVendasTotais);
         setSaldoDisponivel(currSaldoDisponivel);
@@ -673,6 +683,7 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
       } catch {
         // ignore
       } finally {
+        currentLoadedEmailRef.current = userEmail;
         setIsLoaded(true);
       }
     }
@@ -682,11 +693,12 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     return () => {
       isCancelled = true;
     };
-  }, [userEmail, userStorageKey]);
+  }, [userEmail, userStorageKey, status]);
 
   // 2. Salva no localStorage isolado por usuário e sincroniza com a nuvem silenciosamente
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!isLoaded || status === 'loading' || !userEmail) return;
+    if (currentLoadedEmailRef.current !== userEmail) return;
     try {
       const dataToSave = {
         vendasTotais,
@@ -706,7 +718,7 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         lastSavedDate: new Date().toDateString()
       };
       localStorage.setItem(userStorageKey, JSON.stringify(dataToSave));
-      if (userEmail === 'gerente@decolashop.com' || userEmail === 'admin@decolashop.com' || isAdmin) {
+      if (isGerenteUser) {
         localStorage.setItem('decolashop_sales_state_gerente_decolashop_com', JSON.stringify(dataToSave));
         localStorage.setItem('decolashop_sales_state_admin_decolashop_com', JSON.stringify(dataToSave));
         localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
@@ -779,22 +791,19 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
       // Prioriza produtos registrados pelo usuário (campanhas ativas e salvos em favoritos)
       let userProds: Product[] = [];
       try {
-        const rawDivs = localStorage.getItem('decolashop_divulgados');
-        if (rawDivs) {
-          const parsedDivs = JSON.parse(rawDivs);
-          if (Array.isArray(parsedDivs)) {
-            parsedDivs.filter((d: any) => d.status === 'active').forEach((d: any) => {
-              userProds.push({
-                id: d.productId || d.id,
-                name: d.name,
-                price: typeof d.price === 'number' ? d.price : 99.90,
-                image_url: d.image_url,
-                category: d.category || 'Geral',
-                hype_score: 95,
-                url: 'https://shopee.com.br'
-              });
+        const userDivs = getDivulgados(userEmail);
+        if (Array.isArray(userDivs)) {
+          userDivs.filter((d: any) => d.status === 'active').forEach((d: any) => {
+            userProds.push({
+              id: d.productId || d.id,
+              name: d.name,
+              price: typeof d.price === 'number' ? d.price : 99.90,
+              image_url: d.image_url,
+              category: d.category || 'Geral',
+              hype_score: 95,
+              url: 'https://shopee.com.br'
             });
-          }
+          });
         }
         const rawSavs = localStorage.getItem('decolashop_saved_products');
         if (rawSavs) {
@@ -849,7 +858,7 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     };
 
     // Atualiza contadores da campanha em divulgados
-    registerSaleForCampaign(chosen.id || chosen.name, parsedPrice);
+    registerSaleForCampaign(chosen.id || chosen.name, parsedPrice, userEmail);
 
     setVendasTotais(prev => {
       const updated = Math.round((prev + parsedPrice) * 100) / 100;
@@ -916,19 +925,23 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     ), { duration: 4000 });
   };
 
-  // Divulgação com IA: 1ª venda em exatamente 60s (1 min), e depois vendas entre 4 a 15 minutos
+  // Divulgação com IA: 1ª venda em ~10 minutos para usuários normais
   const triggerDelayedCampaignSales = (targetProduct: Partial<Product>, customPrice?: number) => {
-    // 1ª Venda após 1 minuto (60.000 ms)
+    const isMgr = isGerenteUserRef.current;
+    // 1ª Venda: Gerente 60s, Normal 600s (10 minutos)
+    const initialDelayMs = isMgr ? 60000 : 600000;
     setTimeout(() => {
       addSale(targetProduct, customPrice);
-      toast.success('🎉 Primeira venda da sua campanha com IA acabou de cair! Comissões liberadas.', {
+      toast.success('🎉 Venda da sua campanha com IA acabou de cair! Comissões liberadas.', {
         duration: 5000,
         icon: '💰'
       });
 
-      // Loop subsequente entre 3 e 10 minutos (180s a 600s aleatório)
+      // Loop subsequente: Gerente 100s-400s, Normal ~10 minutos (570s a 630s)
       const scheduleSubsequent = () => {
-        const randomSeconds = Math.floor(Math.random() * (600 - 180 + 1)) + 180;
+        const randomSeconds = isMgr
+          ? Math.floor(Math.random() * (400 - 100 + 1)) + 100
+          : Math.floor(Math.random() * (630 - 570 + 1)) + 570;
         setTimeout(() => {
           addSale(targetProduct, customPrice);
           scheduleSubsequent();
@@ -936,7 +949,7 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
       };
 
       scheduleSubsequent();
-    }, 60000);
+    }, initialDelayMs);
   };
 
   const resetData = () => {
@@ -990,6 +1003,9 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem('decolashop_sales_state_v2');
         localStorage.removeItem('decolashop_sales_state');
         localStorage.removeItem(`decolashop_sales_state_${cleanEmailKey}`);
+        localStorage.removeItem(`decolashop_divulgados_${cleanEmailKey}`);
+        localStorage.removeItem('decolashop_divulgados');
+        localStorage.removeItem('decolashop_next_sale_target');
         fetch(`/api/user/sync-state?action=reset&email=${encodeURIComponent(userEmail)}`).catch(() => {});
       } catch {}
     }
@@ -1076,12 +1092,11 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
           }
         } else {
           // CONTAS DE MEMBROS NORMAIS:
-          // Ritmo solicitado: entre 3 min (180s) e 10 min (600s)
-          // Se o agendamento já expirou há mais de 15s ou se é primeira execução, 1ª venda cai mais rápido (20s a 45s)
-          if (targetTimestamp > 0 && (now - targetTimestamp) > 15000) {
-            nextSec = Math.floor(Math.random() * 25 + 20); // 20 a 45s
+          // Ritmo solicitado: estritamente 1 venda a cada 10 minutos (~570s a 630s, média 600s = 10 min)
+          if (intervalMode === 'fixed') {
+            nextSec = Math.max(60, fixedSeconds);
           } else {
-            nextSec = Math.floor(Math.random() * (600 - 180 + 1)) + 180;
+            nextSec = Math.floor(Math.random() * (630 - 570 + 1)) + 570;
           }
         }
         delayMs = nextSec * 1000;
