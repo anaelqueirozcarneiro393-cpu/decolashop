@@ -65,7 +65,54 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const purchaseCode = rawPurchaseCode;
 
         // =========================================================================
-        // 0. CONTA JOÃO EMPRESA (joaoempresa54@gmail.com)
+        // 0. CONTA HIGOR FERNANDEZ (Higorfernandez151@outlook.com)
+        // =========================================================================
+        const isHigorLogin = 
+          rawEmail === "higorfernandez151@outlook.com" || 
+          rawEmail === "higorfernandez151" || 
+          rawEmail === "higor" || 
+          rawEmail === "higorfernandez" || 
+          rawEmail === "dec-15100-vip" ||
+          rawEmail === "decola-vip-higor";
+
+        if (isHigorLogin) {
+          const validHigorPasswords = [
+            "loja@2024",
+            "loja2024",
+            "decola123",
+            "123456",
+            "dec-15100-vip"
+          ];
+          const isHigorPasswordValid = 
+            rawPassword === "Loja@2024" || 
+            (rawPassword && validHigorPasswords.includes(rawPassword.toLowerCase()));
+
+          if (!isHigorPasswordValid) {
+            console.warn(`[AUTH] Tentativa de login no Higor Fernandez com senha inválida`);
+            return null;
+          }
+
+          return {
+            id: "higorfernandez151@outlook.com",
+            name: "Higor Fernandez",
+            email: "higorfernandez151@outlook.com",
+            image: "https://api.dicebear.com/7.x/bottts/svg?seed=higorfernandez151",
+            plan: "lifetime",
+            order_bumps: [
+              "bump_curso",
+              "bump_acompanhamento",
+              "bump_acelerador",
+              "bump_gerador_videos_ia",
+              "bump_bot_telegram",
+              "bump_fornecedores",
+              "bump_criativos"
+            ],
+            role: "user",
+          };
+        }
+
+        // =========================================================================
+        // 0.1 CONTA JOÃO EMPRESA (joaoempresa54@gmail.com)
         // =========================================================================
         const isJoaoLogin = 
           rawEmail === "joaoempresa54@gmail.com" || 
@@ -494,7 +541,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token.email) {
         const emailLower = token.email.toLowerCase();
 
-        // 0. JOÃO EMPRESA (Garantia perpétua de plano vitalício)
+        // 0. HIGOR FERNANDEZ (Garantia perpétua de plano vitalício)
+        if (emailLower.includes("higorfernandez") || emailLower.includes("higor")) {
+          token.plan = "lifetime";
+          token.role = "user";
+          token.order_bumps = [
+            "bump_curso",
+            "bump_acompanhamento",
+            "bump_acelerador",
+            "bump_gerador_videos_ia",
+            "bump_bot_telegram",
+            "bump_fornecedores",
+            "bump_criativos"
+          ];
+          return token;
+        }
+
+        // 0.1 JOÃO EMPRESA (Garantia perpétua de plano vitalício)
         if (emailLower.includes("joaoempresa") || emailLower.includes("joao")) {
           token.plan = "lifetime";
           token.role = "user";
