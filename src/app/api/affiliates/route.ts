@@ -482,7 +482,6 @@ export async function POST(req: Request) {
 
     if (action === 'record_sale') {
       const sale = recordAffiliateSaleOnServer(body.sale);
-      await saveStoreToSupabase(store);
       return NextResponse.json({ success: true, sale });
     }
 
