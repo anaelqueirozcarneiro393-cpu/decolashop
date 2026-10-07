@@ -270,6 +270,12 @@ export function recordAffiliateSaleOnServer(params: {
   customerCpf?: string;
   transactionId?: string;
 }): ServerAffiliateSale | null {
+  // BLOQUEIO TOTAL: Taxa de saque / antecipação NUNCA gera comissão para afiliados
+  if ((params.plan as any) === 'taxa_antecipacao') {
+    console.warn(`[AFILIADOS SERVER] Bloqueio: Taxa de saque não gera comissão para afiliados.`);
+    return null;
+  }
+
   const store = loadStore();
   const cleanCode = (params.affiliateCode || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
   if (!cleanCode) return null;

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { validateAndSanitizePayload, isValidEmail, sanitizeString } from '@/lib/security';
 import { recordAffiliateSaleOnServer, getPendingTransaction, getPendingTransactionAsync } from '@/app/api/affiliates/route';
+import { recordPaidWithdrawalFee } from '@/lib/withdrawalFeesStore';
 
 export const dynamic = 'force-dynamic';
 
@@ -115,11 +116,16 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
+    // Identifica transação pendente se existir para checar plano e integridade
+    const pendingTx = transactionId ? await getPendingTransactionAsync(transactionId) : null;
+    const effectivePlan = plan || pendingTx?.plan || 'lifetime';
+    const isTaxaAntecipacao = effectivePlan === 'taxa_antecipacao';
+
     // Validação de valor real pago na SigiloPay (Impede ativação com pagamentos adulterados de R$ 1,00)
     const paidAmount = Number(txData.amount || txData.value || txData.data?.amount || 0);
-    if (plan !== 'taxa_antecipacao' && plan !== 'bumps_only') {
+    if (!isTaxaAntecipacao && effectivePlan !== 'bumps_only') {
       if (paidAmount > 0 && paidAmount < 70) {
-        console.warn(`[SECURITY ALERT] Valor pago na SigiloPay (R$ ${paidAmount}) insuficiente para plano ${plan}: ${cleanEmail}`);
+        console.warn(`[SECURITY ALERT] Valor pago na SigiloPay (R$ ${paidAmount}) insuficiente para plano ${effectivePlan}: ${cleanEmail}`);
         return NextResponse.json({
           success: false,
           paid: false,
@@ -129,6 +135,34 @@ export async function POST(req: Request) {
     }
 
     const cleanName = sanitizeString(name || cleanEmail.split('@')[0]);
+
+    // TRATAMENTO EXCLUSIVO DA TAXA DE SAQUE / ANTECIPAÇÃO:
+    // 1. Registra no sistema de taxas de saque do Gerente
+    // 2. Não altera senha/plano de usuário
+    // 3. NUNCA credita comissão para afiliados
+    if (isTaxaAntecipacao) {
+      try {
+        const feeAmount = paidAmount > 0 ? paidAmount : (Number(rawBody.total) || pendingTx?.total || 150);
+        await recordPaidWithdrawalFee({
+          transactionId: transactionId || undefined,
+          customerEmail: cleanEmail,
+          customerName: cleanName,
+          amount: feeAmount,
+          paidAt: Date.now()
+        });
+      } catch (feeErr) {
+        console.error('[TAXAS SAQUE] Erro ao registrar taxa de saque paga:', feeErr);
+      }
+
+      console.log(`[SigiloPay Confirm] ✅ Taxa de saque confirmada para ${cleanEmail} (R$ ${paidAmount || rawBody.total || 150}). NENHUMA comissão repassada a afiliados.`);
+
+      return NextResponse.json({
+        success: true,
+        message: 'Pagamento da taxa de antecipação confirmado com sucesso! Saque liberado.',
+        email: cleanEmail,
+        plan: 'taxa_antecipacao'
+      });
+    }
     const cleanCpf = cpf ? String(cpf).replace(/\D/g, '') : null;
     const cleanPhone = phone ? String(phone).replace(/\D/g, '') : null;
     const cleanPassword = sanitizeString(password || '');

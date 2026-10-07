@@ -110,7 +110,10 @@ export async function POST(req: Request) {
     const sigiloSecretKey = process.env.SIGILOPAY_SECRET_KEY || 'tzlk0xxe8t4dybi2t0o1udw1ckczp01a4a9hbgptalozcan5hh0r59qw41seo3ze';
     const sigiloBaseUrl = process.env.SIGILOPAY_BASE_URL || 'https://app.sigilopay.com.br';
 
-    console.log(`[SigiloPay Pix Request] Total: R$ ${numTotal} - Cliente: ${customer.email} - CPF Seguro: ${safeCpf} - Afiliado: ${affiliateCode || 'Nenhum'}`);
+    const isTaxaAntecipacao = plan === 'taxa_antecipacao';
+    const effectiveAffiliateCode = isTaxaAntecipacao ? undefined : (affiliateCode || undefined);
+
+    console.log(`[SigiloPay Pix Request] Total: R$ ${numTotal} - Cliente: ${customer.email} - CPF Seguro: ${safeCpf} - Afiliado: ${effectiveAffiliateCode || 'Nenhum (ou Taxa de Saque)'}`);
 
     if (sigiloPublicKey && sigiloSecretKey) {
       try {
@@ -135,9 +138,9 @@ export async function POST(req: Request) {
             webhook_url: `${siteUrl}/api/webhooks/sigilopay`,
             metadata: {
               plan,
-              planPrice,
-              bumps,
-              affiliateCode,
+              planPrice: isTaxaAntecipacao ? numTotal : planPrice,
+              bumps: isTaxaAntecipacao ? [] : bumps,
+              affiliateCode: effectiveAffiliateCode,
               platform: 'DecolaShop SaaS'
             }
           })
@@ -166,7 +169,7 @@ export async function POST(req: Request) {
             const finalTxId = sigiloData.transactionId || sigiloData.order?.id || transactionId;
             console.log(`[SigiloPay Direct API] Pix gerado com sucesso via SigiloPay! Transaction: ${finalTxId}`);
 
-            // 1. Registra transação pendente no servidor para atribuição 100% garantida de afiliado
+            // 1. Registra transação pendente no servidor (Taxa de Saque NUNCA associa comissão de afiliado)
             registerPendingTransaction({
               transactionId: finalTxId,
               clientIdentifier: transactionId,
@@ -175,11 +178,11 @@ export async function POST(req: Request) {
               cpf: safeCpf,
               phone: cleanPhone,
               plan: plan || 'lifetime',
-              planPrice: Number(planPrice) || (plan === 'monthly' ? 97 : 147),
-              bumps: bumps || [],
-              bumpPrices: Math.max(0, numTotal - (Number(planPrice) || (plan === 'monthly' ? 97 : 147))),
+              planPrice: isTaxaAntecipacao ? numTotal : (Number(planPrice) || (plan === 'monthly' ? 97 : 147)),
+              bumps: isTaxaAntecipacao ? [] : (bumps || []),
+              bumpPrices: isTaxaAntecipacao ? 0 : Math.max(0, numTotal - (Number(planPrice) || (plan === 'monthly' ? 97 : 147))),
               total: numTotal,
-              affiliateCode: affiliateCode || undefined,
+              affiliateCode: effectiveAffiliateCode,
               createdAt: Date.now()
             });
 
@@ -197,9 +200,9 @@ export async function POST(req: Request) {
                   phone: cleanPhone,
                   total: numTotal,
                   plan: plan || 'lifetime',
-                  bumps: bumps || [],
+                  bumps: isTaxaAntecipacao ? [] : (bumps || []),
                   status: 'pending',
-                  affiliate_code: affiliateCode
+                  affiliate_code: effectiveAffiliateCode || null
                 }).select();
               }
             } catch {}

@@ -16,7 +16,8 @@ import {
   QrCode,
   ShieldCheck,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  Receipt
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useSales, formatSaleTime } from '@/lib/salesContext';
@@ -61,7 +62,60 @@ export default function FinanceiroView() {
   };
 
   const userEmail = session?.user?.email?.toLowerCase().trim() || 'usuario@decolashop.com';
+  const userRole = (session?.user as any)?.role || '';
   const cleanEmailKey = userEmail.replace(/[^a-z0-9]/g, '_');
+
+  const isGerenteOrAdmin = 
+    userEmail === 'gerente@decolashop.com' || 
+    userEmail === 'admin@decolashop.com' ||
+    userEmail.startsWith('gerente@') ||
+    userEmail.includes('gerente') ||
+    userEmail.includes('admin') ||
+    userRole === 'gerente' ||
+    userRole === 'admin';
+
+  // Métricas de taxas de saque pagas (Exclusivo Gerente)
+  const [managerFeesData, setManagerFeesData] = useState<{
+    totalCount: number;
+    totalAmount: number;
+    fees: Array<{
+      id: string;
+      transactionId?: string;
+      customerEmail: string;
+      customerName?: string;
+      amount: number;
+      paidAt: number;
+      status: string;
+    }>;
+  }>({ totalCount: 0, totalAmount: 0, fees: [] });
+  const [showManagerFeesModal, setShowManagerFeesModal] = useState(false);
+  const [managerFeesLoading, setManagerFeesLoading] = useState(false);
+
+  const fetchManagerFees = () => {
+    if (!isGerenteOrAdmin) return;
+    setManagerFeesLoading(true);
+    fetch(`/api/gerente/taxas-saque?email=${encodeURIComponent(userEmail)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setManagerFeesData({
+            totalCount: data.totalCount || 0,
+            totalAmount: data.totalAmount || 0,
+            fees: data.fees || []
+          });
+        }
+      })
+      .catch(() => {})
+      .finally(() => setManagerFeesLoading(false));
+  };
+
+  useEffect(() => {
+    if (isGerenteOrAdmin) {
+      fetchManagerFees();
+      const interval = setInterval(fetchManagerFees, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [isGerenteOrAdmin, userEmail]);
 
   // Notificação automática ao atingir R$ 250 de saldo líquido
   const [hasNotifiedUnlock, setHasNotifiedUnlock] = useState(false);
@@ -389,6 +443,99 @@ export default function FinanceiroView() {
           </p>
         </div>
       </div>
+
+      {/* PAINEL EXCLUSIVO DO GERENTE: Taxas de Saque Pagas */}
+      {isGerenteOrAdmin && (
+        <div className="rounded-3xl p-6 md:p-8 bg-gradient-to-br from-[#0c1824] via-[#0d121f] to-[#111c2e] border-2 border-[#38bdf8]/40 shadow-2xl shadow-[#38bdf8]/10 relative overflow-hidden space-y-5 animate-in fade-in duration-300">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#38bdf8] via-[#0ea5e9] to-[#0284c7] shadow-[0_0_15px_#38bdf8]" />
+          
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start sm:items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-[#38bdf8]/15 border border-[#38bdf8]/30 flex items-center justify-center text-[#38bdf8] shadow-[0_0_15px_rgba(56,189,248,0.2)] flex-shrink-0">
+                <Receipt size={24} />
+              </div>
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#38bdf8]/15 text-[#38bdf8] text-[10px] font-black uppercase tracking-wider mb-1 border border-[#38bdf8]/30">
+                  <ShieldCheck size={11} />
+                  <span>EXCLUSIVO CONTA GERENTE</span>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
+                  Taxas de Saque Pagas
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/30 font-bold">
+                    100% da Plataforma
+                  </span>
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Controle de taxas de antecipação pagas pelos clientes. <strong className="text-slate-200">Zero comissão para afiliados</strong> (100% retido pela plataforma).
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-end sm:self-auto">
+              <button
+                onClick={() => {
+                  fetchManagerFees();
+                  setShowManagerFeesModal(true);
+                }}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#38bdf8]/20 hover:bg-[#38bdf8]/30 text-[#38bdf8] border border-[#38bdf8]/40 text-xs font-bold transition-all cursor-pointer shadow-lg shadow-[#38bdf8]/10"
+              >
+                <Eye size={14} />
+                <span>Ver Extrato Completo</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+            {/* Métrica 1: Quantidade de taxas pagas */}
+            <div className="bg-[#080d18]/80 rounded-2xl p-4 border border-[#38bdf8]/20">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                QUANTIDADE DE TAXAS PAGAS
+              </span>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl sm:text-3xl font-black text-white">
+                  {managerFeesData.totalCount}
+                </span>
+                <span className="text-xs font-bold text-[#38bdf8]">
+                  {managerFeesData.totalCount === 1 ? 'taxa paga' : 'taxas pagas'}
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-500 mt-2">
+                Total de antecipações quitadas via Pix
+              </p>
+            </div>
+
+            {/* Métrica 2: Faturamento Total com Taxas */}
+            <div className="bg-[#080d18]/80 rounded-2xl p-4 border border-[#22c55e]/20">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                FATURAMENTO TOTAL COM TAXAS
+              </span>
+              <div className="flex items-baseline gap-1">
+                <span className="text-sm font-black text-[#4ade80]">R$</span>
+                <span className="text-2xl sm:text-3xl font-black text-white">
+                  {managerFeesData.totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-500 mt-2">
+                Receita líquida retida integralmente no cofre
+              </p>
+            </div>
+
+            {/* Métrica 3: Blindagem de Afiliados */}
+            <div className="bg-[#080d18]/80 rounded-2xl p-4 border border-emerald-500/20">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                BLINDAGEM DE AFILIADOS
+              </span>
+              <div className="flex items-center gap-1.5 my-1 text-emerald-400 font-black text-base sm:text-lg">
+                <ShieldCheck size={18} />
+                <span>100% Blindado</span>
+              </div>
+              <p className="text-[10px] text-slate-500 mt-2">
+                Taxas de saque jamais geram comissões a afiliados
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Carência & Antecipação Card */}
       <div className="bg-[#0d121f]/90 rounded-3xl p-6 md:p-8 border border-white/10 shadow-xl backdrop-blur-xl space-y-4">
@@ -939,6 +1086,78 @@ export default function FinanceiroView() {
                 className="w-full text-center text-xs text-slate-500 hover:text-slate-300 font-semibold transition-colors cursor-pointer py-1"
               >
                 Cancelar e fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Extrato de Taxas de Saque Pagas (Exclusivo Gerente) */}
+      {showManagerFeesModal && isGerenteOrAdmin && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-[#0d121f] rounded-3xl p-6 sm:p-8 max-w-2xl w-full border border-[#38bdf8]/40 shadow-2xl space-y-6 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between pb-4 border-b border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#38bdf8]/20 border border-[#38bdf8]/40 flex items-center justify-center text-[#38bdf8]">
+                  <Receipt size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-white">Extrato de Taxas de Saque Pagas</h3>
+                  <p className="text-xs text-slate-400">
+                    Histórico detalhado das taxas de antecipação quitadas (somente conta de gerente)
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowManagerFeesModal(false)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-slate-400 hover:text-white transition-all cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-[#080d18] border border-white/5 text-xs text-slate-300">
+              <span>Total de Taxas Pagas: <strong className="text-white font-bold">{managerFeesData.totalCount}</strong></span>
+              <span>Total Arrecadado: <strong className="text-[#4ade80] font-bold">R$ {managerFeesData.totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></span>
+            </div>
+
+            <div className="overflow-y-auto space-y-3 flex-1 pr-1 custom-scrollbar">
+              {managerFeesData.fees.length === 0 ? (
+                <div className="py-12 text-center text-slate-500 text-xs">
+                  <Receipt size={36} className="mx-auto mb-2 text-slate-600 opacity-60" />
+                  Nenhuma taxa de saque registrada ainda.
+                </div>
+              ) : (
+                managerFeesData.fees.map((fee, idx) => (
+                  <div key={fee.id || idx} className="p-3.5 rounded-2xl bg-[#080d18]/90 border border-white/10 flex items-center justify-between text-xs">
+                    <div>
+                      <div className="font-bold text-white flex items-center gap-1.5">
+                        <span>{fee.customerEmail}</span>
+                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-[#22c55e]/20 text-[#4ade80] font-bold">PAGO</span>
+                      </div>
+                      <div className="text-[11px] text-slate-400 mt-0.5">
+                        {fee.customerName ? `${fee.customerName} • ` : ''}
+                        {new Date(fee.paidAt).toLocaleString('pt-BR')}
+                        {fee.transactionId ? ` • ID: ${fee.transactionId}` : ''}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-black text-[#4ade80]">
+                        R$ {Number(fee.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </div>
+                      <span className="text-[10px] text-slate-500">100% Plataforma (0% Afiliados)</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="pt-3 border-t border-white/10 flex justify-end">
+              <button
+                onClick={() => setShowManagerFeesModal(false)}
+                className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition-all cursor-pointer"
+              >
+                Fechar
               </button>
             </div>
           </div>

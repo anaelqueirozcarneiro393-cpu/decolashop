@@ -24,7 +24,8 @@ import {
   CheckCircle2, 
   Share2,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  Receipt
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
@@ -122,6 +123,21 @@ export default function AfiliadosView() {
       window.removeEventListener('decolashop_affiliate_sales_updated', handleUpdate);
     };
   }, []);
+
+  const [managerFeesData, setManagerFeesData] = useState<{ totalCount: number; totalAmount: number }>({ totalCount: 0, totalAmount: 0 });
+
+  useEffect(() => {
+    if (isAuthorized) {
+      fetch(`/api/gerente/taxas-saque?email=${encodeURIComponent(userEmail)}`)
+        .then(res => res.json())
+        .then(d => {
+          if (d.success) {
+            setManagerFeesData({ totalCount: d.totalCount || 0, totalAmount: d.totalAmount || 0 });
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isAuthorized, userEmail]);
 
   // Summary Metrics
   const metrics = useMemo(() => {
@@ -427,6 +443,42 @@ export default function AfiliadosView() {
               '100% vendas externas qualificadas'
             )}
           </p>
+        </div>
+
+        {/* Taxas de Saque Pagas (100% Retenção Casa) */}
+        <div className="p-4 rounded-2xl bg-gradient-to-br from-[#0c1824] to-[#080d18] border border-[#38bdf8]/40 hover:border-[#38bdf8]/60 transition-all col-span-2 lg:col-span-4 shadow-lg shadow-[#38bdf8]/5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-[#38bdf8]/15 border border-[#38bdf8]/30 text-[#38bdf8]">
+                <Receipt size={18} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-[#38bdf8] uppercase tracking-wider">
+                    Taxas de Saque Pagas (Governança da Casa)
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full bg-[#22c55e]/15 text-[#4ade80] text-[10px] font-bold border border-[#22c55e]/30">
+                    100% Plataforma • 0% Afiliados
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Taxas de antecipação de saque dos clientes são receitas da plataforma e <strong className="text-slate-200">nunca são comissionadas aos afiliados</strong>.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 self-end sm:self-auto bg-[#040810]/60 px-4 py-2 rounded-xl border border-white/5">
+              <div>
+                <span className="text-[10px] text-slate-500 uppercase font-bold block">Taxas Pagas</span>
+                <span className="text-lg font-black text-white">{managerFeesData.totalCount} quitadas</span>
+              </div>
+              <div className="h-8 w-px bg-white/10" />
+              <div>
+                <span className="text-[10px] text-slate-500 uppercase font-bold block">Total Arrecadado</span>
+                <span className="text-lg font-black text-[#4ade80]">R$ {managerFeesData.totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

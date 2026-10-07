@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { validateAndSanitizePayload, isValidEmail } from "@/lib/security";
 import { recordAffiliateSaleOnServer, getPendingTransaction, getPendingTransactionAsync } from "@/app/api/affiliates/route";
+import { recordPaidWithdrawalFee } from "@/lib/withdrawalFeesStore";
 
 export const dynamic = 'force-dynamic';
 
@@ -103,7 +104,34 @@ export async function POST(req: Request) {
 
     console.log(`SigiloPay Webhook: Cliente ${email} - Status: ${status} (Aprovado: ${isApproved}) - Afiliado: ${affiliateCode || 'Nenhum'}`);
 
+    const isTaxaAntecipacao = 
+      plan === 'taxa_antecipacao' || 
+      body.metadata?.plan === 'taxa_antecipacao' || 
+      pendingLocal?.plan === 'taxa_antecipacao';
+
     if (isApproved) {
+      if (isTaxaAntecipacao) {
+        try {
+          await recordPaidWithdrawalFee({
+            transactionId: transactionId || undefined,
+            customerEmail: email,
+            customerName: customerName || email.split('@')[0],
+            amount: Number(total) || 150,
+            paidAt: Date.now()
+          });
+        } catch (feeErr) {
+          console.error('[TAXAS SAQUE WEBHOOK] Erro ao registrar taxa paga:', feeErr);
+        }
+
+        console.log(`[SigiloPay Webhook] ✅ Taxa de saque aprovada para ${email} (R$ ${total}). Afiliados 100% blindados de comissão.`);
+        return NextResponse.json({
+          success: true,
+          message: "Taxa de antecipação aprovada e registrada exclusivamente para a gerência com sucesso!",
+          email,
+          plan: 'taxa_antecipacao'
+        }, { status: 200 });
+      }
+
       return await processApproval({
         email,
         plan,

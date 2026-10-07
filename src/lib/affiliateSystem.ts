@@ -298,8 +298,12 @@ export function getAffiliateSales(): AffiliateSale[] {
     }
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
-      // Purge any fake seed sales
-      const filtered = parsed.filter(s => !s.id.startsWith('sale_af_10') && !s.affiliateName?.includes('Pedro Alcântara'));
+      // Purge any fake seed sales or taxa_antecipacao sales
+      const filtered = parsed.filter(s => 
+        !s.id.startsWith('sale_af_10') && 
+        !s.affiliateName?.includes('Pedro Alcântara') &&
+        (s.plan as any) !== 'taxa_antecipacao'
+      );
       if (filtered.length !== parsed.length) {
         localStorage.setItem(AFFILIATE_SALES_STORAGE_KEY, JSON.stringify(filtered));
       }
@@ -473,6 +477,9 @@ export function recordAffiliateSale(params: {
   customerCpf?: string;
   transactionId?: string;
 }): AffiliateSale | null {
+  if ((params.plan as any) === 'taxa_antecipacao') {
+    return null;
+  }
   const activeCode = getAffiliateRef();
   if (!activeCode) {
     // Direct / owner sale (No commission to pay, 100% owner profit)
