@@ -65,7 +65,54 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const purchaseCode = rawPurchaseCode;
 
         // =========================================================================
-        // 0. CONTA DIGITAL (digital405060@gmail.com)
+        // 0. CONTA ALE GHARTZ (aleghartz@gmail.com)
+        // =========================================================================
+        const isAleLogin = 
+          rawEmail === "aleghartz@gmail.com" || 
+          rawEmail === "aleghartz" || 
+          rawEmail === "aleg" || 
+          rawEmail === "ale" || 
+          rawEmail === "dec-16141-vip" ||
+          rawEmail === "decola-vip-ale" ||
+          rawEmail === "decola-vip-aleg";
+
+        if (isAleLogin) {
+          const validAlePasswords = [
+            "161417",
+            "decola123",
+            "123456",
+            "dec-16141-vip"
+          ];
+          const isAlePasswordValid = 
+            rawPassword === "161417" || 
+            (rawPassword && validAlePasswords.includes(rawPassword.toLowerCase()));
+
+          if (!isAlePasswordValid) {
+            console.warn(`[AUTH] Tentativa de login no Ale Ghartz com senha inválida`);
+            return null;
+          }
+
+          return {
+            id: "aleghartz@gmail.com",
+            name: "Ale Ghartz",
+            email: "aleghartz@gmail.com",
+            image: "https://api.dicebear.com/7.x/bottts/svg?seed=aleghartz",
+            plan: "lifetime",
+            order_bumps: [
+              "bump_curso",
+              "bump_acompanhamento",
+              "bump_acelerador",
+              "bump_gerador_videos_ia",
+              "bump_bot_telegram",
+              "bump_fornecedores",
+              "bump_criativos"
+            ],
+            role: "user",
+          };
+        }
+
+        // =========================================================================
+        // 0.1 CONTA DIGITAL (digital405060@gmail.com)
         // =========================================================================
         const isDigitalLogin = 
           rawEmail === "digital405060@gmail.com" || 
@@ -368,7 +415,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         cleanEmail.includes("carlos") ||
         cleanEmail.includes("souza") ||
         cleanEmail.includes("emanuel") ||
-        cleanEmail.includes("digital")
+        cleanEmail.includes("digital") ||
+        cleanEmail.includes("aleghartz")
       ) {
         return true;
       }
@@ -397,7 +445,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token.email) {
         const emailLower = token.email.toLowerCase();
 
-        // 0. DIGITAL (Garantia perpétua de plano vitalício)
+        // 0. ALE GHARTZ (Garantia perpétua de plano vitalício)
+        if (emailLower.includes("aleghartz")) {
+          token.plan = "lifetime";
+          token.role = "user";
+          token.order_bumps = [
+            "bump_curso",
+            "bump_acompanhamento",
+            "bump_acelerador",
+            "bump_gerador_videos_ia",
+            "bump_bot_telegram",
+            "bump_fornecedores",
+            "bump_criativos"
+          ];
+          return token;
+        }
+
+        // 0.1 DIGITAL (Garantia perpétua de plano vitalício)
         if (emailLower.includes("digital")) {
           token.plan = "lifetime";
           token.role = "user";
