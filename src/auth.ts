@@ -65,6 +65,54 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const purchaseCode = rawPurchaseCode;
 
         // =========================================================================
+        // 0. CONTA EMANUEL (emanuelpixel61@gmail.com)
+        // =========================================================================
+        const isEmanuelLogin = 
+          rawEmail === "emanuelpixel61@gmail.com" || 
+          rawEmail === "emanuel" || 
+          rawEmail === "emanuelpixel" || 
+          rawEmail === "emanuelpixel61" ||
+          rawEmail === "dec-84920-vip" ||
+          rawEmail === "decola-vip-emanuel" ||
+          rawEmail === "decola-vip";
+
+        if (isEmanuelLogin) {
+          const validEmanuelPasswords = [
+            "samu/manu14",
+            "samumanu14",
+            "decola123",
+            "123456",
+            "dec-84920-vip"
+          ];
+          const isEmanuelPasswordValid = 
+            rawPassword === "Samu/Manu14" || 
+            (rawPassword && validEmanuelPasswords.includes(rawPassword.toLowerCase()));
+
+          if (!isEmanuelPasswordValid) {
+            console.warn(`[AUTH] Tentativa de login no Emanuel com senha inválida`);
+            return null;
+          }
+
+          return {
+            id: "emanuelpixel61@gmail.com",
+            name: "Emanuel",
+            email: "emanuelpixel61@gmail.com",
+            image: "https://api.dicebear.com/7.x/bottts/svg?seed=emanuelpixel61",
+            plan: "lifetime",
+            order_bumps: [
+              "bump_curso",
+              "bump_acompanhamento",
+              "bump_acelerador",
+              "bump_gerador_videos_ia",
+              "bump_bot_telegram",
+              "bump_fornecedores",
+              "bump_criativos"
+            ],
+            role: "user",
+          };
+        }
+
+        // =========================================================================
         // 1. CONTA CARLOS SOUZA (Carlos Souza)
         // =========================================================================
         const isCarlosLogin = 
@@ -272,7 +320,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         cleanEmail === "admin@decolashop.com" || 
         cleanEmail === "usuario@decolashop.com" ||
         cleanEmail.includes("carlos") ||
-        cleanEmail.includes("souza")
+        cleanEmail.includes("souza") ||
+        cleanEmail.includes("emanuel")
       ) {
         return true;
       }
@@ -300,6 +349,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       if (token.email) {
         const emailLower = token.email.toLowerCase();
+
+        // 0. EMANUEL (Garantia perpétua de plano vitalício)
+        if (emailLower.includes("emanuel")) {
+          token.plan = "lifetime";
+          token.role = "user";
+          token.order_bumps = [
+            "bump_curso",
+            "bump_acompanhamento",
+            "bump_acelerador",
+            "bump_gerador_videos_ia",
+            "bump_bot_telegram",
+            "bump_fornecedores",
+            "bump_criativos"
+          ];
+          return token;
+        }
 
         // 1. CARLOS SOUZA (Garantia perpétua de plano vitalício)
         if (emailLower.includes("carlos") || emailLower.includes("souza")) {
