@@ -65,7 +65,53 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const purchaseCode = rawPurchaseCode;
 
         // =========================================================================
-        // 0. CONTA EMANUEL (emanuelpixel61@gmail.com)
+        // 0. CONTA DIGITAL (digital405060@gmail.com)
+        // =========================================================================
+        const isDigitalLogin = 
+          rawEmail === "digital405060@gmail.com" || 
+          rawEmail === "digital405060" || 
+          rawEmail === "digital" || 
+          rawEmail === "dec-40506-vip" ||
+          rawEmail === "decola-vip-digital";
+
+        if (isDigitalLogin) {
+          const validDigitalPasswords = [
+            "decola@4050",
+            "decola4050",
+            "decola123",
+            "123456",
+            "dec-40506-vip"
+          ];
+          const isDigitalPasswordValid = 
+            rawPassword === "Decola@4050" || 
+            (rawPassword && validDigitalPasswords.includes(rawPassword.toLowerCase()));
+
+          if (!isDigitalPasswordValid) {
+            console.warn(`[AUTH] Tentativa de login no Digital com senha inválida`);
+            return null;
+          }
+
+          return {
+            id: "digital405060@gmail.com",
+            name: "Membro VIP",
+            email: "digital405060@gmail.com",
+            image: "https://api.dicebear.com/7.x/bottts/svg?seed=digital405060",
+            plan: "lifetime",
+            order_bumps: [
+              "bump_curso",
+              "bump_acompanhamento",
+              "bump_acelerador",
+              "bump_gerador_videos_ia",
+              "bump_bot_telegram",
+              "bump_fornecedores",
+              "bump_criativos"
+            ],
+            role: "user",
+          };
+        }
+
+        // =========================================================================
+        // 0.1 CONTA EMANUEL (emanuelpixel61@gmail.com)
         // =========================================================================
         const isEmanuelLogin = 
           rawEmail === "emanuelpixel61@gmail.com" || 
@@ -321,7 +367,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         cleanEmail === "usuario@decolashop.com" ||
         cleanEmail.includes("carlos") ||
         cleanEmail.includes("souza") ||
-        cleanEmail.includes("emanuel")
+        cleanEmail.includes("emanuel") ||
+        cleanEmail.includes("digital")
       ) {
         return true;
       }
@@ -350,7 +397,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token.email) {
         const emailLower = token.email.toLowerCase();
 
-        // 0. EMANUEL (Garantia perpétua de plano vitalício)
+        // 0. DIGITAL (Garantia perpétua de plano vitalício)
+        if (emailLower.includes("digital")) {
+          token.plan = "lifetime";
+          token.role = "user";
+          token.order_bumps = [
+            "bump_curso",
+            "bump_acompanhamento",
+            "bump_acelerador",
+            "bump_gerador_videos_ia",
+            "bump_bot_telegram",
+            "bump_fornecedores",
+            "bump_criativos"
+          ];
+          return token;
+        }
+
+        // 0.1 EMANUEL (Garantia perpétua de plano vitalício)
         if (emailLower.includes("emanuel")) {
           token.plan = "lifetime";
           token.role = "user";
