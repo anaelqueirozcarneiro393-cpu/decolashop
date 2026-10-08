@@ -312,8 +312,8 @@ export function getAffiliates(): Affiliate[] {
     }
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
-      // 1. Purge any fake seed affiliates
-      const filtered = parsed.filter(a => !['af_pedro', 'af_lucas', 'af_carla'].includes(a.id) && !a.name?.includes('Pedro Alcântara'));
+      // 1. Purge any fake seed affiliates and aliases
+      const filtered = parsed.filter(a => a && a.code && a.code !== 'kaio' && !a.name?.includes('(alias)') && !['af_pedro', 'af_lucas', 'af_carla'].includes(a.id) && !a.name?.includes('Pedro Alcântara'));
       
       // 2. Recalcula métricas com precisão a partir das vendas reais confirmadas
       const realSales = getAffiliateSales();
@@ -419,7 +419,7 @@ export async function syncAffiliatesFromServer(): Promise<{ affiliates: Affiliat
       // 3. Afiliados cadastrados no Supabase
       const affiliatesMap = new Map<string, Affiliate>();
       data.affiliates.forEach((serverAff: Affiliate) => {
-        if (serverAff && serverAff.code) {
+        if (serverAff && serverAff.code && serverAff.code !== 'kaio' && !serverAff.name?.includes('(alias)')) {
           affiliatesMap.set(serverAff.code.toLowerCase(), serverAff);
         }
       });

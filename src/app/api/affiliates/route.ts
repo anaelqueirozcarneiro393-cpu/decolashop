@@ -75,7 +75,7 @@ export async function GET() {
 
     // Recalcular métricas de cada parceiro estritamente a partir das vendas reais confirmadas
     const affiliates = (rawAffiliates || [])
-      .filter(a => a && a.code && !['af_pedro', 'af_lucas', 'af_carla'].includes(a.id) && !a.name?.includes('Pedro Alcântara'))
+      .filter(a => a && a.code && a.code !== 'kaio' && !a.name?.includes('(alias)') && !['af_pedro', 'af_lucas', 'af_carla'].includes(a.id) && !a.name?.includes('Pedro Alcântara'))
       .map(aff => {
         const affSales = sales.filter(s => s.affiliateCode?.toLowerCase() === aff.code?.toLowerCase());
         return {
