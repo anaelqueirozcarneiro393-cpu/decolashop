@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { validateAndSanitizePayload, isValidEmail, sanitizeString } from '@/lib/security';
-import { recordAffiliateSaleOnServer, getPendingTransaction, getPendingTransactionAsync } from '@/app/api/affiliates/route';
+import { recordAffiliateSaleOnServer, getPendingTransaction, getPendingTransactionAsync, getLeadAffiliate, bindLeadToAffiliate } from '@/app/api/affiliates/route';
 import { recordPaidWithdrawalFee } from '@/lib/withdrawalFeesStore';
 
 export const dynamic = 'force-dynamic';
@@ -253,6 +253,21 @@ export async function POST(req: Request) {
         if (pending?.affiliateCode) {
           affiliateCode = pending.affiliateCode;
         }
+      }
+
+      // LEAD LOCK-IN: Vínculo perpétuo de email do lead com afiliado
+      if (!affiliateCode && cleanEmail) {
+        try {
+          const bound = await getLeadAffiliate(cleanEmail);
+          if (bound) {
+            affiliateCode = bound;
+            console.log(`[AFILIADOS LEAD LOCK] Venda confirmada resgatada pelo vínculo perpétuo: ${cleanEmail} -> ${bound}`);
+          }
+        } catch {}
+      }
+
+      if (affiliateCode && cleanEmail) {
+        bindLeadToAffiliate(cleanEmail, affiliateCode).catch(() => {});
       }
 
       if (affiliateCode) {

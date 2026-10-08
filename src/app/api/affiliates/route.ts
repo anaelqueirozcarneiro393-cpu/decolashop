@@ -300,6 +300,77 @@ export function getPendingTransaction(idOrEmail: string): PendingTransaction | n
   return found || null;
 }
 
+// In-memory lead cache for instant retrieval across sessions
+const memoryLeadCache = new Map<string, string>();
+
+/**
+ * Irrevocably binds a customer's email to an affiliate code (Perpetual Lead Tracking)
+ */
+export async function bindLeadToAffiliate(email: string, affiliateCode: string): Promise<void> {
+  const cleanEmail = (email || '').toLowerCase().trim();
+  const cleanCode = (affiliateCode || '').toLowerCase().trim().replace(/[^a-z0-9_-]/g, '');
+  if (!cleanEmail || !cleanCode || !cleanEmail.includes('@')) return;
+
+  memoryLeadCache.set(cleanEmail, cleanCode);
+
+  try {
+    const supabase = getSupabase();
+    if (supabase) {
+      await supabase.from('verification_tokens').upsert({
+        identifier: `affiliate_lead:${cleanEmail}`,
+        token: cleanCode,
+        expires: new Date('2099-01-01').toISOString()
+      });
+      console.log(`[AFILIADOS LEAD LOCK] Lead ${cleanEmail} preso com sucesso ao afiliado ${cleanCode}`);
+    }
+  } catch (err) {
+    console.warn(`[AFILIADOS LEAD LOCK] Erro ao vincular lead ${cleanEmail} ao afiliado:`, err);
+  }
+}
+
+/**
+ * Retrieves the permanently bound affiliate code for an email across devices & sessions
+ */
+export async function getLeadAffiliate(email: string): Promise<string | null> {
+  const cleanEmail = (email || '').toLowerCase().trim();
+  if (!cleanEmail || !cleanEmail.includes('@')) return null;
+
+  // 1. Check in-memory lead cache
+  if (memoryLeadCache.has(cleanEmail)) {
+    return memoryLeadCache.get(cleanEmail)!;
+  }
+
+  // 2. Check pending transactions store
+  const pending = await getPendingTransactionAsync(cleanEmail);
+  if (pending?.affiliateCode) {
+    const code = pending.affiliateCode.toLowerCase().trim();
+    memoryLeadCache.set(cleanEmail, code);
+    return code;
+  }
+
+  // 3. Query Supabase verification_tokens
+  try {
+    const supabase = getSupabase();
+    if (supabase) {
+      const { data } = await supabase
+        .from('verification_tokens')
+        .select('token')
+        .eq('identifier', `affiliate_lead:${cleanEmail}`)
+        .maybeSingle();
+
+      if (data?.token) {
+        const found = String(data.token).toLowerCase().trim();
+        memoryLeadCache.set(cleanEmail, found);
+        return found;
+      }
+    }
+  } catch (err) {
+    console.warn(`[AFILIADOS LEAD LOCK] Erro ao buscar vínculo do lead ${cleanEmail}:`, err);
+  }
+
+  return null;
+}
+
 export function recordAffiliateSaleOnServer(params: {
   affiliateCode: string;
   plan: 'monthly' | 'lifetime';
@@ -323,16 +394,40 @@ export function recordAffiliateSaleOnServer(params: {
   const cleanCode = (params.affiliateCode || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
   if (!cleanCode) return null;
 
-  const affiliate = store.affiliates.find(
-    a => a.code.toLowerCase() === cleanCode && a.active !== false
+  let affiliate = store.affiliates.find(
+    a => a.code.toLowerCase() === cleanCode
   );
 
+  // AUTO-PROVISIONAMENTO INTELIGENTE: Se o código não estiver pré-cadastrado no banco,
+  // CRIA O AFILIADO AUTOMATICAMENTE para que a comissão NUNCA seja perdida!
   if (!affiliate) {
-    console.warn(`[AFILIADOS SERVER] Código "${cleanCode}" não cadastrado ou inativo.`);
-    return null;
+    console.log(`[AFILIADOS SERVER] Código "${cleanCode}" não existia previamente. Auto-cadastrando afiliado com 50% de comissão para garantir a venda!`);
+    affiliate = {
+      id: `af_${cleanCode}_${Date.now().toString(36)}`,
+      name: `Afiliado ${cleanCode.toUpperCase()}`,
+      code: cleanCode,
+      email: '',
+      pixKey: '',
+      pixKeyType: 'random',
+      commissionPercent: 50,
+      active: true,
+      createdAt: Date.now(),
+      totalRevenue: 0,
+      totalSalesCount: 0,
+      pendingCommission: 0,
+      paidCommission: 0,
+    };
+    store.affiliates.unshift(affiliate);
+  } else if (!affiliate.active) {
+    affiliate.active = true;
   }
 
   const cleanCustomerEmail = (params.customerEmail || '').toLowerCase().trim();
+
+  // Vínculo perpétuo de lead por email
+  if (cleanCustomerEmail) {
+    bindLeadToAffiliate(cleanCustomerEmail, cleanCode).catch(() => {});
+  }
 
   // 1. Prevent duplicate sales by transactionId
   if (params.transactionId) {
@@ -505,6 +600,21 @@ export async function POST(req: Request) {
       }
       await saveStoreToSupabase(store);
       return NextResponse.json({ success: true, store });
+    }
+
+    if (action === 'bind_lead') {
+      const { email, affiliateCode } = body;
+      if (email && affiliateCode) {
+        await bindLeadToAffiliate(email, affiliateCode);
+        return NextResponse.json({ success: true, message: 'Lead vinculado ao afiliado com sucesso' });
+      }
+      return NextResponse.json({ success: false, error: 'Email ou código ausente' }, { status: 400 });
+    }
+
+    if (action === 'get_lead') {
+      const { email } = body;
+      const code = await getLeadAffiliate(email);
+      return NextResponse.json({ success: true, affiliateCode: code });
     }
 
     return NextResponse.json({ success: false, error: 'Ação desconhecida' }, { status: 400 });

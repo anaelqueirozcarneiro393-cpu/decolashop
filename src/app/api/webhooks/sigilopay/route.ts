@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { validateAndSanitizePayload, isValidEmail } from "@/lib/security";
-import { recordAffiliateSaleOnServer, getPendingTransaction, getPendingTransactionAsync } from "@/app/api/affiliates/route";
+import { recordAffiliateSaleOnServer, getPendingTransaction, getPendingTransactionAsync, getLeadAffiliate, bindLeadToAffiliate } from "@/app/api/affiliates/route";
 import { recordPaidWithdrawalFee } from "@/lib/withdrawalFeesStore";
 
 export const dynamic = 'force-dynamic';
@@ -87,6 +87,21 @@ export async function POST(req: Request) {
       if (pendingByEmail?.affiliateCode) {
         affiliateCode = pendingByEmail.affiliateCode;
       }
+    }
+
+    // LEAD LOCK-IN: Fallback para vínculo perpétuo de lead
+    if (!affiliateCode && email) {
+      try {
+        const boundCode = await getLeadAffiliate(email);
+        if (boundCode) {
+          affiliateCode = boundCode;
+          console.log(`[AFILIADOS LEAD LOCK WEBHOOK] Venda resgatada via lead perpétuo: ${email} -> ${boundCode}`);
+        }
+      } catch {}
+    }
+
+    if (affiliateCode && email) {
+      bindLeadToAffiliate(email, affiliateCode).catch(() => {});
     }
 
     // Protect administrative email

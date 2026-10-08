@@ -81,19 +81,33 @@ const DEFAULT_SALES: AffiliateSale[] = [];
 // Helper: Read cookie
 function getCookie(name: string): string | null {
   if (typeof document === 'undefined') return null;
-  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-  return match ? decodeURIComponent(match[2]) : null;
+  const match = document.cookie.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]+)'));
+  return match ? decodeURIComponent(match[1]) : null;
 }
 
-// Helper: Set cookie with 60 days expiration and Lax security
-function setCookie(name: string, value: string, days = 60) {
+// Helper: Set ultra-durable cookie with 365 days expiration, Lax security, and multi-domain scope
+function setDurableCookie(name: string, value: string, days = 365) {
   if (typeof document === 'undefined') return;
+  const maxAge = days * 86400;
   const expires = new Date(Date.now() + days * 864e5).toUTCString();
-  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
+  const encoded = encodeURIComponent(value);
+
+  // 1. Host-specific cookie
+  document.cookie = `${name}=${encoded}; max-age=${maxAge}; expires=${expires}; path=/; SameSite=Lax`;
+
+  // 2. Cross-subdomain cookies for decolashop domains
+  try {
+    const hostname = window.location.hostname;
+    if (hostname.includes('decolashop.com.br')) {
+      document.cookie = `${name}=${encoded}; max-age=${maxAge}; expires=${expires}; path=/; domain=.decolashop.com.br; SameSite=Lax`;
+    } else if (hostname.includes('decolashop.com')) {
+      document.cookie = `${name}=${encoded}; max-age=${maxAge}; expires=${expires}; path=/; domain=.decolashop.com; SameSite=Lax`;
+    }
+  } catch {}
 }
 
 /**
- * Capture affiliate reference from URL and store in cookie + localStorage
+ * Capture affiliate reference from URL and permanently lock into storage
  */
 export function captureAffiliateFromUrl(): string | null {
   if (typeof window === 'undefined') return null;
@@ -114,32 +128,100 @@ export function captureAffiliateFromUrl(): string | null {
 }
 
 /**
- * Set affiliate reference code in cookie (60 days) and localStorage
+ * Set affiliate reference code permanently locked in:
+ * - window memory
+ * - localStorage
+ * - sessionStorage
+ * - 365-day multi-domain cookie
  */
 export function setAffiliateRef(code: string): void {
   if (typeof window === 'undefined') return;
   try {
     const cleanCode = code.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
     if (!cleanCode) return;
+
+    // 1. Memory
+    (window as any).__decolashop_af = cleanCode;
+
+    // 2. localStorage
     localStorage.setItem(AFFILIATE_REF_STORAGE, cleanCode);
-    setCookie(AFFILIATE_REF_COOKIE, cleanCode, 60);
-    // Notify listeners if any
+
+    // 3. sessionStorage
+    sessionStorage.setItem(AFFILIATE_REF_STORAGE, cleanCode);
+
+    // 4. 365-day Cookie
+    setDurableCookie(AFFILIATE_REF_COOKIE, cleanCode, 365);
+
+    // Notify listeners
     window.dispatchEvent(new CustomEvent('decolashop_affiliate_changed', { detail: cleanCode }));
   } catch {}
 }
 
 /**
- * Get current active affiliate reference code (if any)
+ * Get current active affiliate reference code with self-healing across storages
  */
 export function getAffiliateRef(): string | null {
   if (typeof window === 'undefined') return null;
   try {
+    // 1. In-memory
+    if ((window as any).__decolashop_af) {
+      return (window as any).__decolashop_af;
+    }
+
+    // 2. Instant URL inspection
+    if (typeof window.location !== 'undefined' && window.location.search) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const afUrl = urlParams.get('af') || urlParams.get('ref') || urlParams.get('afiliado');
+      if (afUrl && afUrl.trim()) {
+        const clean = afUrl.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+        if (clean) {
+          setAffiliateRef(clean);
+          return clean;
+        }
+      }
+    }
+
+    // 3. localStorage
     const fromStorage = localStorage.getItem(AFFILIATE_REF_STORAGE);
-    if (fromStorage && fromStorage.trim()) return fromStorage.trim().toLowerCase();
+    if (fromStorage && fromStorage.trim()) {
+      const clean = fromStorage.trim().toLowerCase();
+      (window as any).__decolashop_af = clean;
+      return clean;
+    }
+
+    // 4. sessionStorage
+    const fromSession = sessionStorage.getItem(AFFILIATE_REF_STORAGE);
+    if (fromSession && fromSession.trim()) {
+      const clean = fromSession.trim().toLowerCase();
+      (window as any).__decolashop_af = clean;
+      return clean;
+    }
+
+    // 5. Cookie
     const fromCookie = getCookie(AFFILIATE_REF_COOKIE);
-    if (fromCookie && fromCookie.trim()) return fromCookie.trim().toLowerCase();
+    if (fromCookie && fromCookie.trim()) {
+      const clean = fromCookie.trim().toLowerCase();
+      (window as any).__decolashop_af = clean;
+      // Self-heal localStorage
+      try { localStorage.setItem(AFFILIATE_REF_STORAGE, clean); } catch {}
+      return clean;
+    }
   } catch {}
   return null;
+}
+
+/**
+ * Permanently binds customer email to current locked affiliate on the server
+ */
+export function bindLeadEmailToAffiliate(email: string): void {
+  if (typeof window === 'undefined' || !email) return;
+  const af = getAffiliateRef();
+  if (!af) return;
+  fetch('/api/affiliates', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'bind_lead', email: email.trim().toLowerCase(), affiliateCode: af })
+  }).catch(() => {});
 }
 
 /**
@@ -148,8 +230,10 @@ export function getAffiliateRef(): string | null {
 export function clearAffiliateRef(): void {
   if (typeof window === 'undefined') return;
   try {
+    delete (window as any).__decolashop_af;
     localStorage.removeItem(AFFILIATE_REF_STORAGE);
-    setCookie(AFFILIATE_REF_COOKIE, '', -1);
+    sessionStorage.removeItem(AFFILIATE_REF_STORAGE);
+    setDurableCookie(AFFILIATE_REF_COOKIE, '', -1);
   } catch {}
 }
 
@@ -505,12 +589,26 @@ export function recordAffiliateSale(params: {
   }
 
   const affiliates = getAffiliates();
-  const affiliate = affiliates.find(a => a.code.toLowerCase() === activeCode.toLowerCase() && a.active);
+  let affiliate = affiliates.find(a => a.code.toLowerCase() === activeCode.toLowerCase() && a.active);
 
   if (!affiliate) {
-    console.warn(`[AFILIADOS] Código "${activeCode}" não encontrado localmente. Encaminhando registro ao servidor...`);
-    postAffiliatesApi({ action: 'record_sale', sale: { affiliateCode: activeCode, ...params } });
-    return null;
+    console.log(`[AFILIADOS CLIENT] Código "${activeCode}" não pré-cadastrado no navegador. Auto-provisionando parceiro...`);
+    affiliate = {
+      id: `af_${activeCode}_${Date.now().toString(36)}`,
+      name: `Afiliado ${activeCode.toUpperCase()}`,
+      code: activeCode,
+      email: '',
+      pixKey: '',
+      pixKeyType: 'random',
+      commissionPercent: 50,
+      active: true,
+      createdAt: Date.now(),
+      totalRevenue: 0,
+      totalSalesCount: 0,
+      pendingCommission: 0,
+      paidCommission: 0,
+    };
+    affiliates.unshift(affiliate);
   }
 
   const cleanCustomerEmail = params.customerEmail.toLowerCase().trim();

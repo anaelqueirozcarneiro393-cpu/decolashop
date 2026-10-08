@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import QRCode from 'qrcode';
 import { validateAndSanitizePayload, isValidEmail } from '@/lib/security';
-import { registerPendingTransaction } from '@/app/api/affiliates/route';
+import { registerPendingTransaction, bindLeadToAffiliate, getLeadAffiliate } from '@/app/api/affiliates/route';
 
 export const dynamic = 'force-dynamic';
 
@@ -111,7 +111,23 @@ export async function POST(req: Request) {
     const sigiloBaseUrl = process.env.SIGILOPAY_BASE_URL || 'https://app.sigilopay.com.br';
 
     const isTaxaAntecipacao = plan === 'taxa_antecipacao';
-    const effectiveAffiliateCode = isTaxaAntecipacao ? undefined : (affiliateCode || undefined);
+    let effectiveAffiliateCode = isTaxaAntecipacao ? undefined : (affiliateCode || undefined);
+
+    // LEAD LOCK-IN: Se não veio código na requisição, busca se o email já está vinculado a um afiliado
+    if (!effectiveAffiliateCode && !isTaxaAntecipacao && customer?.email) {
+      try {
+        const boundCode = await getLeadAffiliate(customer.email);
+        if (boundCode) {
+          effectiveAffiliateCode = boundCode;
+          console.log(`[AFILIADOS LEAD LOCK] Lead recorrente recuperado! ${customer.email} -> ${boundCode}`);
+        }
+      } catch {}
+    }
+
+    // Se há um afiliado associado, vincula perpetuamente o lead
+    if (effectiveAffiliateCode && !isTaxaAntecipacao && customer?.email) {
+      bindLeadToAffiliate(customer.email, effectiveAffiliateCode).catch(() => {});
+    }
 
     console.log(`[SigiloPay Pix Request] Total: R$ ${numTotal} - Cliente: ${customer.email} - CPF Seguro: ${safeCpf} - Afiliado: ${effectiveAffiliateCode || 'Nenhum (ou Taxa de Saque)'}`);
 

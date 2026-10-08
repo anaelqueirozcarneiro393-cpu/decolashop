@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { captureAffiliateFromUrl } from '@/lib/affiliateSystem';
+import { captureAffiliateFromUrl, getAffiliateRef } from '@/lib/affiliateSystem';
 
 function TrackerInternal() {
   const searchParams = useSearchParams();
@@ -18,6 +18,9 @@ function TrackerInternal() {
     // 2. Fallback check directly via window.location
     if (typeof window !== 'undefined' && window.location.search) {
       captureAffiliateFromUrl();
+    } else {
+      // 3. Self-heal and synchronize storage across session and cookie
+      getAffiliateRef();
     }
   }, [searchParams]);
 

@@ -22,7 +22,7 @@ import {
 import { toast } from 'react-hot-toast';
 import { signIn } from 'next-auth/react';
 import { unlockOrderBumpsLocally } from '@/lib/orderBumps';
-import { recordAffiliateSale, getAffiliateRef } from '@/lib/affiliateSystem';
+import { recordAffiliateSale, getAffiliateRef, bindLeadEmailToAffiliate } from '@/lib/affiliateSystem';
 
 export interface OrderBump {
   id: string;
@@ -218,6 +218,9 @@ export default function SigilopayCheckoutModal({
     setApiError(null);
 
     try {
+      const cleanEmail = email.trim().toLowerCase();
+      bindLeadEmailToAffiliate(cleanEmail);
+
       const response = await fetch('/api/sigilopay/pix', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -456,6 +459,11 @@ export default function SigilopayCheckoutModal({
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
+                      onBlur={() => {
+                        if (email && email.includes('@')) {
+                          bindLeadEmailToAffiliate(email.trim().toLowerCase());
+                        }
+                      }}
                       placeholder="seuemail@gmail.com"
                       className="w-full bg-[#111726] border border-white/15 rounded-lg py-1.5 px-2.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-[#22c55e]"
                     />
