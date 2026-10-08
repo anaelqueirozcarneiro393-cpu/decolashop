@@ -186,7 +186,7 @@ export async function POST(req: Request) {
             console.log(`[SigiloPay Direct API] Pix gerado com sucesso via SigiloPay! Transaction: ${finalTxId}`);
 
             // 1. Registra transação pendente no servidor (Taxa de Saque NUNCA associa comissão de afiliado)
-            registerPendingTransaction({
+            await registerPendingTransaction({
               transactionId: finalTxId,
               clientIdentifier: transactionId,
               email: customer.email.toLowerCase().trim(),

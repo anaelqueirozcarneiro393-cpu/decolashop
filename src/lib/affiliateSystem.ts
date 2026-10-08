@@ -40,8 +40,25 @@ export interface AffiliateSale {
   transactionId?: string;
 }
 
+export interface PendingPixTransaction {
+  transactionId: string;
+  clientIdentifier?: string;
+  email: string;
+  name?: string;
+  phone?: string;
+  cpf?: string;
+  plan: string;
+  planPrice?: number;
+  bumps?: string[];
+  bumpPrices?: number;
+  total: number;
+  affiliateCode?: string | null;
+  createdAt: number;
+}
+
 const AFFILIATES_STORAGE_KEY = 'decolashop_affiliates_real_v2';
 const AFFILIATE_SALES_STORAGE_KEY = 'decolashop_affiliate_sales_real_v2';
+const PENDING_TXS_STORAGE_KEY = 'decolashop_affiliate_pending_txs_v2';
 const DELETED_AFFILIATES_KEY = 'decolashop_deleted_affiliates_real_v2';
 const AFFILIATE_REF_COOKIE = 'decolashop_af';
 const AFFILIATE_REF_STORAGE = 'decolashop_affiliate_ref';
@@ -276,10 +293,23 @@ function postAffiliatesApi(payload: any) {
 }
 
 /**
- * Synchronize affiliates and sales from server API across devices
+ * Get all pending PIX transactions (QR codes generated awaiting bank confirmation)
  */
-export async function syncAffiliatesFromServer(): Promise<{ affiliates: Affiliate[]; sales: AffiliateSale[] }> {
-  if (typeof window === 'undefined') return { affiliates: [], sales: [] };
+export function getPendingPixTransactions(): PendingPixTransaction[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(PENDING_TXS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Synchronize affiliates, sales and pending PIX transactions from server API across devices
+ */
+export async function syncAffiliatesFromServer(): Promise<{ affiliates: Affiliate[]; sales: AffiliateSale[]; pendingTransactions: PendingPixTransaction[] }> {
+  if (typeof window === 'undefined') return { affiliates: [], sales: [], pendingTransactions: [] };
   try {
     const res = await fetch('/api/affiliates', { cache: 'no-store' });
     if (res.ok) {
@@ -288,6 +318,15 @@ export async function syncAffiliatesFromServer(): Promise<{ affiliates: Affiliat
         const localAffiliates = getAffiliates();
         const localSales = getAffiliateSales();
 
+        // 1. Salva transações pendentes (Pix gerados aguardando pagamento)
+        const incomingPending: PendingPixTransaction[] = Array.isArray(data.pendingTransactions) ? data.pendingTransactions : [];
+        const prevRawPending = localStorage.getItem(PENDING_TXS_STORAGE_KEY) || '[]';
+        const nextRawPending = JSON.stringify(incomingPending);
+        if (prevRawPending !== nextRawPending) {
+          localStorage.setItem(PENDING_TXS_STORAGE_KEY, nextRawPending);
+          window.dispatchEvent(new Event('decolashop_affiliate_pending_updated'));
+        }
+
         // Se o servidor estiver vazio mas o cliente tiver dados locais, envia os dados locais para salvar no servidor!
         if (data.affiliates.length === 0 && localAffiliates.length > 0) {
           fetch('/api/affiliates', {
@@ -295,7 +334,7 @@ export async function syncAffiliatesFromServer(): Promise<{ affiliates: Affiliat
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: 'sync_all', affiliates: localAffiliates, sales: localSales })
           }).catch(() => {});
-          return { affiliates: localAffiliates, sales: localSales };
+          return { affiliates: localAffiliates, sales: localSales, pendingTransactions: incomingPending };
         }
 
         const deletedIds = getDeletedAffiliateIds();
@@ -350,13 +389,13 @@ export async function syncAffiliatesFromServer(): Promise<{ affiliates: Affiliat
         if (prevRawSales !== nextRawSales) {
           window.dispatchEvent(new Event('decolashop_affiliate_sales_updated'));
         }
-        return { affiliates: mergedAffiliates, sales: mergedSales };
+        return { affiliates: mergedAffiliates, sales: mergedSales, pendingTransactions: incomingPending };
       }
     }
   } catch (e) {
     console.warn('Erro ao sincronizar afiliados do servidor:', e);
   }
-  return { affiliates: getAffiliates(), sales: getAffiliateSales() };
+  return { affiliates: getAffiliates(), sales: getAffiliateSales(), pendingTransactions: getPendingPixTransactions() };
 }
 
 /**

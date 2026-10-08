@@ -244,8 +244,8 @@ export function saveStore(store: AffiliatesStore) {
 /**
  * Register pending PIX transaction to associate affiliateCode with transactionId and customer email
  */
-export function registerPendingTransaction(tx: PendingTransaction) {
-  const store = loadStore();
+export async function registerPendingTransaction(tx: PendingTransaction): Promise<void> {
+  const store = await loadStoreFromSupabase();
   if (!store.pendingTransactions) store.pendingTransactions = [];
   
   // Remove older entry for same transactionId if exists
@@ -253,14 +253,38 @@ export function registerPendingTransaction(tx: PendingTransaction) {
     p => p.transactionId !== tx.transactionId && p.clientIdentifier !== tx.clientIdentifier
   );
 
+  // Auto-cadastra afiliado se código foi informado e ainda não existe
+  if (tx.affiliateCode) {
+    const cleanCode = tx.affiliateCode.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    let aff = store.affiliates.find(a => a.code.toLowerCase() === cleanCode);
+    if (!aff) {
+      aff = {
+        id: `af_${cleanCode}_${Date.now().toString(36)}`,
+        name: `Afiliado ${cleanCode.toUpperCase()}`,
+        code: cleanCode,
+        email: '',
+        pixKey: '',
+        pixKeyType: 'random',
+        commissionPercent: 50,
+        active: true,
+        createdAt: Date.now(),
+        totalRevenue: 0,
+        totalSalesCount: 0,
+        pendingCommission: 0,
+        paidCommission: 0,
+      };
+      store.affiliates.unshift(aff);
+    }
+  }
+
   // Keep last 300 pending transactions
   store.pendingTransactions.unshift(tx);
   if (store.pendingTransactions.length > 300) {
     store.pendingTransactions = store.pendingTransactions.slice(0, 300);
   }
 
-  saveStore(store);
-  console.log(`[AFILIADOS SERVER] Transação pendente registrada: ${tx.transactionId} - Afiliado: ${tx.affiliateCode || 'NENHUM'} - Cliente: ${tx.email}`);
+  await saveStoreToSupabase(store);
+  console.log(`[AFILIADOS SERVER] Transação pendente registrada e salva no Supabase: ${tx.transactionId} - Afiliado: ${tx.affiliateCode || 'NENHUM'} - Cliente: ${tx.email}`);
 }
 
 /**
@@ -492,6 +516,7 @@ export async function GET() {
     success: true,
     affiliates: store.affiliates,
     sales: store.sales,
+    pendingTransactions: store.pendingTransactions || [],
   });
 }
 

@@ -25,16 +25,19 @@ import {
   Share2,
   Calendar,
   AlertCircle,
-  Receipt
+  Receipt,
+  QrCode
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
 import { 
   Affiliate, 
   AffiliateSale, 
+  PendingPixTransaction,
   getAffiliates, 
   saveAffiliates, 
   getAffiliateSales, 
+  getPendingPixTransactions,
   addAffiliate, 
   updateAffiliate, 
   deleteAffiliate, 
@@ -68,8 +71,9 @@ export default function AfiliadosView() {
 
   const [affiliates, setAffiliates] = useState<Affiliate[]>(() => getAffiliates());
   const [sales, setSales] = useState<AffiliateSale[]>(() => getAffiliateSales());
+  const [pendingTxs, setPendingTxs] = useState<PendingPixTransaction[]>(() => getPendingPixTransactions());
   const [searchTerm, setSearchTerm] = useState('');
-  const [salesFilter, setSalesFilter] = useState<'all' | 'pending' | 'paid' | 'self_purchase'>('all');
+  const [salesFilter, setSalesFilter] = useState<'all' | 'awaiting_pix' | 'pending' | 'paid' | 'self_purchase'>('all');
   
   // Modals state
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
@@ -94,33 +98,38 @@ export default function AfiliadosView() {
   const loadData = () => {
     setAffiliates(getAffiliates());
     setSales(getAffiliateSales());
+    setPendingTxs(getPendingPixTransactions());
   };
 
   useEffect(() => {
     loadData();
 
     // 1. Initial server sync
-    syncAffiliatesFromServer().then(({ affiliates: affs, sales: sls }) => {
+    syncAffiliatesFromServer().then(({ affiliates: affs, sales: sls, pendingTransactions: pts }) => {
       setAffiliates(affs);
       setSales(sls);
+      setPendingTxs(pts || []);
     });
 
     // 2. Real-time background polling every 3 seconds for instant updates across devices
     const pollInterval = setInterval(() => {
-      syncAffiliatesFromServer().then(({ affiliates: affs, sales: sls }) => {
+      syncAffiliatesFromServer().then(({ affiliates: affs, sales: sls, pendingTransactions: pts }) => {
         setAffiliates(affs);
         setSales(sls);
+        setPendingTxs(pts || []);
       });
     }, 3000);
 
     const handleUpdate = () => loadData();
     window.addEventListener('decolashop_affiliates_updated', handleUpdate);
     window.addEventListener('decolashop_affiliate_sales_updated', handleUpdate);
+    window.addEventListener('decolashop_affiliate_pending_updated', handleUpdate);
 
     return () => {
       clearInterval(pollInterval);
       window.removeEventListener('decolashop_affiliates_updated', handleUpdate);
       window.removeEventListener('decolashop_affiliate_sales_updated', handleUpdate);
+      window.removeEventListener('decolashop_affiliate_pending_updated', handleUpdate);
     };
   }, []);
 
@@ -146,6 +155,8 @@ export default function AfiliadosView() {
     const totalPaidCommission = affiliates.reduce((acc, a) => acc + (a.paidCommission || 0), 0);
     const totalSalesCount = affiliates.reduce((acc, a) => acc + (a.totalSalesCount || 0), 0);
     const selfPurchaseCount = sales.filter(s => s.isSelfPurchase).length;
+    const totalPendingPixCount = pendingTxs.length;
+    const totalPendingPixAmount = Number(pendingTxs.reduce((acc, p) => acc + (p.total || 0), 0).toFixed(2));
 
     return {
       totalAffiliateRevenue,
@@ -153,9 +164,11 @@ export default function AfiliadosView() {
       totalPaidCommission,
       totalSalesCount,
       selfPurchaseCount,
+      totalPendingPixCount,
+      totalPendingPixAmount,
       affiliatesCount: affiliates.length
     };
-  }, [affiliates, sales]);
+  }, [affiliates, sales, pendingTxs]);
 
   // Filtered affiliates
   const filteredAffiliates = useMemo(() => {
@@ -178,6 +191,17 @@ export default function AfiliadosView() {
       return true;
     });
   }, [sales, salesFilter]);
+
+  // Filtered pending pix transactions
+  const filteredPendingTxs = useMemo(() => {
+    if (!searchTerm.trim()) return pendingTxs;
+    const term = searchTerm.toLowerCase().trim();
+    return pendingTxs.filter(p => 
+      (p.affiliateCode && p.affiliateCode.toLowerCase().includes(term)) ||
+      (p.email && p.email.toLowerCase().includes(term)) ||
+      (p.name && p.name.toLowerCase().includes(term))
+    );
+  }, [pendingTxs, searchTerm]);
 
   // Handlers
   const handleCopyLink = (code: string) => {
@@ -366,16 +390,16 @@ export default function AfiliadosView() {
 
         <div className="flex items-center gap-2 self-end md:self-center flex-shrink-0 text-xs font-bold text-slate-400 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10">
           <Clock size={14} className="text-[#22c55e]" />
-          <span>Cookies: 60 Dias</span>
+          <span>Lead Lock: 365 Dias / Perpétuo</span>
         </div>
       </div>
 
       {/* Metrics Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         {/* Total Affiliate Revenue */}
         <div className="p-4 rounded-2xl bg-[#0d121f] border border-white/10 hover:border-[#22c55e]/30 transition-all">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-slate-400">Faturamento Afiliados</span>
+            <span className="text-xs font-bold text-slate-400">Faturamento Aprovado</span>
             <div className="p-2 rounded-xl bg-[#22c55e]/10 text-[#4ade80]">
               <DollarSign size={16} />
             </div>
@@ -384,7 +408,7 @@ export default function AfiliadosView() {
             R$ {metrics.totalAffiliateRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
           <p className="text-[11px] text-slate-500 font-semibold mt-1">
-            Total bruto gerado por parceiros
+            Total pago e aprovado no banco
           </p>
         </div>
 
@@ -400,7 +424,26 @@ export default function AfiliadosView() {
             R$ {metrics.totalPendingCommission.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
           <p className="text-[11px] text-slate-500 font-semibold mt-1">
-            Saldo pendente de repasse via Pix
+            Vendas pagas pendentes de repasse Pix
+          </p>
+        </div>
+
+        {/* Pix Gerados / Aguardando Pagamento */}
+        <div className="p-4 rounded-2xl bg-[#0d121f] border border-yellow-500/30 hover:border-yellow-500/50 transition-all">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-yellow-400">Pix Gerados</span>
+            <div className="p-2 rounded-xl bg-yellow-500/10 text-yellow-400">
+              <Clock size={16} />
+            </div>
+          </div>
+          <div className="flex items-baseline gap-1.5">
+            <p className="text-xl sm:text-2xl font-black text-yellow-400 tracking-tight">
+              {metrics.totalPendingPixCount}
+            </p>
+            <span className="text-xs font-bold text-slate-400">pedidos</span>
+          </div>
+          <p className="text-[11px] text-slate-500 font-semibold mt-1">
+            R$ {metrics.totalPendingPixAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} aguardando pagamento
           </p>
         </div>
 
@@ -687,26 +730,35 @@ export default function AfiliadosView() {
           </div>
 
           {/* Sales Filter Tabs */}
-          <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/10 text-xs">
+          <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/10 text-xs overflow-x-auto">
             <button
               onClick={() => setSalesFilter('all')}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-colors ${
+              className={`px-3 py-1.5 rounded-lg font-bold transition-colors whitespace-nowrap ${
                 salesFilter === 'all' ? 'bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/30' : 'text-slate-400 hover:text-white'
               }`}
             >
               Todas ({sales.length})
             </button>
             <button
+              onClick={() => setSalesFilter('awaiting_pix')}
+              className={`px-3 py-1.5 rounded-lg font-bold transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+                salesFilter === 'awaiting_pix' ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <span>🟡 Pix Aguardando</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-yellow-500/20 text-[10px] font-mono">{pendingTxs.length}</span>
+            </button>
+            <button
               onClick={() => setSalesFilter('pending')}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-colors ${
+              className={`px-3 py-1.5 rounded-lg font-bold transition-colors whitespace-nowrap ${
                 salesFilter === 'pending' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-slate-400 hover:text-white'
               }`}
             >
-              Pendentes ({sales.filter(s => s.status === 'confirmed').length})
+              Comissões a Pagar ({sales.filter(s => s.status === 'confirmed').length})
             </button>
             <button
               onClick={() => setSalesFilter('paid')}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-colors ${
+              className={`px-3 py-1.5 rounded-lg font-bold transition-colors whitespace-nowrap ${
                 salesFilter === 'paid' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -714,7 +766,7 @@ export default function AfiliadosView() {
             </button>
             <button
               onClick={() => setSalesFilter('self_purchase')}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-colors ${
+              className={`px-3 py-1.5 rounded-lg font-bold transition-colors whitespace-nowrap ${
                 salesFilter === 'self_purchase' ? 'bg-red-500/20 text-red-300 border border-red-500/30' : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -723,7 +775,101 @@ export default function AfiliadosView() {
           </div>
         </div>
 
-        {filteredSales.length === 0 ? (
+        {salesFilter === 'awaiting_pix' ? (
+          filteredPendingTxs.length === 0 ? (
+            <div className="text-center py-10 text-slate-400 bg-black/20 rounded-xl border border-white/5 p-6">
+              <Clock size={28} className="mx-auto mb-2 opacity-40 text-yellow-500" />
+              <p className="text-xs font-bold text-slate-300">Nenhum Pix aguardando pagamento no momento</p>
+              <p className="text-[11px] text-slate-500 max-w-md mx-auto mt-1">
+                Quando um visitante gerar um Pix pelo link de afiliado, o pedido aparecerá aqui com status pendente até a compensação bancária.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl flex items-start gap-2 text-xs text-yellow-300">
+                <Clock size={16} className="mt-0.5 flex-shrink-0 text-yellow-400" />
+                <div>
+                  <strong className="font-bold">Como funciona esta aba:</strong> Estes clientes geraram a chave Pix no checkout. A comissão do afiliado é creditada e transferida automaticamente para <strong>"Comissões a Pagar"</strong> assim que o pagamento for concluído no aplicativo do banco!
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-white/10 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                      <th className="py-2.5 px-3">Data / Hora</th>
+                      <th className="py-2.5 px-3">Afiliado</th>
+                      <th className="py-2.5 px-3">Cliente</th>
+                      <th className="py-2.5 px-3">Plano</th>
+                      <th className="py-2.5 px-3 text-right">Valor do Pix</th>
+                      <th className="py-2.5 px-3 text-right">Comissão Prevista</th>
+                      <th className="py-2.5 px-3 text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {filteredPendingTxs.map((tx) => {
+                      const dateStr = new Date(tx.createdAt).toLocaleString('pt-BR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      });
+                      const estCommission = Number(((tx.total * 50) / 100).toFixed(2));
+
+                      return (
+                        <tr key={tx.transactionId} className="hover:bg-white/[0.02] transition-colors">
+                          <td className="py-3 px-3 text-slate-400 font-mono text-[11px]">
+                            {dateStr}
+                          </td>
+                          <td className="py-3 px-3">
+                            <div className="font-bold text-white text-xs">
+                              {tx.affiliateCode ? tx.affiliateCode.toUpperCase() : 'Venda Direta'}
+                            </div>
+                            {tx.affiliateCode && (
+                              <span className="font-mono text-[10px] text-[#22c55e]">?af={tx.affiliateCode}</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-3">
+                            <div className="font-bold text-slate-200 text-xs">{tx.name || 'Cliente'}</div>
+                            <div className="text-[11px] text-slate-400">{tx.email}</div>
+                          </td>
+                          <td className="py-3 px-3">
+                            <div className="font-bold text-white text-xs">
+                              {tx.plan === 'lifetime' ? '💎 Plano Vitalício' : '⚡ Plano Mensal'}
+                            </div>
+                            {tx.bumps && tx.bumps.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {tx.bumps.map(bId => (
+                                  <span key={bId} className="px-1.5 py-0.5 rounded bg-white/5 text-[10px] text-slate-300 font-semibold border border-white/5">
+                                    {BUMP_NAMES[bId] || bId}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-3 px-3 text-right font-black text-white text-xs">
+                            R$ {tx.total.toFixed(2).replace('.', ',')}
+                          </td>
+                          <td className="py-3 px-3 text-right">
+                            <div className="font-black text-amber-400 text-xs">
+                              R$ {estCommission.toFixed(2).replace('.', ',')}
+                            </div>
+                            <div className="text-[10px] text-slate-500">50% (ao compensar)</div>
+                          </td>
+                          <td className="py-3 px-3 text-center">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-yellow-500/15 text-yellow-300 border border-yellow-500/30 text-[10px] font-bold animate-pulse">
+                              <Clock size={11} />
+                              <span>Aguardando Pix no Banco</span>
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
+        ) : filteredSales.length === 0 ? (
           <div className="text-center py-10 text-slate-400 bg-black/20 rounded-xl border border-white/5 p-6">
             <TrendingUp size={28} className="mx-auto mb-2 opacity-40 text-slate-500" />
             <p className="text-xs font-bold text-slate-300">Nenhuma venda de afiliado registrada ainda</p>
