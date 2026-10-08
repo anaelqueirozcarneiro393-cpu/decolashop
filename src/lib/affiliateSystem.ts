@@ -239,6 +239,11 @@ export function bindLeadEmailToAffiliate(email: string): void {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action: 'bind_lead', email: email.trim().toLowerCase(), affiliateCode: af })
   }).catch(() => {});
+  fetch('https://decolashop-saas.vercel.app/api/affiliates', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'bind_lead', email: email.trim().toLowerCase(), affiliateCode: af })
+  }).catch(() => {});
 }
 
 /**
@@ -290,6 +295,11 @@ function postAffiliatesApi(payload: any) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   }).catch(() => {});
+  fetch('https://decolashop-saas.vercel.app/api/affiliates', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).catch(() => {});
 }
 
 /**
@@ -311,12 +321,30 @@ export function getPendingPixTransactions(): PendingPixTransaction[] {
 export async function syncAffiliatesFromServer(): Promise<{ affiliates: Affiliate[]; sales: AffiliateSale[]; pendingTransactions: PendingPixTransaction[]; paidUsers?: any[] }> {
   if (typeof window === 'undefined') return { affiliates: [], sales: [], pendingTransactions: [], paidUsers: [] };
   try {
-    const res = await fetch('/api/affiliates', { cache: 'no-store' });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.success && Array.isArray(data.affiliates)) {
-        const localAffiliates = getAffiliates();
-        const localSales = getAffiliateSales();
+    let data: any = null;
+    try {
+      const res = await fetch('/api/affiliates', { cache: 'no-store' });
+      if (res.ok) {
+        data = await res.json();
+      }
+    } catch {}
+
+    // Fallback de alta disponibilidade para garantir que os dados apareçam imediatamente
+    if (!data || !data.success || !Array.isArray(data.affiliates) || (data.affiliates.length === 0 && (!data.paidUsers || data.paidUsers.length === 0))) {
+      try {
+        const fbRes = await fetch('https://decolashop-saas.vercel.app/api/affiliates', { cache: 'no-store' });
+        if (fbRes.ok) {
+          const fbData = await fbRes.json();
+          if (fbData && fbData.success && Array.isArray(fbData.affiliates) && fbData.affiliates.length > 0) {
+            data = fbData;
+          }
+        }
+      } catch {}
+    }
+
+    if (data && data.success && Array.isArray(data.affiliates)) {
+      const localAffiliates = getAffiliates();
+      const localSales = getAffiliateSales();
 
         // 1. Salva transações pendentes (Pix gerados aguardando pagamento)
         const incomingPending: PendingPixTransaction[] = Array.isArray(data.pendingTransactions) ? data.pendingTransactions : [];
@@ -397,8 +425,7 @@ export async function syncAffiliatesFromServer(): Promise<{ affiliates: Affiliat
         }
         return { affiliates: mergedAffiliates, sales: mergedSales, pendingTransactions: incomingPending, paidUsers: data.paidUsers || [] };
       }
-    }
-  } catch (e) {
+    } catch (e) {
     console.warn('Erro ao sincronizar afiliados do servidor:', e);
   }
   return { affiliates: getAffiliates(), sales: getAffiliateSales(), pendingTransactions: getPendingPixTransactions(), paidUsers: [] };
