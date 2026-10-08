@@ -1,510 +1,93 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
-import { getSupabaseAdmin, saveVerificationToken, loadVerificationToken } from '@/lib/supabaseAdmin';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import {
+  Affiliate,
+  AffiliateSale,
+  PendingPixTransaction,
+  dbGetAffiliates,
+  dbSaveAffiliate,
+  dbGetAffiliateByCode,
+  dbDeleteAffiliate,
+  dbGetSales,
+  dbRecordSale,
+  dbSavePendingPix,
+  dbGetPendingPix,
+  dbGetPendingPixList,
+  dbBindLead,
+  dbGetLeadAffiliate,
+  dbMarkCommissionPaid,
+} from '@/lib/affiliateDb';
 
 export const dynamic = 'force-dynamic';
 
-export interface ServerAffiliate {
-  id: string;
-  name: string;
-  code: string;
-  email: string;
-  phone?: string;
-  pixKey: string;
-  pixKeyType: 'cpf' | 'cnpj' | 'email' | 'phone' | 'random';
-  commissionPercent: number;
-  active: boolean;
-  createdAt: number;
-  totalRevenue: number;
-  totalSalesCount: number;
-  pendingCommission: number;
-  paidCommission: number;
-  lastPaidAt?: number;
-}
+export type ServerAffiliate = Affiliate;
+export type ServerAffiliateSale = AffiliateSale;
 
-export interface ServerAffiliateSale {
-  id: string;
-  affiliateId: string;
-  affiliateCode: string;
-  affiliateName: string;
-  customerName: string;
-  customerEmail: string;
-  customerPhone?: string;
-  customerCpf?: string;
-  plan: 'monthly' | 'lifetime';
-  planPrice: number;
-  bumps: string[];
-  bumpPrices: number;
-  totalAmount: number;
-  commissionPercent: number;
-  commissionAmount: number;
-  isSelfPurchase: boolean;
-  status: 'confirmed' | 'paid_to_affiliate';
-  createdAt: number;
-  transactionId?: string;
-}
-
-interface PendingTransaction {
-  transactionId: string;
-  clientIdentifier?: string;
-  email: string;
-  name?: string;
-  phone?: string;
-  cpf?: string;
-  plan: string;
-  planPrice?: number;
-  bumps?: string[];
-  bumpPrices?: number;
-  total: number;
-  affiliateCode?: string | null;
-  createdAt: number;
-}
-
-interface AffiliatesStore {
-  affiliates: ServerAffiliate[];
-  sales: ServerAffiliateSale[];
-  pendingTransactions?: PendingTransaction[];
-}
-
-const SUPABASE_STORE_KEY = 'system:affiliates_store_v1';
-
-// Support multiple storage locations (process.cwd() for local dev, /tmp for Vercel serverless)
-function getStoragePaths(): string[] {
-  const paths = [path.join(process.cwd(), '.affiliates_data.json')];
-  try {
-    const tmpPath = path.join('/tmp', '.affiliates_data.json');
-    if (!paths.includes(tmpPath)) {
-      paths.push(tmpPath);
-    }
-  } catch {}
-  return paths;
-}
-
-// In-memory cache
-let memoryStore: AffiliatesStore = {
-  affiliates: [],
-  sales: [],
-  pendingTransactions: [],
-};
-
-export function saveLocalStore(store: AffiliatesStore) {
-  memoryStore = store;
-  const paths = getStoragePaths();
-  for (const filePath of paths) {
-    try {
-      fs.writeFileSync(filePath, JSON.stringify(store, null, 2), 'utf-8');
-    } catch (e) {
-      // In serverless environments process.cwd() may be read-only
-    }
-  }
-}
-
-export function normalizeAffiliateSales(store: AffiliatesStore): { store: AffiliatesStore; changed: boolean } {
-  let changed = false;
-
-  // 1. Remove qualquer venda indevida de taxa de saque
-  const originalSalesCount = store.sales.length;
-  store.sales = store.sales.filter(s => (s.plan as any) !== 'taxa_antecipacao');
-  if (store.sales.length !== originalSalesCount) changed = true;
-
-  // 2. Normaliza preços oficiais: Vitalício = R$ 179,90, Mensal = R$ 89,90
-  store.sales.forEach(sale => {
-    if (sale.plan === 'lifetime' && (sale.planPrice === 147 || sale.totalAmount === 147)) {
-      sale.planPrice = 179.90;
-      sale.totalAmount = Number((179.90 + (sale.bumpPrices || 0)).toFixed(2));
-      sale.commissionAmount = Number(((sale.totalAmount * (sale.commissionPercent || 50)) / 100).toFixed(2));
-      changed = true;
-    } else if (sale.plan === 'monthly' && (sale.planPrice === 97 || sale.totalAmount === 97)) {
-      sale.planPrice = 89.90;
-      sale.totalAmount = Number((89.90 + (sale.bumpPrices || 0)).toFixed(2));
-      sale.commissionAmount = Number(((sale.totalAmount * (sale.commissionPercent || 50)) / 100).toFixed(2));
-      changed = true;
-    }
-  });
-
-  if (changed) {
-    store.affiliates.forEach(aff => {
-      const affSales = store.sales.filter(s => s.affiliateId === aff.id || s.affiliateCode.toLowerCase() === aff.code.toLowerCase());
-      aff.totalSalesCount = affSales.length;
-      aff.totalRevenue = Number(affSales.reduce((acc, s) => acc + (s.totalAmount || 0), 0).toFixed(2));
-      aff.pendingCommission = Number(affSales.filter(s => s.status === 'confirmed').reduce((acc, s) => acc + (s.commissionAmount || 0), 0).toFixed(2));
-      aff.paidCommission = Number(affSales.filter(s => s.status === 'paid_to_affiliate').reduce((acc, s) => acc + (s.commissionAmount || 0), 0).toFixed(2));
-    });
-  }
-
-  return { store, changed };
-}
-
-export function loadStore(): AffiliatesStore {
-  const paths = getStoragePaths();
-  for (const filePath of paths) {
-    try {
-      if (fs.existsSync(filePath)) {
-        const raw = fs.readFileSync(filePath, 'utf-8');
-        const parsed = JSON.parse(raw);
-        if (parsed && Array.isArray(parsed.affiliates) && Array.isArray(parsed.sales)) {
-          if (parsed.affiliates.length >= memoryStore.affiliates.length) {
-            memoryStore.affiliates = parsed.affiliates;
-          }
-          if (parsed.sales.length >= memoryStore.sales.length) {
-            memoryStore.sales = parsed.sales;
-          }
-          if (Array.isArray(parsed.pendingTransactions)) {
-            memoryStore.pendingTransactions = parsed.pendingTransactions;
-          }
-        }
-      }
-    } catch (e) {
-      // Ignore read errors
-    }
-  }
-  const norm = normalizeAffiliateSales(memoryStore);
-  if (norm.changed) saveLocalStore(norm.store);
-  return norm.store;
-}
-
-export async function loadStoreFromSupabase(): Promise<AffiliatesStore> {
-  try {
-    const rawToken = await loadVerificationToken(SUPABASE_STORE_KEY);
-    if (rawToken) {
-      const parsed = JSON.parse(rawToken);
-      if (parsed && Array.isArray(parsed.affiliates) && Array.isArray(parsed.sales)) {
-        memoryStore = {
-          affiliates: parsed.affiliates,
-          sales: parsed.sales,
-          pendingTransactions: parsed.pendingTransactions || []
-        };
-        const norm = normalizeAffiliateSales(memoryStore);
-        memoryStore = norm.store;
-        saveLocalStore(memoryStore);
-        if (norm.changed) {
-          saveStoreToSupabase(memoryStore).catch(() => {});
-        }
-        return memoryStore;
-      }
-    }
-  } catch (err) {
-    console.warn('[AFILIADOS] Erro ao carregar do Supabase, usando cache local:', err);
-  }
-  return loadStore();
-}
-
-export async function saveStoreToSupabase(store: AffiliatesStore): Promise<void> {
-  saveLocalStore(store);
-  try {
-    const token = JSON.stringify(store);
-    await saveVerificationToken(SUPABASE_STORE_KEY, token);
-    console.log(`[AFILIADOS] Store persistido no Supabase (${store.affiliates.length} afiliados, ${store.sales.length} vendas, ${store.pendingTransactions?.length || 0} pendentes)`);
-  } catch (err) {
-    console.error('[AFILIADOS] Erro ao sincronizar com Supabase:', err);
-  }
-}
-
-export function saveStore(store: AffiliatesStore) {
-  saveLocalStore(store);
-  saveStoreToSupabase(store).catch(() => {});
-}
-
-/**
- * Register pending PIX transaction to associate affiliateCode with transactionId and customer email
- */
-export async function registerPendingTransaction(tx: PendingTransaction): Promise<void> {
-  const store = await loadStoreFromSupabase();
-  if (!store.pendingTransactions) store.pendingTransactions = [];
-  
-  // Remove older entry for same transactionId if exists
-  store.pendingTransactions = store.pendingTransactions.filter(
-    p => p.transactionId !== tx.transactionId && p.clientIdentifier !== tx.clientIdentifier
-  );
-
-  // Auto-cadastra afiliado se código foi informado e ainda não existe
-  if (tx.affiliateCode) {
-    const cleanCode = tx.affiliateCode.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
-    let aff = store.affiliates.find(a => a.code.toLowerCase() === cleanCode);
-    if (!aff) {
-      aff = {
-        id: `af_${cleanCode}_${Date.now().toString(36)}`,
-        name: `Afiliado ${cleanCode.toUpperCase()}`,
-        code: cleanCode,
-        email: '',
-        pixKey: '',
-        pixKeyType: 'random',
-        commissionPercent: 50,
-        active: true,
-        createdAt: Date.now(),
-        totalRevenue: 0,
-        totalSalesCount: 0,
-        pendingCommission: 0,
-        paidCommission: 0,
-      };
-      store.affiliates.unshift(aff);
-    }
-
-    // Lead lock perpétuo imediato
-    if (tx.email) {
-      bindLeadToAffiliate(tx.email, cleanCode).catch(() => {});
-    }
-  }
-
-  // Keep last 300 pending transactions
-  store.pendingTransactions.unshift(tx);
-  if (store.pendingTransactions.length > 300) {
-    store.pendingTransactions = store.pendingTransactions.slice(0, 300);
-  }
-
-  await saveStoreToSupabase(store);
-  console.log(`[AFILIADOS SERVER] Transação pendente registrada e salva no Supabase: ${tx.transactionId} - Afiliado: ${tx.affiliateCode || 'NENHUM'} - Cliente: ${tx.email}`);
-}
-
-/**
- * Retrieve pending transaction details asynchronously checking both cache and Supabase
- */
-export async function getPendingTransactionAsync(idOrEmail: string): Promise<PendingTransaction | null> {
-  const local = getPendingTransaction(idOrEmail);
-  if (local) return local;
-
-  const store = await loadStoreFromSupabase();
-  if (!store.pendingTransactions || !idOrEmail) return null;
-  const clean = idOrEmail.trim().toLowerCase();
-
-  const found = store.pendingTransactions.find(
-    p => (p.transactionId && p.transactionId.toLowerCase() === clean) ||
-         (p.clientIdentifier && p.clientIdentifier.toLowerCase() === clean) ||
-         (p.email && p.email.toLowerCase() === clean)
-  );
-
-  return found || null;
-}
-
-/**
- * Retrieve pending transaction details by transactionId, clientIdentifier, or customer email
- */
-export function getPendingTransaction(idOrEmail: string): PendingTransaction | null {
-  const store = loadStore();
-  if (!store.pendingTransactions || !idOrEmail) return null;
-  const clean = idOrEmail.trim().toLowerCase();
-
-  const found = store.pendingTransactions.find(
-    p => (p.transactionId && p.transactionId.toLowerCase() === clean) ||
-         (p.clientIdentifier && p.clientIdentifier.toLowerCase() === clean) ||
-         (p.email && p.email.toLowerCase() === clean)
-  );
-
-  return found || null;
-}
-
-// In-memory lead cache for instant retrieval across sessions
-const memoryLeadCache = new Map<string, string>();
-
-/**
- * Irrevocably binds a customer's email to an affiliate code (Perpetual Lead Tracking)
- */
-export async function bindLeadToAffiliate(email: string, affiliateCode: string): Promise<void> {
-  const cleanEmail = (email || '').toLowerCase().trim();
-  const cleanCode = (affiliateCode || '').toLowerCase().trim().replace(/[^a-z0-9_-]/g, '');
-  if (!cleanEmail || !cleanCode || !cleanEmail.includes('@')) return;
-
-  memoryLeadCache.set(cleanEmail, cleanCode);
-
-  try {
-    await saveVerificationToken(`affiliate_lead:${cleanEmail}`, cleanCode);
-    console.log(`[AFILIADOS LEAD LOCK] Lead ${cleanEmail} preso com sucesso ao afiliado ${cleanCode}`);
-  } catch (err) {
-    console.warn(`[AFILIADOS LEAD LOCK] Erro ao vincular lead ${cleanEmail} ao afiliado:`, err);
-  }
-}
-
-/**
- * Retrieves the permanently bound affiliate code for an email across devices & sessions
- */
-export async function getLeadAffiliate(email: string): Promise<string | null> {
-  const cleanEmail = (email || '').toLowerCase().trim();
-  if (!cleanEmail || !cleanEmail.includes('@')) return null;
-
-  // 1. Check in-memory lead cache
-  if (memoryLeadCache.has(cleanEmail)) {
-    return memoryLeadCache.get(cleanEmail)!;
-  }
-
-  // 2. Check pending transactions store
-  const pending = await getPendingTransactionAsync(cleanEmail);
-  if (pending?.affiliateCode) {
-    const code = pending.affiliateCode.toLowerCase().trim();
-    memoryLeadCache.set(cleanEmail, code);
-    return code;
-  }
-
-  // 3. Query Supabase verification_tokens
-  try {
-    const foundToken = await loadVerificationToken(`affiliate_lead:${cleanEmail}`);
-    if (foundToken) {
-      const found = String(foundToken).toLowerCase().trim();
-      memoryLeadCache.set(cleanEmail, found);
-      return found;
-    }
-  } catch (err) {
-    console.warn(`[AFILIADOS LEAD LOCK] Erro ao buscar vínculo do lead ${cleanEmail}:`, err);
-  }
-
-  return null;
-}
-
-export async function recordAffiliateSaleOnServer(params: {
-  affiliateCode: string;
-  plan: 'monthly' | 'lifetime';
-  planPrice: number;
-  bumps?: string[];
-  bumpPrices?: number;
-  totalAmount: number;
-  customerName: string;
-  customerEmail: string;
-  customerPhone?: string;
-  customerCpf?: string;
-  transactionId?: string;
-}): Promise<ServerAffiliateSale | null> {
-  // BLOQUEIO TOTAL: Taxa de saque / antecipação NUNCA gera comissão para afiliados
-  if ((params.plan as any) === 'taxa_antecipacao') {
-    console.warn(`[AFILIADOS SERVER] Bloqueio: Taxa de saque não gera comissão para afiliados.`);
-    return null;
-  }
-
-  const store = await loadStoreFromSupabase();
-  const cleanCode = (params.affiliateCode || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
-  if (!cleanCode) return null;
-
-  let affiliate = store.affiliates.find(
-    a => a.code.toLowerCase() === cleanCode
-  );
-
-  // AUTO-PROVISIONAMENTO INTELIGENTE: Se o código não estiver pré-cadastrado no banco,
-  // CRIA O AFILIADO AUTOMATICAMENTE para que a comissão NUNCA seja perdida!
-  if (!affiliate) {
-    console.log(`[AFILIADOS SERVER] Código "${cleanCode}" não existia previamente. Auto-cadastrando afiliado com 50% de comissão para garantir a venda!`);
-    affiliate = {
-      id: `af_${cleanCode}_${Date.now().toString(36)}`,
-      name: `Afiliado ${cleanCode.toUpperCase()}`,
-      code: cleanCode,
-      email: '',
-      pixKey: '',
-      pixKeyType: 'random',
-      commissionPercent: 50,
-      active: true,
-      createdAt: Date.now(),
-      totalRevenue: 0,
-      totalSalesCount: 0,
-      pendingCommission: 0,
-      paidCommission: 0,
-    };
-    store.affiliates.unshift(affiliate);
-  } else if (!affiliate.active) {
-    affiliate.active = true;
-  }
-
-  const cleanCustomerEmail = (params.customerEmail || '').toLowerCase().trim();
-
-  // Vínculo perpétuo de lead por email
-  if (cleanCustomerEmail) {
-    bindLeadToAffiliate(cleanCustomerEmail, cleanCode).catch(() => {});
-  }
-
-  // 1. Prevent duplicate sales by transactionId
-  if (params.transactionId) {
-    const existing = store.sales.find(s => s.transactionId === params.transactionId);
-    if (existing) {
-      console.log(`[AFILIADOS SERVER] Venda com transactionId ${params.transactionId} já registrada anteriormente. Retornando existente.`);
-      return existing;
-    }
-  }
-
-  // 2. Prevent duplicate sales by customerEmail + plan within 15 minutes
-  const recentDuplicate = store.sales.find(s => 
-    s.customerEmail.toLowerCase() === cleanCustomerEmail &&
-    s.plan === params.plan &&
-    Math.abs(Date.now() - (s.createdAt || 0)) < 15 * 60 * 1000
-  );
-  if (recentDuplicate) {
-    console.log(`[AFILIADOS SERVER] Venda duplicada ignorada para ${cleanCustomerEmail} (já registrada há menos de 15 minutos).`);
-    return recentDuplicate;
-  }
-
-  const isSelfPurchase = cleanCustomerEmail === affiliate.email.toLowerCase().trim();
-  const commissionPercent = affiliate.commissionPercent || 50;
-  const commissionAmount = Number(((params.totalAmount * commissionPercent) / 100).toFixed(2));
-
-  const newSale: ServerAffiliateSale = {
-    id: `sale_af_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-    affiliateId: affiliate.id,
-    affiliateCode: affiliate.code,
-    affiliateName: affiliate.name,
-    customerName: params.customerName || 'Cliente',
-    customerEmail: cleanCustomerEmail,
-    customerPhone: params.customerPhone,
-    customerCpf: params.customerCpf,
-    plan: params.plan,
-    planPrice: params.planPrice,
-    bumps: params.bumps || [],
-    bumpPrices: params.bumpPrices || 0,
-    totalAmount: params.totalAmount,
-    commissionPercent,
-    commissionAmount,
-    isSelfPurchase,
-    status: 'confirmed',
-    createdAt: Date.now(),
-    transactionId: params.transactionId,
-  };
-
-  affiliate.totalRevenue = Number(((affiliate.totalRevenue || 0) + params.totalAmount).toFixed(2));
-  affiliate.totalSalesCount = (affiliate.totalSalesCount || 0) + 1;
-  affiliate.pendingCommission = Number(((affiliate.pendingCommission || 0) + commissionAmount).toFixed(2));
-
-  store.sales.unshift(newSale);
-  await saveStoreToSupabase(store);
-
-  console.log(`[AFILIADOS SERVER] Venda registrada para "${affiliate.name}" (${cleanCode}) - Total: R$ ${params.totalAmount} - Comissão: R$ ${commissionAmount}`);
-  return newSale;
-}
+// Compatibility exports
+export const recordAffiliateSaleOnServer = dbRecordSale;
+export const getPendingTransactionAsync = dbGetPendingPix;
+export const getPendingTransaction = (id: string) => null;
+export const getLeadAffiliate = dbGetLeadAffiliate;
+export const bindLeadToAffiliate = dbBindLead;
 
 export async function GET() {
-  const store = await loadStoreFromSupabase();
-
-  // Load registered users from database to assist manager with attribution visibility
-  let paidUsers: any[] = [];
   try {
-    const supabase = getSupabaseAdmin('next_auth');
-    const { data: users } = await supabase
-      .from('users')
-      .select('id, name, email, plan, plan_expires_at')
-      .in('plan', ['monthly', 'lifetime'])
-      .order('id', { ascending: false });
+    const [affiliates, sales, pendingTransactions] = await Promise.all([
+      dbGetAffiliates(),
+      dbGetSales(),
+      dbGetPendingPixList()
+    ]);
 
-    if (users) {
-      paidUsers = users.map(u => ({
-        id: u.id,
-        name: u.name,
-        email: u.email,
-        plan: u.plan,
-        planExpiresAt: u.plan_expires_at,
-        isAttributed: store.sales.some(s => s.customerEmail.toLowerCase() === u.email.toLowerCase())
-      }));
+    // Load registered users from database to assist manager with attribution visibility
+    let paidUsers: any[] = [];
+    try {
+      const supabase = getSupabaseAdmin('next_auth');
+      const { data: users } = await supabase
+        .from('users')
+        .select('id, name, email, plan, plan_expires_at')
+        .in('plan', ['monthly', 'lifetime'])
+        .order('id', { ascending: false });
+
+      if (users) {
+        paidUsers = users.map(u => ({
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          plan: u.plan,
+          planExpiresAt: u.plan_expires_at,
+          isAttributed: sales.some(s => s.customerEmail.toLowerCase() === u.email.toLowerCase())
+        }));
+      }
+    } catch (uErr) {
+      console.warn('[API AFILIADOS] Erro ao carregar paidUsers:', uErr);
     }
-  } catch {}
 
-  return NextResponse.json({
-    success: true,
-    affiliates: store.affiliates,
-    sales: store.sales,
-    pendingTransactions: store.pendingTransactions || [],
-    paidUsers
-  });
+    return NextResponse.json({
+      success: true,
+      affiliates,
+      sales,
+      pendingTransactions,
+      paidUsers
+    });
+  } catch (err: any) {
+    console.error('[API AFILIADOS] Erro em GET /api/affiliates:', err);
+    return NextResponse.json({
+      success: false,
+      error: err.message || 'Erro ao carregar afiliados do banco de dados',
+      affiliates: [],
+      sales: [],
+      pendingTransactions: [],
+      paidUsers: []
+    }, { status: 500 });
+  }
 }
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const action = body.action;
-    const store = await loadStoreFromSupabase();
 
+    // 1. Criar novo afiliado
     if (action === 'create') {
       const data = body.affiliate;
       const cleanCode = (data.code || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
@@ -513,18 +96,18 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false, error: 'Código de afiliado inválido' }, { status: 400 });
       }
 
-      const existingIndex = store.affiliates.findIndex(a => a.code.toLowerCase() === cleanCode);
-      if (existingIndex !== -1) {
-        return NextResponse.json({ success: false, error: 'Código já em uso' }, { status: 400 });
+      const existing = await dbGetAffiliateByCode(cleanCode);
+      if (existing) {
+        return NextResponse.json({ success: false, error: 'Código de afiliado já está em uso' }, { status: 400 });
       }
 
-      const newAffiliate: ServerAffiliate = {
+      const newAffiliate: Affiliate = {
         id: data.id || `af_${cleanCode}_${Date.now().toString(36)}`,
-        name: data.name.trim(),
+        name: (data.name || '').trim(),
         code: cleanCode,
-        email: data.email.trim().toLowerCase(),
+        email: (data.email || '').trim().toLowerCase(),
         phone: data.phone?.trim() || '',
-        pixKey: data.pixKey.trim(),
+        pixKey: (data.pixKey || '').trim(),
         pixKeyType: data.pixKeyType || 'cpf',
         commissionPercent: typeof data.commissionPercent === 'number' ? Math.max(0, Math.min(100, data.commissionPercent)) : 50,
         active: true,
@@ -535,55 +118,47 @@ export async function POST(req: Request) {
         paidCommission: 0,
       };
 
-      store.affiliates.unshift(newAffiliate);
-      await saveStoreToSupabase(store);
+      await dbSaveAffiliate(newAffiliate);
       return NextResponse.json({ success: true, affiliate: newAffiliate });
     }
 
+    // 2. Atualizar afiliado existente
     if (action === 'update') {
       const { id, updates } = body;
-      const idx = store.affiliates.findIndex(a => a.id === id);
-      if (idx === -1) {
+      const affiliates = await dbGetAffiliates();
+      const aff = affiliates.find(a => a.id === id || a.code.toLowerCase() === (updates?.code || '').toLowerCase());
+      if (!aff) {
         return NextResponse.json({ success: false, error: 'Afiliado não encontrado' }, { status: 404 });
       }
 
-      store.affiliates[idx] = { ...store.affiliates[idx], ...updates };
-      await saveStoreToSupabase(store);
-      return NextResponse.json({ success: true, affiliate: store.affiliates[idx] });
+      const updated: Affiliate = { ...aff, ...updates };
+      await dbSaveAffiliate(updated);
+      return NextResponse.json({ success: true, affiliate: updated });
     }
 
+    // 3. Deletar afiliado
     if (action === 'delete') {
       const { id } = body;
-      store.affiliates = store.affiliates.filter(a => a.id !== id);
-      await saveStoreToSupabase(store);
+      await dbDeleteAffiliate(id);
       return NextResponse.json({ success: true });
     }
 
+    // 4. Marcar repasse de comissão como pago
     if (action === 'pay') {
       const { affiliateId } = body;
-      const aff = store.affiliates.find(a => a.id === affiliateId);
-      if (aff && aff.pendingCommission > 0) {
-        const amount = aff.pendingCommission;
-        aff.paidCommission = Number(((aff.paidCommission || 0) + amount).toFixed(2));
-        aff.pendingCommission = 0;
-        aff.lastPaidAt = Date.now();
-
-        store.sales.forEach(s => {
-          if (s.affiliateId === affiliateId && s.status === 'confirmed') {
-            s.status = 'paid_to_affiliate';
-          }
-        });
-
-        await saveStoreToSupabase(store);
-      }
+      await dbMarkCommissionPaid(affiliateId);
+      const affiliates = await dbGetAffiliates();
+      const aff = affiliates.find(a => a.id === affiliateId);
       return NextResponse.json({ success: true, affiliate: aff });
     }
 
+    // 5. Gravar venda de afiliado
     if (action === 'record_sale') {
-      const sale = await recordAffiliateSaleOnServer(body.sale);
+      const sale = await dbRecordSale(body.sale);
       return NextResponse.json({ success: true, sale });
     }
 
+    // 6. Atribuição retroativa de usuário existente para um afiliado
     if (action === 'attribute_past_user') {
       const { customerEmail, affiliateCode, plan, totalAmount, customerName } = body;
       if (!customerEmail || !affiliateCode) {
@@ -594,7 +169,7 @@ export async function POST(req: Request) {
       const planBase = userPlan === 'monthly' ? 89.90 : 179.90;
       const numTotal = Number(totalAmount) || planBase;
 
-      const sale = await recordAffiliateSaleOnServer({
+      const sale = await dbRecordSale({
         affiliateCode,
         plan: userPlan,
         planPrice: planBase,
@@ -605,49 +180,59 @@ export async function POST(req: Request) {
         customerEmail: customerEmail.trim().toLowerCase(),
       });
 
-      return NextResponse.json({ success: true, sale, message: 'Venda atribuída com sucesso ao afiliado!' });
+      return NextResponse.json({ success: true, sale, message: 'Venda atribuída com sucesso ao afiliado no Supabase!' });
     }
 
+    // 7. Sincronização segura (nunca sobrescreve com vazio)
     if (action === 'sync_all') {
-      // Sync from admin interface
-      if (Array.isArray(body.affiliates)) {
-        const existingCodes = new Set(store.affiliates.map(a => a.code.toLowerCase()));
+      if (Array.isArray(body.affiliates) && body.affiliates.length > 0) {
+        const currentAffiliates = await dbGetAffiliates();
+        const existingCodes = new Set(currentAffiliates.map(a => a.code.toLowerCase()));
         for (const aff of body.affiliates) {
-          if (!existingCodes.has(aff.code.toLowerCase())) {
-            store.affiliates.push(aff);
+          if (aff && aff.code && !existingCodes.has(aff.code.toLowerCase())) {
+            await dbSaveAffiliate(aff);
           }
         }
       }
-      if (Array.isArray(body.sales)) {
-        const existingSaleIds = new Set(store.sales.map(s => s.id));
+
+      if (Array.isArray(body.sales) && body.sales.length > 0) {
+        const currentSales = await dbGetSales();
+        const existingIds = new Set(currentSales.map(s => s.id));
         for (const s of body.sales) {
-          if (!existingSaleIds.has(s.id)) {
-            store.sales.push(s);
+          if (s && s.id && !existingIds.has(s.id) && s.affiliateCode) {
+            await dbRecordSale(s);
           }
         }
       }
-      await saveStoreToSupabase(store);
-      return NextResponse.json({ success: true, store });
+
+      const [affiliates, sales] = await Promise.all([
+        dbGetAffiliates(),
+        dbGetSales()
+      ]);
+
+      return NextResponse.json({ success: true, affiliates, sales });
     }
 
+    // 8. Amarrar lead a afiliado
     if (action === 'bind_lead') {
       const { email, affiliateCode } = body;
       if (email && affiliateCode) {
-        await bindLeadToAffiliate(email, affiliateCode);
-        return NextResponse.json({ success: true, message: 'Lead vinculado ao afiliado com sucesso' });
+        await dbBindLead(email, affiliateCode);
+        return NextResponse.json({ success: true, message: 'Lead vinculado ao afiliado com sucesso no banco de dados' });
       }
       return NextResponse.json({ success: false, error: 'Email ou código ausente' }, { status: 400 });
     }
 
+    // 9. Buscar afiliado de lead
     if (action === 'get_lead') {
       const { email } = body;
-      const code = await getLeadAffiliate(email);
+      const code = await dbGetLeadAffiliate(email);
       return NextResponse.json({ success: true, affiliateCode: code });
     }
 
     return NextResponse.json({ success: false, error: 'Ação desconhecida' }, { status: 400 });
   } catch (err: any) {
-    console.error('Erro em /api/affiliates:', err);
+    console.error('[API AFILIADOS] Erro em POST /api/affiliates:', err);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }

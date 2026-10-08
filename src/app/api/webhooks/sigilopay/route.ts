@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { validateAndSanitizePayload, isValidEmail } from "@/lib/security";
-import { recordAffiliateSaleOnServer, getPendingTransaction, getPendingTransactionAsync, getLeadAffiliate, bindLeadToAffiliate } from "@/app/api/affiliates/route";
+import { dbRecordSale, dbGetPendingPix, dbGetLeadAffiliate, dbBindLead } from "@/lib/affiliateDb";
 import { recordPaidWithdrawalFee } from "@/lib/withdrawalFeesStore";
 
 export const dynamic = 'force-dynamic';
@@ -26,14 +26,15 @@ export async function POST(req: Request) {
     const status = (body.status || body.event || body.type || body.data?.status || "").toUpperCase();
     const transactionId = body.transactionId || body.id || body.data?.id || body.clientIdentifier || body.identifier;
 
-    // Check pending transaction registry for fallback data
-    const pendingLocal = transactionId ? await getPendingTransactionAsync(transactionId) : null;
+    // Check pending transaction registry in Supabase for fallback data
+    const pendingLocal = transactionId ? await dbGetPendingPix(transactionId) : null;
 
     let email = (client.email || body.email || body.data?.email || pendingLocal?.email || "").toLowerCase().trim();
     let affiliateCode = 
       body.metadata?.affiliateCode || 
       body.metadata?.affiliate_code || 
       body.data?.metadata?.affiliateCode || 
+      body.data?.metadata?.affiliate_code ||
       body.affiliateCode || 
       pendingLocal?.affiliateCode || 
       null;
@@ -46,57 +47,48 @@ export async function POST(req: Request) {
     let customerCpf = client.document || pendingLocal?.cpf;
 
     if (!email || !isValidEmail(email)) {
-      // If email is not in payload, check if we stored it in pending_orders via transactionId
-      if (transactionId && supabaseUrl && supabaseKey) {
-        try {
-          const supabaseCheck = createClient(supabaseUrl, supabaseKey);
-          const { data: pending } = await supabaseCheck
-            .from('pending_orders')
-            .select('email, plan, bumps, affiliate_code, total, name, phone, cpf')
-            .eq('transaction_id', transactionId)
-            .maybeSingle();
-
-          if (pending && pending.email) {
-            console.log(`[SigiloPay Webhook] Dados recuperados via pending_orders (${transactionId}): ${pending.email}`);
-            email = pending.email.toLowerCase().trim();
-            if (pending.plan) plan = pending.plan;
-            if (pending.bumps) bumps = pending.bumps;
-            if (pending.total) total = Number(pending.total);
-            if (pending.name) customerName = pending.name;
-            if (pending.phone) customerPhone = pending.phone;
-            if (pending.cpf) customerCpf = pending.cpf;
-            if (!affiliateCode && pending.affiliate_code) affiliateCode = pending.affiliate_code;
-          }
-        } catch {}
+      if (transactionId) {
+        const pending = await dbGetPendingPix(transactionId);
+        if (pending && pending.email) {
+          console.log(`[SigiloPay Webhook] Dados recuperados via Supabase pending_pix (${transactionId}): ${pending.email}`);
+          email = pending.email.toLowerCase().trim();
+          if (pending.plan) plan = pending.plan;
+          if (pending.bumps) bumps = pending.bumps;
+          if (pending.total) total = Number(pending.total);
+          if (pending.name) customerName = pending.name;
+          if (pending.phone) customerPhone = pending.phone;
+          if (pending.cpf) customerCpf = pending.cpf;
+          if (!affiliateCode && pending.affiliateCode) affiliateCode = pending.affiliateCode;
+        }
       }
 
       if (!email || !isValidEmail(email)) {
-        console.warn("[SigiloPay Webhook] E-mail do cliente não encontrado no payload ou na tabela pending_orders:", body);
+        console.warn("[SigiloPay Webhook] E-mail do cliente não encontrado no payload ou no banco Supabase:", body);
         return NextResponse.json({ success: true, message: "Aguardando e-mail do cliente" }, { status: 200 });
       }
     }
 
     // Fallback: check pending store by email if affiliateCode still not found
     if (!affiliateCode && email) {
-      const pendingByEmail = await getPendingTransactionAsync(email);
+      const pendingByEmail = await dbGetPendingPix(email);
       if (pendingByEmail?.affiliateCode) {
         affiliateCode = pendingByEmail.affiliateCode;
       }
     }
 
-    // LEAD LOCK-IN: Fallback para vínculo perpétuo de lead
+    // LEAD LOCK-IN: Fallback para vínculo perpétuo de lead no Supabase
     if (!affiliateCode && email) {
       try {
-        const boundCode = await getLeadAffiliate(email);
+        const boundCode = await dbGetLeadAffiliate(email);
         if (boundCode) {
           affiliateCode = boundCode;
-          console.log(`[AFILIADOS LEAD LOCK WEBHOOK] Venda resgatada via lead perpétuo: ${email} -> ${boundCode}`);
+          console.log(`[AFILIADOS LEAD LOCK WEBHOOK] Venda resgatada via lead perpétuo no Supabase: ${email} -> ${boundCode}`);
         }
       } catch {}
     }
 
     if (affiliateCode && email) {
-      bindLeadToAffiliate(email, affiliateCode).catch(() => {});
+      dbBindLead(email, affiliateCode).catch(() => {});
     }
 
     // Protect administrative email
@@ -151,9 +143,7 @@ export async function POST(req: Request) {
         phone: customerPhone,
         cpf: customerCpf,
         transactionId,
-        affiliateCode,
-        supabaseUrl,
-        supabaseKey
+        affiliateCode
       });
     }
 
@@ -175,10 +165,8 @@ async function processApproval(options: {
   cpf?: string;
   transactionId?: string;
   affiliateCode?: string | null;
-  supabaseUrl?: string;
-  supabaseKey?: string;
 }) {
-  const { email, plan = 'lifetime', bumps = [], total, name, phone, cpf, transactionId, affiliateCode, supabaseUrl, supabaseKey } = options;
+  const { email, plan = 'lifetime', bumps = [], total, name, phone, cpf, transactionId, affiliateCode } = options;
 
   const safeBumps = Array.isArray(bumps) ? bumps.map((b: any) => String(b.name || b.id || b)) : [];
 
@@ -212,13 +200,13 @@ async function processApproval(options: {
     console.warn('[SigiloPay Webhook] Aviso ao salvar usuário no Supabase:', dbErr);
   }
 
-  // 2. REGISTRO 100% GARANTIDO DA COMISSÃO DO AFILIADO
+  // 2. REGISTRO 100% GARANTIDO DA COMISSÃO DO AFILIADO NO BANCO SUPABASE
   if (affiliateCode && plan !== 'taxa_antecipacao') {
     try {
       const userPlan = (plan === 'monthly' ? 'monthly' : 'lifetime') as 'monthly' | 'lifetime';
       const planBase = userPlan === 'monthly' ? 89.90 : 179.90;
       const totalAmount = Number(total) || planBase;
-      const sale = await recordAffiliateSaleOnServer({
+      const sale = await dbRecordSale({
         affiliateCode,
         plan: userPlan,
         planPrice: planBase,
@@ -233,10 +221,10 @@ async function processApproval(options: {
       });
 
       if (sale) {
-        console.log(`[SigiloPay Webhook] 🎉 Venda de afiliado (${affiliateCode}) creditada com sucesso para ${email}! Comissão: R$ ${sale.commissionAmount}`);
+        console.log(`[SigiloPay Webhook] 🎉 Venda de afiliado (${affiliateCode}) gravada no Supabase para ${email}! Comissão: R$ ${sale.commissionAmount}`);
       }
     } catch (affErr) {
-      console.error('[SigiloPay Webhook] Erro ao registrar comissão de afiliado:', affErr);
+      console.error('[SigiloPay Webhook] Erro ao registrar comissão de afiliado no Supabase:', affErr);
     }
   }
 

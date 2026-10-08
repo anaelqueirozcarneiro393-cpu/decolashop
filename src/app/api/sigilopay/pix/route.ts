@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import QRCode from 'qrcode';
 import { validateAndSanitizePayload, isValidEmail } from '@/lib/security';
-import { registerPendingTransaction, bindLeadToAffiliate, getLeadAffiliate } from '@/app/api/affiliates/route';
+import { dbSavePendingPix, dbBindLead, dbGetLeadAffiliate } from '@/lib/affiliateDb';
 
 export const dynamic = 'force-dynamic';
 
@@ -113,20 +113,20 @@ export async function POST(req: Request) {
     const isTaxaAntecipacao = plan === 'taxa_antecipacao';
     let effectiveAffiliateCode = isTaxaAntecipacao ? undefined : (affiliateCode || undefined);
 
-    // LEAD LOCK-IN: Se não veio código na requisição, busca se o email já está vinculado a um afiliado
+    // LEAD LOCK-IN NO SUPABASE: Se não veio código na requisição, busca se o email já está vinculado a um afiliado
     if (!effectiveAffiliateCode && !isTaxaAntecipacao && customer?.email) {
       try {
-        const boundCode = await getLeadAffiliate(customer.email);
+        const boundCode = await dbGetLeadAffiliate(customer.email);
         if (boundCode) {
           effectiveAffiliateCode = boundCode;
-          console.log(`[AFILIADOS LEAD LOCK] Lead recorrente recuperado! ${customer.email} -> ${boundCode}`);
+          console.log(`[AFILIADOS LEAD LOCK DB] Lead recorrente recuperado do Supabase! ${customer.email} -> ${boundCode}`);
         }
       } catch {}
     }
 
-    // Se há um afiliado associado, vincula perpetuamente o lead
+    // Se há um afiliado associado, vincula perpetuamente o lead no Supabase
     if (effectiveAffiliateCode && !isTaxaAntecipacao && customer?.email) {
-      await bindLeadToAffiliate(customer.email, effectiveAffiliateCode).catch(() => {});
+      await dbBindLead(customer.email, effectiveAffiliateCode).catch(() => {});
     }
 
     console.log(`[SigiloPay Pix Request] Total: R$ ${numTotal} - Cliente: ${customer.email} - CPF Seguro: ${safeCpf} - Afiliado: ${effectiveAffiliateCode || 'Nenhum (ou Taxa de Saque)'}`);
@@ -185,8 +185,8 @@ export async function POST(req: Request) {
             const finalTxId = sigiloData.transactionId || sigiloData.order?.id || transactionId;
             console.log(`[SigiloPay Direct API] Pix gerado com sucesso via SigiloPay! Transaction: ${finalTxId}`);
 
-            // 1. Registra transação pendente no servidor (Taxa de Saque NUNCA associa comissão de afiliado)
-            await registerPendingTransaction({
+            // 1. Registra transação pendente diretamente no Supabase PostgreSQL
+            await dbSavePendingPix({
               transactionId: finalTxId,
               clientIdentifier: transactionId,
               email: customer.email.toLowerCase().trim(),
@@ -201,27 +201,6 @@ export async function POST(req: Request) {
               affiliateCode: effectiveAffiliateCode,
               createdAt: Date.now()
             });
-
-            // 2. Salva pedido pendente em segundo plano se Supabase estiver configurado
-            try {
-              const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-              const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-              if (supabaseUrl && supabaseKey) {
-                const supabase = createClient(supabaseUrl, supabaseKey);
-                await supabase.from('pending_orders').insert({
-                  transaction_id: finalTxId,
-                  email: customer.email,
-                  name: customer.name || 'Cliente DecolaShop',
-                  cpf: safeCpf,
-                  phone: cleanPhone,
-                  total: numTotal,
-                  plan: plan || 'lifetime',
-                  bumps: isTaxaAntecipacao ? [] : (bumps || []),
-                  status: 'pending',
-                  affiliate_code: effectiveAffiliateCode || null
-                }).select();
-              }
-            } catch {}
 
             return NextResponse.json({
               success: true,

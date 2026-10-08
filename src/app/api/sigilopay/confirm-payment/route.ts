@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { validateAndSanitizePayload, isValidEmail, sanitizeString } from '@/lib/security';
-import { recordAffiliateSaleOnServer, getPendingTransaction, getPendingTransactionAsync, getLeadAffiliate, bindLeadToAffiliate } from '@/app/api/affiliates/route';
+import { dbRecordSale, dbGetPendingPix, dbGetLeadAffiliate, dbBindLead } from '@/lib/affiliateDb';
 import { recordPaidWithdrawalFee } from '@/lib/withdrawalFeesStore';
 
 export const dynamic = 'force-dynamic';
@@ -117,7 +117,7 @@ export async function POST(req: Request) {
     }
 
     // Identifica transação pendente se existir para checar plano e integridade
-    const pendingTx = transactionId ? await getPendingTransactionAsync(transactionId) : null;
+    const pendingTx = transactionId ? await dbGetPendingPix(transactionId) : null;
     const effectivePlan = plan || pendingTx?.plan || 'lifetime';
     const isTaxaAntecipacao = effectivePlan === 'taxa_antecipacao';
 
@@ -232,39 +232,39 @@ export async function POST(req: Request) {
       let affiliateCode = rawBody.affiliateCode || (matchAf ? decodeURIComponent(matchAf[1]) : null);
 
       if (!affiliateCode && transactionId) {
-        const pending = await getPendingTransactionAsync(transactionId);
+        const pending = await dbGetPendingPix(transactionId);
         if (pending?.affiliateCode) {
           affiliateCode = pending.affiliateCode;
         }
       }
 
       if (!affiliateCode && cleanEmail) {
-        const pending = await getPendingTransactionAsync(cleanEmail);
+        const pending = await dbGetPendingPix(cleanEmail);
         if (pending?.affiliateCode) {
           affiliateCode = pending.affiliateCode;
         }
       }
 
-      // LEAD LOCK-IN: Vínculo perpétuo de email do lead com afiliado
+      // LEAD LOCK-IN: Vínculo perpétuo de email do lead com afiliado no Supabase
       if (!affiliateCode && cleanEmail) {
         try {
-          const bound = await getLeadAffiliate(cleanEmail);
+          const bound = await dbGetLeadAffiliate(cleanEmail);
           if (bound) {
             affiliateCode = bound;
-            console.log(`[AFILIADOS LEAD LOCK] Venda confirmada resgatada pelo vínculo perpétuo: ${cleanEmail} -> ${bound}`);
+            console.log(`[AFILIADOS LEAD LOCK] Venda confirmada resgatada pelo vínculo perpétuo no banco: ${cleanEmail} -> ${bound}`);
           }
         } catch {}
       }
 
       if (affiliateCode && cleanEmail) {
-        await bindLeadToAffiliate(cleanEmail, affiliateCode).catch(() => {});
+        await dbBindLead(cleanEmail, affiliateCode).catch(() => {});
       }
 
       if (affiliateCode) {
         try {
           const planBase = userPlan === 'monthly' ? 89.90 : 179.90;
           const totalAmount = Number(rawBody.total) || planBase;
-          await recordAffiliateSaleOnServer({
+          await dbRecordSale({
             affiliateCode,
             plan: userPlan,
             planPrice: planBase,
@@ -278,7 +278,7 @@ export async function POST(req: Request) {
             transactionId: transactionId || undefined,
           });
         } catch (affServerErr) {
-          console.error('[AFILIADOS] Erro ao registrar venda de afiliado no servidor:', affServerErr);
+          console.error('[AFILIADOS] Erro ao registrar venda de afiliado no Supabase:', affServerErr);
         }
       }
     }

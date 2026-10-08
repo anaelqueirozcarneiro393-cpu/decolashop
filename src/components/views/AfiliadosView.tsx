@@ -859,6 +859,33 @@ export default function AfiliadosView() {
           </div>
         </div>
 
+        {/* Alerta de clientes recentes pagantes aguardando atribuição */}
+        {salesFilter !== 'paid_users' && paidUsers.some(u => !sales.some(s => s.customerEmail.toLowerCase() === u.email.toLowerCase())) && (
+          <div className="p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-300 flex-shrink-0">
+                <Sparkles size={20} />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                  <span>Clientes Pagantes Identificados no Sistema</span>
+                  <span className="px-2 py-0.5 rounded-full bg-purple-500/30 text-purple-200 text-[10px]">Aguardando Vínculo</span>
+                </h4>
+                <p className="text-xs text-slate-300 mt-0.5">
+                  Identificamos cliente(s) ativo(s) na plataforma (ex: {paidUsers.find(u => !sales.some(s => s.customerEmail.toLowerCase() === u.email.toLowerCase()))?.name || 'Cliente'}). Clique para vincular a venda e creditar a comissão com 1 clique!
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setSalesFilter('paid_users')}
+              className="px-3.5 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition-colors whitespace-nowrap cursor-pointer flex items-center justify-center gap-1.5 shadow-lg shadow-purple-600/20"
+            >
+              <span>Ver Clientes ({paidUsers.filter(u => !sales.some(s => s.customerEmail.toLowerCase() === u.email.toLowerCase())).length})</span>
+              <ArrowUpRight size={14} />
+            </button>
+          </div>
+        )}
+
         {salesFilter === 'paid_users' ? (
           paidUsers.length === 0 ? (
             <div className="text-center py-10 text-slate-400 bg-black/20 rounded-xl border border-white/5 p-6">

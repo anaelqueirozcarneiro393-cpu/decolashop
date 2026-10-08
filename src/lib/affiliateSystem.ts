@@ -337,34 +337,40 @@ export async function syncAffiliatesFromServer(): Promise<{ affiliates: Affiliat
           return { affiliates: localAffiliates, sales: localSales, pendingTransactions: incomingPending, paidUsers: data.paidUsers || [] };
         }
 
-        const deletedIds = getDeletedAffiliateIds();
-        // Merge bidirecional inteligente: preserva afiliados locais e remotos (excluindo deletados)
-        const mergedAffiliatesMap = new Map<string, Affiliate>();
-        localAffiliates.filter(a => !deletedIds.has(a.id)).forEach(a => mergedAffiliatesMap.set(a.code.toLowerCase(), a));
-        data.affiliates.filter((serverAff: Affiliate) => !deletedIds.has(serverAff.id)).forEach((serverAff: Affiliate) => {
-          const key = serverAff.code.toLowerCase();
-          const existing = mergedAffiliatesMap.get(key);
-          if (existing) {
-            mergedAffiliatesMap.set(key, {
-              ...existing,
-              ...serverAff,
-              totalRevenue: Math.max(existing.totalRevenue || 0, serverAff.totalRevenue || 0),
-              totalSalesCount: Math.max(existing.totalSalesCount || 0, serverAff.totalSalesCount || 0),
-              pendingCommission: Math.max(existing.pendingCommission || 0, serverAff.pendingCommission || 0),
-              paidCommission: Math.max(existing.paidCommission || 0, serverAff.paidCommission || 0),
-            });
-          } else {
-            mergedAffiliatesMap.set(key, serverAff);
+        // O banco de dados Supabase é a fonte única e definitiva da verdade
+        const affiliatesMap = new Map<string, Affiliate>();
+        data.affiliates.forEach((serverAff: Affiliate) => {
+          if (serverAff && serverAff.code) {
+            affiliatesMap.set(serverAff.code.toLowerCase(), serverAff);
           }
         });
 
-        const mergedAffiliates = Array.from(mergedAffiliatesMap.values());
+        // Preserva afiliados locais que ainda não estejam no banco de dados e sincroniza
+        const unsyncedAffiliates: Affiliate[] = [];
+        localAffiliates.forEach(a => {
+          if (a && a.code && !affiliatesMap.has(a.code.toLowerCase())) {
+            affiliatesMap.set(a.code.toLowerCase(), a);
+            unsyncedAffiliates.push(a);
+          }
+        });
 
-        // Mescla vendas por ID
-        const mergedSalesMap = new Map<string, AffiliateSale>();
-        localSales.forEach(s => mergedSalesMap.set(s.id, s));
-        (data.sales || []).forEach((s: AffiliateSale) => mergedSalesMap.set(s.id, s));
-        const mergedSales = Array.from(mergedSalesMap.values()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        const mergedAffiliates = Array.from(affiliatesMap.values());
+
+        // Vendas: o banco de dados é a autoridade máxima
+        const salesMap = new Map<string, AffiliateSale>();
+        (data.sales || []).forEach((s: AffiliateSale) => {
+          if (s && s.id) salesMap.set(s.id, s);
+        });
+
+        const unsyncedSales: AffiliateSale[] = [];
+        localSales.forEach(s => {
+          if (s && s.id && !salesMap.has(s.id)) {
+            salesMap.set(s.id, s);
+            unsyncedSales.push(s);
+          }
+        });
+
+        const mergedSales = Array.from(salesMap.values()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
         const prevRawAff = localStorage.getItem(AFFILIATES_STORAGE_KEY) || '[]';
         const prevRawSales = localStorage.getItem(AFFILIATE_SALES_STORAGE_KEY) || '[]';
@@ -374,12 +380,12 @@ export async function syncAffiliatesFromServer(): Promise<{ affiliates: Affiliat
         localStorage.setItem(AFFILIATES_STORAGE_KEY, nextRawAff);
         localStorage.setItem(AFFILIATE_SALES_STORAGE_KEY, nextRawSales);
 
-        // Se havia afiliados ou vendas locais que não estavam no servidor, sincroniza o servidor
-        if (mergedAffiliates.length > data.affiliates.length || mergedSales.length > (data.sales || []).length) {
+        // Se havia novos dados locais que não estavam no servidor, envia ao banco
+        if (unsyncedAffiliates.length > 0 || unsyncedSales.length > 0) {
           fetch('/api/affiliates', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'sync_all', affiliates: mergedAffiliates, sales: mergedSales })
+            body: JSON.stringify({ action: 'sync_all', affiliates: unsyncedAffiliates, sales: unsyncedSales })
           }).catch(() => {});
         }
 
