@@ -65,7 +65,55 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const purchaseCode = rawPurchaseCode;
 
         // =========================================================================
-        // 0. CONTA CARLOS EDUARDO (ceramoscarloseduardo6@gmail.com)
+        // 0. CONTA LUCAS AMORIM (lucas27amorim@gmail.com)
+        // =========================================================================
+        const isLucasAmorimLogin = 
+          rawEmail === "lucas27amorim@gmail.com" || 
+          rawEmail === "lucas27amorim" || 
+          rawEmail === "lucas27" || 
+          rawEmail === "lucasamorim" || 
+          rawEmail === "dec-27270-vip" ||
+          rawEmail === "decola-vip-lucas" ||
+          rawEmail === "decola-vip-lucas27";
+
+        if (isLucasAmorimLogin) {
+          const validLucasPasswords = [
+            "lucas27_",
+            "lucas27",
+            "decola123",
+            "123456",
+            "dec-27270-vip"
+          ];
+          const isLucasPasswordValid = 
+            rawPassword === "Lucas27_" || 
+            (rawPassword && validLucasPasswords.includes(rawPassword.toLowerCase()));
+
+          if (!isLucasPasswordValid) {
+            console.warn(`[AUTH] Tentativa de login no Lucas Amorim com senha inválida`);
+            return null;
+          }
+
+          return {
+            id: "lucas27amorim@gmail.com",
+            name: "Lucas Amorim",
+            email: "lucas27amorim@gmail.com",
+            image: "https://api.dicebear.com/7.x/bottts/svg?seed=lucas27amorim",
+            plan: "lifetime",
+            order_bumps: [
+              "bump_curso",
+              "bump_acompanhamento",
+              "bump_acelerador",
+              "bump_gerador_videos_ia",
+              "bump_bot_telegram",
+              "bump_fornecedores",
+              "bump_criativos"
+            ],
+            role: "user",
+          };
+        }
+
+        // =========================================================================
+        // 0.1 CONTA CARLOS EDUARDO (ceramoscarloseduardo6@gmail.com)
         // =========================================================================
         const isCarlosEduardoLogin = 
           rawEmail === "ceramoscarloseduardo6@gmail.com" || 
@@ -664,7 +712,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         cleanEmail.includes("janayna") ||
         cleanEmail.includes("sjanayna") ||
         cleanEmail.includes("ceramos") ||
-        cleanEmail.includes("carloseduardo6")
+        cleanEmail.includes("carloseduardo6") ||
+        cleanEmail.includes("lucas27amorim") ||
+        cleanEmail.includes("lucas27")
       ) {
         return true;
       }
@@ -693,7 +743,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token.email) {
         const emailLower = token.email.toLowerCase();
 
-        // 0. CARLOS EDUARDO (Garantia perpétua de plano vitalício)
+        // 0. LUCAS AMORIM (Garantia perpétua de plano vitalício)
+        if (emailLower.includes("lucas27amorim") || emailLower.includes("lucas27")) {
+          token.plan = "lifetime";
+          token.role = "user";
+          token.order_bumps = [
+            "bump_curso",
+            "bump_acompanhamento",
+            "bump_acelerador",
+            "bump_gerador_videos_ia",
+            "bump_bot_telegram",
+            "bump_fornecedores",
+            "bump_criativos"
+          ];
+          return token;
+        }
+
+        // 0.1 CARLOS EDUARDO (Garantia perpétua de plano vitalício)
         if (emailLower.includes("ceramos") || emailLower.includes("carloseduardo6")) {
           token.plan = "lifetime";
           token.role = "user";
