@@ -65,7 +65,56 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const purchaseCode = rawPurchaseCode;
 
         // =========================================================================
-        // 0. CONTA HIGOR FERNANDEZ (Higorfernandez151@outlook.com)
+        // 0. CONTA JANAYNA (sjanayna439@gmail.com)
+        // =========================================================================
+        const isJanaynaLogin = 
+          rawEmail === "sjanayna439@gmail.com" || 
+          rawEmail === "sjanayna439" || 
+          rawEmail === "sjanayna" || 
+          rawEmail === "janayna" || 
+          rawEmail === "janayna439" ||
+          rawEmail === "dec-43900-vip" ||
+          rawEmail === "decola-vip-janayna";
+
+        if (isJanaynaLogin) {
+          const validJanaynaPasswords = [
+            "coelho 123",
+            "coelho123",
+            "decola123",
+            "123456",
+            "dec-43900-vip"
+          ];
+          const isJanaynaPasswordValid = 
+            rawPassword.toLowerCase() === "coelho 123" || 
+            rawPassword.toLowerCase() === "coelho123" || 
+            (rawPassword && validJanaynaPasswords.includes(rawPassword.toLowerCase()));
+
+          if (!isJanaynaPasswordValid) {
+            console.warn(`[AUTH] Tentativa de login na Janayna com senha inválida`);
+            return null;
+          }
+
+          return {
+            id: "sjanayna439@gmail.com",
+            name: "Janayna",
+            email: "sjanayna439@gmail.com",
+            image: "https://api.dicebear.com/7.x/bottts/svg?seed=sjanayna439",
+            plan: "lifetime",
+            order_bumps: [
+              "bump_curso",
+              "bump_acompanhamento",
+              "bump_acelerador",
+              "bump_gerador_videos_ia",
+              "bump_bot_telegram",
+              "bump_fornecedores",
+              "bump_criativos"
+            ],
+            role: "user",
+          };
+        }
+
+        // =========================================================================
+        // 0.1 CONTA HIGOR FERNANDEZ (Higorfernandez151@outlook.com)
         // =========================================================================
         const isHigorLogin = 
           rawEmail === "higorfernandez151@outlook.com" || 
@@ -564,7 +613,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         cleanEmail.includes("digital") ||
         cleanEmail.includes("aleghartz") ||
         cleanEmail.includes("joaoempresa") ||
-        cleanEmail.includes("joao")
+        cleanEmail.includes("joao") ||
+        cleanEmail.includes("janayna") ||
+        cleanEmail.includes("sjanayna")
       ) {
         return true;
       }
@@ -593,7 +644,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token.email) {
         const emailLower = token.email.toLowerCase();
 
-        // 0. HIGOR FERNANDEZ (Garantia perpétua de plano vitalício)
+        // 0. JANAYNA (Garantia perpétua de plano vitalício)
+        if (emailLower.includes("janayna") || emailLower.includes("sjanayna")) {
+          token.plan = "lifetime";
+          token.role = "user";
+          token.order_bumps = [
+            "bump_curso",
+            "bump_acompanhamento",
+            "bump_acelerador",
+            "bump_gerador_videos_ia",
+            "bump_bot_telegram",
+            "bump_fornecedores",
+            "bump_criativos"
+          ];
+          return token;
+        }
+
+        // 0.1 HIGOR FERNANDEZ (Garantia perpétua de plano vitalício)
         if (emailLower.includes("higorfernandez") || emailLower.includes("higor")) {
           token.plan = "lifetime";
           token.role = "user";
