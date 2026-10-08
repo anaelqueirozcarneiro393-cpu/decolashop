@@ -39,10 +39,14 @@ export default function LoginView() {
       if (res?.error) {
         toast.error('E-mail ou senha incorretos.');
       } else {
+        const isAdm = cleanEmail.toLowerCase().includes('admin');
+        const isMgr = cleanEmail.toLowerCase().includes('gerente');
         toast.success(
-          (cleanEmail.toLowerCase().includes('admin') || cleanEmail.toLowerCase().includes('gerente'))
-            ? '🚀 Bem-vindo ao DecolaShop, Gerente!' 
-            : 'Login realizado com sucesso!'
+          isAdm
+            ? '⚡ Bem-vindo, Administrador! Todos os atalhos foram liberados.'
+            : isMgr
+              ? '🚀 Bem-vindo ao DecolaShop, Gerente!' 
+              : 'Login realizado com sucesso!'
         );
         window.location.href = '/';
       }

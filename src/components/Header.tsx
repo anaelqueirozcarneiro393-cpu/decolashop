@@ -26,7 +26,8 @@ export default function Header({ onMenuClick, session: propSession }: HeaderProp
     userRole === 'gerente' || 
     userRole === 'admin'
   );
-  const userBadge = isAdmin ? 'Gerente' : 'Membro VIP';
+  const isSuperAdmin = userRole === 'admin' || userEmail.includes('admin');
+  const userBadge = isAdmin ? (isSuperAdmin ? 'Administrador' : 'Gerente') : 'Membro VIP';
   const canUseQuickActions = isAdmin || userEmail === 'usuario@decolashop.com' || isCarlos;
 
   const { isSoundEnabled, toggleSound, recentSales } = useSales();
@@ -179,6 +180,21 @@ export default function Header({ onMenuClick, session: propSession }: HeaderProp
             {hideEmail ? 'E-mail Oculto' : 'Ocultar E-mail'}
           </span>
         </button>
+
+        {/* Botão Atalhos Rápidos Admin [Alt + A] */}
+        {canUseQuickActions && (
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent('decolashop_open_admin_actions'))}
+            className="p-2 sm:px-2.5 sm:py-1.5 rounded-xl border border-[#22c55e]/30 bg-[#22c55e]/10 hover:bg-[#22c55e]/20 text-[#4ade80] transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold shadow-sm shadow-[#22c55e]/10"
+            title="Atalhos Rápidos de Admin (Alt + A)"
+          >
+            <Zap size={14} className="fill-current text-[#22c55e]" />
+            <span className="hidden sm:inline text-[11px] font-black uppercase tracking-wider">
+              Atalhos [Alt+A]
+            </span>
+          </button>
+        )}
 
         <div className="h-6 w-[1px] bg-white/10 mx-1 hidden sm:block" />
 

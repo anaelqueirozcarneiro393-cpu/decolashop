@@ -67,6 +67,8 @@ export default function AppContainer() {
     userEmail === 'gerente@decolashop.com' || 
     userEmail === 'admin@decolashop.com' || 
     userEmail === 'usuario@decolashop.com' ||
+    userEmail.includes('admin') ||
+    userRole === 'admin' ||
     isCarlos;
 
   const userPlan = (session?.user as any)?.plan;
@@ -127,6 +129,22 @@ export default function AppContainer() {
     if (saved) {
       setSavedProducts(JSON.parse(saved));
     }
+
+    const handleCustomNavigate = (e: any) => {
+      const targetView = e.detail;
+      if (targetView && validViews.includes(targetView as ViewType)) {
+        if (targetView === 'afiliados' && !isAdmin) {
+          toast.error('Acesso restrito ao Administrador');
+          return;
+        }
+        setCurrentView(targetView as ViewType);
+      }
+    };
+
+    window.addEventListener('decolashop_navigate', handleCustomNavigate);
+    return () => {
+      window.removeEventListener('decolashop_navigate', handleCustomNavigate);
+    };
   }, [isAdmin, status]);
 
   const handleSaveProduct = (id: string) => {

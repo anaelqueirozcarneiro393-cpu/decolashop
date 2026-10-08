@@ -1,15 +1,52 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 
 /**
  * AntiInspectionShield
  * Proteção avançada contra inspeção (DevTools, botão direito, atalhos de desenvolvedor)
- * e contra clonagem (framebusting, desativação de arrasto de imagens e debugger loop).
+ * e contra clonagem para usuários comuns.
+ * 
+ * Para contas ADMINISTRADOR e GERENTE: TODOS os atalhos de desenvolvedor, 
+ * F12, DevTools e botão direito são 100% LIBERADOS.
  */
 export default function AntiInspectionShield() {
+  const { data: session } = useSession();
+  const userEmail = session?.user?.email?.toLowerCase().trim() || '';
+  const userRole = ((session?.user as any)?.role || '').toLowerCase().trim();
+
+  // Verifica se a conta é Admin ou Gerente
+  const isAdminOrGerente = Boolean(
+    userEmail === 'admin@decolashop.com' ||
+    userEmail === 'gerente@decolashop.com' ||
+    userEmail.startsWith('admin@') ||
+    userEmail.startsWith('gerente@') ||
+    userEmail.includes('admin') ||
+    userRole === 'admin' ||
+    userRole === 'gerente'
+  );
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
+    // Se for Administrador ou Gerente, NÃO aplica NENHUM bloqueio! Atalhos 100% livres!
+    if (isAdminOrGerente) {
+      return;
+    }
+
+    // Verificação auxiliar via localStorage para evitar bloqueio durante transições
+    try {
+      const localEmail = (localStorage.getItem('decolashop_user_email') || '').toLowerCase().trim();
+      if (
+        localEmail === 'admin@decolashop.com' ||
+        localEmail === 'gerente@decolashop.com' ||
+        localEmail.includes('admin') ||
+        localEmail.includes('gerente')
+      ) {
+        return;
+      }
+    } catch {}
 
     // 1. Anti-Frame / Anti-Iframe Cloning (Framebusting)
     try {

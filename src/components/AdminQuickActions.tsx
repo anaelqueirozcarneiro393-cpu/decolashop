@@ -64,6 +64,7 @@ export default function AdminQuickActions() {
     userEmail === 'admin@newshop.com' ||
     userEmail.startsWith('gerente@') ||
     userEmail.startsWith('admin@') ||
+    userEmail.includes('admin') ||
     userRole === 'gerente' ||
     userRole === 'admin'
   );
@@ -71,11 +72,12 @@ export default function AdminQuickActions() {
   const isCarlos = userEmail.includes('carlos') || userEmail.includes('souza');
   const isNormalUser = userEmail === 'usuario@decolashop.com' || isCarlos;
   const isAdmin = !isNormalUser && isAuthorizedAccount;
+  const isSuperAdmin = userRole === 'admin' || userEmail.includes('admin');
 
   // Liberado para admin/gerente, usuario@decolashop.com e Carlos Souza
   const canUseQuickActions = isAdmin || userEmail === 'usuario@decolashop.com' || isCarlos;
 
-  // Atalho secreto do teclado: [Alt + A] ou [Ctrl + Shift + A]
+  // Atalho do teclado: [Alt + A], [Alt + V], [Alt + R], [Alt + 1..5]
   useEffect(() => {
     if (!canUseQuickActions) return;
 
@@ -123,6 +125,40 @@ export default function AdminQuickActions() {
         resetData();
         toast.success('🔄 Dados resetados!');
         return;
+      }
+
+      // Atalhos de navegação rápida com Alt + 1..5
+      if (e.altKey && !e.ctrlKey && !e.metaKey) {
+        if (e.key === '1') {
+          e.preventDefault();
+          window.dispatchEvent(new CustomEvent('decolashop_navigate', { detail: 'dashboard' }));
+          toast.success('🧭 Navegando para Dashboard [Alt + 1]');
+          return;
+        }
+        if (e.key === '2') {
+          e.preventDefault();
+          window.dispatchEvent(new CustomEvent('decolashop_navigate', { detail: 'financeiro' }));
+          toast.success('💰 Navegando para Financeiro [Alt + 2]');
+          return;
+        }
+        if (e.key === '3') {
+          e.preventDefault();
+          window.dispatchEvent(new CustomEvent('decolashop_navigate', { detail: 'afiliados' }));
+          toast.success('👥 Navegando para Afiliados [Alt + 3]');
+          return;
+        }
+        if (e.key === '4') {
+          e.preventDefault();
+          window.dispatchEvent(new CustomEvent('decolashop_navigate', { detail: 'minerador' }));
+          toast.success('🔥 Navegando para Minerador Live [Alt + 4]');
+          return;
+        }
+        if (e.key === '5') {
+          e.preventDefault();
+          window.dispatchEvent(new CustomEvent('decolashop_navigate', { detail: 'catalogo' }));
+          toast.success('📦 Navegando para Catálogo [Alt + 5]');
+          return;
+        }
       }
     };
 
@@ -174,9 +210,11 @@ export default function AdminQuickActions() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base sm:text-lg font-black text-white">Painel do Gerente</h3>
-                <span className="text-[9px] font-black uppercase tracking-wider text-[#080c14] bg-[#22c55e] px-1.5 py-0.5 rounded-full">
-                  Gerente
+                <h3 className="text-base sm:text-lg font-black text-white">
+                  {isSuperAdmin ? 'Painel do Administrador' : 'Painel do Gerente'}
+                </h3>
+                <span className="text-[9px] font-black uppercase tracking-wider text-[#080c14] bg-[#22c55e] px-1.5 py-0.5 rounded-full font-bold">
+                  {isSuperAdmin ? 'Admin Master' : 'Gerente'}
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">
@@ -455,10 +493,107 @@ export default function AdminQuickActions() {
           </div>
         </div>
 
+        {/* 5. NAVEGAÇÃO RÁPIDA & LISTA DE ATALHOS */}
+        <div className="mt-3 p-3 rounded-2xl bg-[#111726]/80 border border-white/10">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+              <Zap size={13} className="text-[#22c55e]" /> Atalhos de Teclado Liberados
+            </span>
+            <span className="text-[10px] text-[#22c55e] font-mono font-bold bg-[#22c55e]/10 px-1.5 py-0.5 rounded border border-[#22c55e]/20">100% ATIVOS</span>
+          </div>
+
+          {/* Botões de Acesso Rápido com Atalhos */}
+          <div className="grid grid-cols-5 gap-1.5 mb-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent('decolashop_navigate', { detail: 'dashboard' }));
+                setIsOpen(false);
+              }}
+              className="p-1.5 rounded-lg bg-white/5 hover:bg-[#22c55e]/20 text-center transition-all cursor-pointer group"
+              title="Ir para Dashboard [Alt + 1]"
+            >
+              <span className="text-[10px] font-black block text-slate-200 group-hover:text-[#4ade80]">Dash</span>
+              <span className="text-[9px] text-[#22c55e] font-mono font-bold">Alt+1</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent('decolashop_navigate', { detail: 'financeiro' }));
+                setIsOpen(false);
+              }}
+              className="p-1.5 rounded-lg bg-white/5 hover:bg-[#22c55e]/20 text-center transition-all cursor-pointer group"
+              title="Ir para Financeiro [Alt + 2]"
+            >
+              <span className="text-[10px] font-black block text-slate-200 group-hover:text-[#4ade80]">Finan</span>
+              <span className="text-[9px] text-[#22c55e] font-mono font-bold">Alt+2</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent('decolashop_navigate', { detail: 'afiliados' }));
+                setIsOpen(false);
+              }}
+              className="p-1.5 rounded-lg bg-white/5 hover:bg-[#22c55e]/20 text-center transition-all cursor-pointer group"
+              title="Ir para Afiliados [Alt + 3]"
+            >
+              <span className="text-[10px] font-black block text-slate-200 group-hover:text-[#4ade80]">Afiliados</span>
+              <span className="text-[9px] text-[#22c55e] font-mono font-bold">Alt+3</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent('decolashop_navigate', { detail: 'minerador' }));
+                setIsOpen(false);
+              }}
+              className="p-1.5 rounded-lg bg-white/5 hover:bg-[#22c55e]/20 text-center transition-all cursor-pointer group"
+              title="Ir para Minerador Live [Alt + 4]"
+            >
+              <span className="text-[10px] font-black block text-slate-200 group-hover:text-[#4ade80]">Minerar</span>
+              <span className="text-[9px] text-[#22c55e] font-mono font-bold">Alt+4</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent('decolashop_navigate', { detail: 'catalogo' }));
+                setIsOpen(false);
+              }}
+              className="p-1.5 rounded-lg bg-white/5 hover:bg-[#22c55e]/20 text-center transition-all cursor-pointer group"
+              title="Ir para Catálogo [Alt + 5]"
+            >
+              <span className="text-[10px] font-black block text-slate-200 group-hover:text-[#4ade80]">Catál</span>
+              <span className="text-[9px] text-[#22c55e] font-mono font-bold">Alt+5</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-1.5 text-[10px] text-slate-400">
+            <div className="flex items-center justify-between p-1.5 rounded-lg bg-black/40 border border-white/5">
+              <span>Abrir este Painel:</span>
+              <kbd className="text-[#22c55e] font-mono font-bold bg-white/5 px-1 py-0.5 rounded">Alt + A</kbd>
+            </div>
+            <div className="flex items-center justify-between p-1.5 rounded-lg bg-black/40 border border-white/5">
+              <span>Simular Venda:</span>
+              <kbd className="text-[#22c55e] font-mono font-bold bg-white/5 px-1 py-0.5 rounded">Alt + V</kbd>
+            </div>
+            <div className="flex items-center justify-between p-1.5 rounded-lg bg-black/40 border border-white/5">
+              <span>Resetar Painel:</span>
+              <kbd className="text-red-400 font-mono font-bold bg-white/5 px-1 py-0.5 rounded">Alt + R</kbd>
+            </div>
+            <div className="flex items-center justify-between p-1.5 rounded-lg bg-black/40 border border-white/5">
+              <span>DevTools / F12:</span>
+              <span className="text-[#4ade80] font-mono font-bold">Liberado 🔓</span>
+            </div>
+          </div>
+        </div>
+
         {/* Footer */}
         <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-[11px] text-slate-400">
           <span>
-            Atalho: <kbd className="text-[#22c55e] font-mono font-bold">Alt + A</kbd> ou <kbd className="text-[#22c55e] font-mono font-bold">Ctrl + Shift + A</kbd>
+            Pressione <kbd className="text-[#22c55e] font-mono font-bold bg-white/5 px-1 py-0.5 rounded">Alt + A</kbd> ou <kbd className="text-[#22c55e] font-mono font-bold bg-white/5 px-1 py-0.5 rounded">Esc</kbd> para fechar
           </span>
           <button
             onClick={() => setIsOpen(false)}

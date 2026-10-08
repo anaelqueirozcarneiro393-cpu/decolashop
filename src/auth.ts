@@ -340,16 +340,66 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         // =========================================================================
+        // 1.5. CONTA ADMINISTRADOR MASTER (admin@decolashop.com / admin)
+        // =========================================================================
+        const isAdminLogin = 
+          rawEmail === "admin@decolashop.com" || 
+          rawEmail === "admin" || 
+          rawEmail === "administrador" ||
+          rawEmail === "admin@newshop.com" ||
+          rawEmail === "decola-admin" ||
+          rawEmail === "dec-admin-vip";
+
+        if (isAdminLogin) {
+          const validAdminPasswords = [
+            "admin123",
+            "admin",
+            "decola123",
+            "admin@2024",
+            "admin2024",
+            "123456",
+            "dec-admin-vip",
+            "decola@admin"
+          ];
+          const isAdminValid = 
+            rawPassword === "Admin123" ||
+            rawPassword === "Admin@2024" ||
+            (rawPassword && validAdminPasswords.includes(rawPassword.toLowerCase()));
+
+          if (!isAdminValid) {
+            console.warn(`[AUTH] Tentativa de login no administrador com senha inválida: ${rawEmail}`);
+            return null;
+          }
+
+          return {
+            id: "admin@decolashop.com",
+            name: "Administrador DecolaShop",
+            email: "admin@decolashop.com",
+            image: "https://api.dicebear.com/7.x/bottts/svg?seed=admin_decolashop",
+            plan: "lifetime",
+            order_bumps: [
+              "bump_curso",
+              "bump_acompanhamento",
+              "bump_acelerador",
+              "bump_gerador_videos_ia",
+              "bump_bot_telegram",
+              "bump_fornecedores",
+              "bump_criativos"
+            ],
+            role: "admin",
+          };
+        }
+
+        // =========================================================================
         // 2. CONTA GERENTE (gerente@decolashop.com)
         // =========================================================================
         const isGerenteLogin = 
           rawEmail === "gerente@decolashop.com" || 
-          rawEmail === "admin@decolashop.com" || 
-          rawEmail === "gerente" || 
-          rawEmail === "admin";
+          rawEmail === "gerente" ||
+          rawEmail === "decola-gerente";
 
         if (isGerenteLogin) {
-          const validGerentePasswords = ["admin123", "gerente123", "decola123"];
+          const validGerentePasswords = ["admin123", "gerente123", "decola123", "123456"];
           const isGerenteValid = rawPassword && validGerentePasswords.includes(rawPassword.toLowerCase());
 
           if (!isGerenteValid) {
@@ -506,6 +556,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         cleanEmail === "gerente@decolashop.com" || 
         cleanEmail === "admin@decolashop.com" || 
         cleanEmail === "usuario@decolashop.com" ||
+        cleanEmail.includes("admin") ||
+        cleanEmail.includes("gerente") ||
         cleanEmail.includes("carlos") ||
         cleanEmail.includes("souza") ||
         cleanEmail.includes("emanuel") ||
@@ -653,8 +705,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return token;
         }
 
-        // 3. GERENTE
-        if (emailLower === "gerente@decolashop.com" || emailLower === "admin@decolashop.com") {
+        // 3. ADMINISTRADOR (Acesso Master & Atalhos Liberados)
+        if (emailLower === "admin@decolashop.com" || emailLower === "admin" || emailLower.startsWith("admin@") || emailLower === "dec-admin-vip") {
+          token.plan = "lifetime";
+          token.role = "admin";
+          token.order_bumps = [
+            "bump_curso",
+            "bump_acompanhamento",
+            "bump_acelerador",
+            "bump_gerador_videos_ia",
+            "bump_bot_telegram",
+            "bump_fornecedores",
+            "bump_criativos"
+          ];
+          return token;
+        }
+
+        // 3.1 GERENTE
+        if (emailLower === "gerente@decolashop.com" || emailLower === "gerente" || emailLower.startsWith("gerente@")) {
           token.plan = "lifetime";
           token.role = "gerente";
           token.order_bumps = [

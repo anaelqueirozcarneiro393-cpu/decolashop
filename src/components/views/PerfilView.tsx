@@ -20,10 +20,11 @@ export default function PerfilView() {
     userRole === 'gerente' || 
     userRole === 'admin'
   );
-  const userBadge = isAdmin ? 'Gerente' : 'Membro VIP';
-  const planBadge = isAdmin ? 'Créditos ∞ (Ilimitado)' : 'Plano Vitalício Ativo';
+  const isSuperAdmin = userRole === 'admin' || userEmail.includes('admin');
+  const userBadge = isAdmin ? (isSuperAdmin ? 'Administrador' : 'Gerente') : 'Membro VIP';
+  const planBadge = isAdmin ? 'Acesso Total ∞ (Ilimitado)' : 'Plano Vitalício Ativo';
 
-  const defaultName = session?.user?.name || (isAdmin ? 'Gerente DecolaShop' : 'Membro DecolaShop');
+  const defaultName = session?.user?.name || (isAdmin ? (isSuperAdmin ? 'Administrador DecolaShop' : 'Gerente DecolaShop') : 'Membro DecolaShop');
   const [name, setName] = useState(defaultName);
   const [email, setEmail] = useState(rawEmail);
   const [isSaving, setIsSaving] = useState(false);
