@@ -147,12 +147,21 @@ export async function dbSaveAffiliate(affiliate: Affiliate): Promise<boolean> {
   }
 }
 
+export const AFFILIATE_CODE_ALIASES: Record<string, string> = {
+  'kaio': 'rwjncwiofw'
+};
+
+export function resolveAffiliateCode(code: string): string {
+  const clean = (code || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+  return AFFILIATE_CODE_ALIASES[clean] || clean;
+}
+
 /**
  * 3. Buscar um afiliado específico pelo código
  */
 export async function dbGetAffiliateByCode(code: string): Promise<Affiliate | null> {
   try {
-    const cleanCode = (code || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    const cleanCode = resolveAffiliateCode(code);
     if (!cleanCode) return null;
 
     const supabase = getSupabaseAdmin('next_auth');
@@ -249,7 +258,7 @@ export async function dbRecordSale(params: {
     return null;
   }
 
-  const cleanCode = (params.affiliateCode || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+  const cleanCode = resolveAffiliateCode(params.affiliateCode);
   if (!cleanCode) return null;
 
   const cleanEmail = (params.customerEmail || '').trim().toLowerCase();
@@ -488,7 +497,7 @@ export async function dbGetPendingPixList(): Promise<PendingPixTransaction[]> {
 export async function dbBindLead(email: string, affiliateCode: string): Promise<void> {
   try {
     const cleanEmail = (email || '').toLowerCase().trim();
-    const cleanCode = (affiliateCode || '').toLowerCase().trim().replace(/[^a-z0-9_-]/g, '');
+    const cleanCode = resolveAffiliateCode(affiliateCode);
     if (!cleanEmail || !cleanCode || !cleanEmail.includes('@')) return;
 
     const supabase = getSupabaseAdmin('next_auth');

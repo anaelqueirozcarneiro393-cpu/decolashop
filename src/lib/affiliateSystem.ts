@@ -153,6 +153,15 @@ function setDurableCookie(name: string, value: string, days = 365) {
   } catch {}
 }
 
+export const AFFILIATE_CODE_ALIASES: Record<string, string> = {
+  'kaio': 'rwjncwiofw'
+};
+
+export function resolveAffiliateCode(code: string): string {
+  const clean = (code || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+  return AFFILIATE_CODE_ALIASES[clean] || clean;
+}
+
 /**
  * Capture affiliate reference from URL and permanently lock into storage
  */
@@ -162,7 +171,7 @@ export function captureAffiliateFromUrl(): string | null {
     const urlParams = new URLSearchParams(window.location.search);
     const afCode = urlParams.get('af') || urlParams.get('ref') || urlParams.get('afiliado');
     if (afCode && afCode.trim()) {
-      const cleanCode = afCode.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+      const cleanCode = resolveAffiliateCode(afCode);
       if (cleanCode) {
         setAffiliateRef(cleanCode);
         return cleanCode;
@@ -184,7 +193,7 @@ export function captureAffiliateFromUrl(): string | null {
 export function setAffiliateRef(code: string): void {
   if (typeof window === 'undefined') return;
   try {
-    const cleanCode = code.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    const cleanCode = resolveAffiliateCode(code);
     if (!cleanCode) return;
 
     // 1. Memory
@@ -220,7 +229,7 @@ export function getAffiliateRef(): string | null {
       const urlParams = new URLSearchParams(window.location.search);
       const afUrl = urlParams.get('af') || urlParams.get('ref') || urlParams.get('afiliado');
       if (afUrl && afUrl.trim()) {
-        const clean = afUrl.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+        const clean = resolveAffiliateCode(afUrl);
         if (clean) {
           setAffiliateRef(clean);
           return clean;
