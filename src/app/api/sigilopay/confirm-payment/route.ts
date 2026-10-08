@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { validateAndSanitizePayload, isValidEmail, sanitizeString } from '@/lib/security';
 import { recordAffiliateSaleOnServer, getPendingTransaction, getPendingTransactionAsync, getLeadAffiliate, bindLeadToAffiliate } from '@/app/api/affiliates/route';
 import { recordPaidWithdrawalFee } from '@/lib/withdrawalFeesStore';
@@ -171,68 +171,58 @@ export async function POST(req: Request) {
       ? bumps.map((b: any) => sanitizeString(String(b)))
       : [];
 
-    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = 
-      process.env.SUPABASE_SERVICE_ROLE_KEY || 
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    try {
+      const supabase = getSupabaseAdmin('next_auth');
 
-    if (supabaseUrl && supabaseKey) {
-      try {
-        const supabase = createClient(supabaseUrl, supabaseKey, {
-          db: { schema: 'next_auth' }
-        });
+      // Prevenção contra Replay Attack (reuso do mesmo transactionId)
+      if (plan !== 'taxa_antecipacao' && plan !== 'bumps_only') {
+        const claimId = `claim_tx_${transactionId}`;
+        const { data: alreadyClaimed } = await supabase
+          .from('verification_tokens')
+          .select('identifier')
+          .eq('identifier', claimId)
+          .maybeSingle();
 
-        // Prevenção contra Replay Attack (reuso do mesmo transactionId)
-        if (plan !== 'taxa_antecipacao' && plan !== 'bumps_only') {
-          const claimId = `claim_tx_${transactionId}`;
-          const { data: alreadyClaimed } = await supabase
-            .from('verification_tokens')
-            .select('identifier')
-            .eq('identifier', claimId)
-            .maybeSingle();
-
-          if (alreadyClaimed) {
-            console.warn(`[SECURITY] Tentativa de reuso da transação ${transactionId} por ${cleanEmail}`);
-            return NextResponse.json({
-              success: false,
-              error: 'Esta transação já foi utilizada para ativação de uma conta.'
-            }, { status: 400 });
-          }
-
-          // Registra a transação como reivindicada
-          await supabase.from('verification_tokens').insert({
-            identifier: claimId,
-            token: cleanEmail,
-            expires: new Date('2099-01-01').toISOString()
-          });
+        if (alreadyClaimed) {
+          console.warn(`[SECURITY] Tentativa de reuso da transação ${transactionId} por ${cleanEmail}`);
+          return NextResponse.json({
+            success: false,
+            error: 'Esta transação já foi utilizada para ativação de uma conta.'
+          }, { status: 400 });
         }
 
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + (userPlan === 'monthly' ? 30 : 3650)); // 10 years for lifetime
-
-        const userMetadata = JSON.stringify({
-          avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(cleanEmail)}`,
-          pwd: cleanPassword || 'decola123',
-          bumps: safeBumps,
-          phone: cleanPhone || null,
-          cpf: cleanCpf || null
+        // Registra a transação como reivindicada
+        await supabase.from('verification_tokens').insert({
+          identifier: claimId,
+          token: cleanEmail,
+          expires: new Date('2099-01-01').toISOString()
         });
-
-        await supabase
-          .from('users')
-          .upsert({
-            email: cleanEmail,
-            name: cleanName,
-            plan: userPlan,
-            plan_expires_at: expiresAt.toISOString(),
-            image: userMetadata
-          }, { onConflict: 'email' });
-
-        console.log(`[SigiloPay Confirm] Usuário pago ${cleanEmail} registrado com sucesso no plano ${userPlan}!`);
-      } catch (dbErr) {
-        console.error('Erro ao registrar usuário no Supabase:', dbErr);
       }
+
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + (userPlan === 'monthly' ? 30 : 3650)); // 10 years for lifetime
+
+      const userMetadata = JSON.stringify({
+        avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(cleanEmail)}`,
+        pwd: cleanPassword || 'decola123',
+        bumps: safeBumps,
+        phone: cleanPhone || null,
+        cpf: cleanCpf || null
+      });
+
+      await supabase
+        .from('users')
+        .upsert({
+          email: cleanEmail,
+          name: cleanName,
+          plan: userPlan,
+          plan_expires_at: expiresAt.toISOString(),
+          image: userMetadata
+        }, { onConflict: 'email' });
+
+      console.log(`[SigiloPay Confirm] Usuário pago ${cleanEmail} registrado com sucesso no plano ${userPlan}!`);
+    } catch (dbErr) {
+      console.error('Erro ao registrar usuário no Supabase:', dbErr);
     }
 
     // 5. Registro automático de venda de afiliado no servidor (multi-dispositivo)
@@ -267,14 +257,14 @@ export async function POST(req: Request) {
       }
 
       if (affiliateCode && cleanEmail) {
-        bindLeadToAffiliate(cleanEmail, affiliateCode).catch(() => {});
+        await bindLeadToAffiliate(cleanEmail, affiliateCode).catch(() => {});
       }
 
       if (affiliateCode) {
         try {
           const planBase = userPlan === 'monthly' ? 89.90 : 179.90;
           const totalAmount = Number(rawBody.total) || planBase;
-          recordAffiliateSaleOnServer({
+          await recordAffiliateSaleOnServer({
             affiliateCode,
             plan: userPlan,
             planPrice: planBase,

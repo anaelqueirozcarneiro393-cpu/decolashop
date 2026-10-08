@@ -50,6 +50,42 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" className={`${inter.variable} h-full`}>
+      <head>
+        {/* Captura instantânea e síncrona de afiliado antes da hidratação do React */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var p = new URLSearchParams(window.location.search);
+                  var af = p.get('af') || p.get('ref') || p.get('afiliado') || p.get('affiliate') || p.get('afiliados');
+                  if (!af) {
+                    var m = window.location.pathname.match(/^\\/(?:af|ref|afiliado)\\/(.+)$/i);
+                    if (m && m[1]) af = m[1];
+                  }
+                  if (af && typeof af === 'string') {
+                    var clean = af.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+                    if (clean) {
+                      window.__decolashop_af = clean;
+                      try { localStorage.setItem('decolashop_affiliate_ref', clean); } catch(e){}
+                      try { sessionStorage.setItem('decolashop_affiliate_ref', clean); } catch(e){}
+                      var d = 365 * 86400;
+                      var exp = new Date(Date.now() + 365 * 864e5).toUTCString();
+                      document.cookie = 'decolashop_af=' + clean + '; max-age=' + d + '; expires=' + exp + '; path=/; SameSite=Lax';
+                      var host = window.location.hostname;
+                      if (host.indexOf('decolashop.com.br') !== -1) {
+                        document.cookie = 'decolashop_af=' + clean + '; max-age=' + d + '; expires=' + exp + '; path=/; domain=.decolashop.com.br; SameSite=Lax';
+                      } else if (host.indexOf('decolashop.com') !== -1) {
+                        document.cookie = 'decolashop_af=' + clean + '; max-age=' + d + '; expires=' + exp + '; path=/; domain=.decolashop.com; SameSite=Lax';
+                      }
+                    }
+                  }
+                } catch(err) {}
+              })();
+            `
+          }}
+        />
+      </head>
       <body className="min-h-full bg-dark-bg text-foreground antialiased">
         <Providers>
           <AffiliateTracker />

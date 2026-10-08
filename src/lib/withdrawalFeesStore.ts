@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { createClient } from '@supabase/supabase-js';
+import { loadVerificationToken, saveVerificationToken } from '@/lib/supabaseAdmin';
 
 export interface PaidWithdrawalFee {
   id: string;
@@ -29,16 +29,6 @@ function getStoragePaths(): string[] {
     }
   } catch {}
   return paths;
-}
-
-function getSupabase() {
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = 
-    process.env.SUPABASE_SERVICE_ROLE_KEY || 
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!supabaseUrl || !supabaseKey) return null;
-  return createClient(supabaseUrl, supabaseKey, { db: { schema: 'next_auth' } });
 }
 
 // In-memory cache
@@ -82,25 +72,17 @@ export function loadLocalFeesStore(): WithdrawalFeesStore {
 
 export async function loadFeesStoreFromSupabase(): Promise<WithdrawalFeesStore> {
   try {
-    const supabase = getSupabase();
-    if (supabase) {
-      const { data, error } = await supabase
-        .from('verification_tokens')
-        .select('token')
-        .eq('identifier', SUPABASE_FEES_STORE_KEY)
-        .maybeSingle();
-
-      if (data?.token) {
-        const parsed = JSON.parse(data.token);
-        if (parsed && Array.isArray(parsed.fees)) {
-          memoryStore = {
-            totalCount: parsed.totalCount ?? parsed.fees.length,
-            totalAmount: parsed.totalAmount ?? parsed.fees.reduce((acc: number, f: any) => acc + (Number(f.amount) || 0), 0),
-            fees: parsed.fees
-          };
-          saveLocalFeesStore(memoryStore);
-          return memoryStore;
-        }
+    const raw = await loadVerificationToken(SUPABASE_FEES_STORE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.fees)) {
+        memoryStore = {
+          totalCount: parsed.totalCount ?? parsed.fees.length,
+          totalAmount: parsed.totalAmount ?? parsed.fees.reduce((acc: number, f: any) => acc + (Number(f.amount) || 0), 0),
+          fees: parsed.fees
+        };
+        saveLocalFeesStore(memoryStore);
+        return memoryStore;
       }
     }
   } catch (err) {
@@ -112,24 +94,7 @@ export async function loadFeesStoreFromSupabase(): Promise<WithdrawalFeesStore> 
 export async function saveFeesStoreToSupabase(store: WithdrawalFeesStore) {
   saveLocalFeesStore(store);
   try {
-    const supabase = getSupabase();
-    if (supabase) {
-      const token = JSON.stringify(store);
-      const { error } = await supabase
-        .from('verification_tokens')
-        .update({ token, expires: new Date('2099-01-01').toISOString() })
-        .eq('identifier', SUPABASE_FEES_STORE_KEY);
-
-      if (error) {
-        await supabase
-          .from('verification_tokens')
-          .insert({
-            identifier: SUPABASE_FEES_STORE_KEY,
-            token,
-            expires: new Date('2099-01-01').toISOString()
-          });
-      }
-    }
+    await saveVerificationToken(SUPABASE_FEES_STORE_KEY, JSON.stringify(store));
   } catch (err) {
     console.error('[TAXAS SAQUE] Erro ao sincronizar taxas de saque com Supabase:', err);
   }

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import QRCode from 'qrcode';
 import { validateAndSanitizePayload, isValidEmail } from '@/lib/security';
 import { registerPendingTransaction, bindLeadToAffiliate, getLeadAffiliate } from '@/app/api/affiliates/route';
@@ -126,7 +126,7 @@ export async function POST(req: Request) {
 
     // Se há um afiliado associado, vincula perpetuamente o lead
     if (effectiveAffiliateCode && !isTaxaAntecipacao && customer?.email) {
-      bindLeadToAffiliate(customer.email, effectiveAffiliateCode).catch(() => {});
+      await bindLeadToAffiliate(customer.email, effectiveAffiliateCode).catch(() => {});
     }
 
     console.log(`[SigiloPay Pix Request] Total: R$ ${numTotal} - Cliente: ${customer.email} - CPF Seguro: ${safeCpf} - Afiliado: ${effectiveAffiliateCode || 'Nenhum (ou Taxa de Saque)'}`);

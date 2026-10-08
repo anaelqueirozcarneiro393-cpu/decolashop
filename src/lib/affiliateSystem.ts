@@ -308,8 +308,8 @@ export function getPendingPixTransactions(): PendingPixTransaction[] {
 /**
  * Synchronize affiliates, sales and pending PIX transactions from server API across devices
  */
-export async function syncAffiliatesFromServer(): Promise<{ affiliates: Affiliate[]; sales: AffiliateSale[]; pendingTransactions: PendingPixTransaction[] }> {
-  if (typeof window === 'undefined') return { affiliates: [], sales: [], pendingTransactions: [] };
+export async function syncAffiliatesFromServer(): Promise<{ affiliates: Affiliate[]; sales: AffiliateSale[]; pendingTransactions: PendingPixTransaction[]; paidUsers?: any[] }> {
+  if (typeof window === 'undefined') return { affiliates: [], sales: [], pendingTransactions: [], paidUsers: [] };
   try {
     const res = await fetch('/api/affiliates', { cache: 'no-store' });
     if (res.ok) {
@@ -334,7 +334,7 @@ export async function syncAffiliatesFromServer(): Promise<{ affiliates: Affiliat
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: 'sync_all', affiliates: localAffiliates, sales: localSales })
           }).catch(() => {});
-          return { affiliates: localAffiliates, sales: localSales, pendingTransactions: incomingPending };
+          return { affiliates: localAffiliates, sales: localSales, pendingTransactions: incomingPending, paidUsers: data.paidUsers || [] };
         }
 
         const deletedIds = getDeletedAffiliateIds();
@@ -384,18 +384,18 @@ export async function syncAffiliatesFromServer(): Promise<{ affiliates: Affiliat
         }
 
         if (prevRawAff !== nextRawAff) {
-          window.dispatchEvent(new Event('decolashop_affiliates_updated'));
+          window.dispatchEvent(new Event('decolashop_affiliate_updated'));
         }
         if (prevRawSales !== nextRawSales) {
           window.dispatchEvent(new Event('decolashop_affiliate_sales_updated'));
         }
-        return { affiliates: mergedAffiliates, sales: mergedSales, pendingTransactions: incomingPending };
+        return { affiliates: mergedAffiliates, sales: mergedSales, pendingTransactions: incomingPending, paidUsers: data.paidUsers || [] };
       }
     }
   } catch (e) {
     console.warn('Erro ao sincronizar afiliados do servidor:', e);
   }
-  return { affiliates: getAffiliates(), sales: getAffiliateSales(), pendingTransactions: getPendingPixTransactions() };
+  return { affiliates: getAffiliates(), sales: getAffiliateSales(), pendingTransactions: getPendingPixTransactions(), paidUsers: [] };
 }
 
 /**

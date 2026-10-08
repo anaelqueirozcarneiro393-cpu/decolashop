@@ -167,7 +167,8 @@ export default function AppContainer() {
   // Se não estiver autenticado OU se não possuir plano pago nem conta autorizada, bloqueia e exibe LoginView
   if (status === "unauthenticated" || (status === "authenticated" && !isPaidPlan)) {
     if (typeof window !== 'undefined' && window.location.pathname !== '/') {
-      window.history.replaceState(null, '', '/');
+      const search = window.location.search || '';
+      window.history.replaceState(null, '', '/' + search);
     }
     return <LoginView />;
   }

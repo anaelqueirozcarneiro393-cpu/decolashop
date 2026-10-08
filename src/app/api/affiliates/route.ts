@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { getSupabaseAdmin, saveVerificationToken, loadVerificationToken } from '@/lib/supabaseAdmin';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,7 +67,9 @@ interface AffiliatesStore {
   pendingTransactions?: PendingTransaction[];
 }
 
-// Support multiple storage locations (process.cwd() for local dev, /tmp for Vercel/AWS Lambda serverless)
+const SUPABASE_STORE_KEY = 'system:affiliates_store_v1';
+
+// Support multiple storage locations (process.cwd() for local dev, /tmp for Vercel serverless)
 function getStoragePaths(): string[] {
   const paths = [path.join(process.cwd(), '.affiliates_data.json')];
   try {
@@ -76,20 +79,6 @@ function getStoragePaths(): string[] {
     }
   } catch {}
   return paths;
-}
-
-import { createClient } from '@supabase/supabase-js';
-
-const SUPABASE_STORE_KEY = 'system:affiliates_store_v1';
-
-function getSupabase() {
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = 
-    process.env.SUPABASE_SERVICE_ROLE_KEY || 
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!supabaseUrl || !supabaseKey) return null;
-  return createClient(supabaseUrl, supabaseKey, { db: { schema: 'next_auth' } });
 }
 
 // In-memory cache
@@ -106,7 +95,7 @@ export function saveLocalStore(store: AffiliatesStore) {
     try {
       fs.writeFileSync(filePath, JSON.stringify(store, null, 2), 'utf-8');
     } catch (e) {
-      // In serverless environments (like Vercel), process.cwd() may be read-only, but /tmp will succeed
+      // In serverless environments process.cwd() may be read-only
     }
   }
 }
@@ -177,30 +166,22 @@ export function loadStore(): AffiliatesStore {
 
 export async function loadStoreFromSupabase(): Promise<AffiliatesStore> {
   try {
-    const supabase = getSupabase();
-    if (supabase) {
-      const { data, error } = await supabase
-        .from('verification_tokens')
-        .select('token')
-        .eq('identifier', SUPABASE_STORE_KEY)
-        .maybeSingle();
-
-      if (data?.token) {
-        const parsed = JSON.parse(data.token);
-        if (parsed && Array.isArray(parsed.affiliates) && Array.isArray(parsed.sales)) {
-          memoryStore = {
-            affiliates: parsed.affiliates,
-            sales: parsed.sales,
-            pendingTransactions: parsed.pendingTransactions || []
-          };
-          const norm = normalizeAffiliateSales(memoryStore);
-          memoryStore = norm.store;
-          saveLocalStore(memoryStore);
-          if (norm.changed) {
-            saveStoreToSupabase(memoryStore).catch(() => {});
-          }
-          return memoryStore;
+    const rawToken = await loadVerificationToken(SUPABASE_STORE_KEY);
+    if (rawToken) {
+      const parsed = JSON.parse(rawToken);
+      if (parsed && Array.isArray(parsed.affiliates) && Array.isArray(parsed.sales)) {
+        memoryStore = {
+          affiliates: parsed.affiliates,
+          sales: parsed.sales,
+          pendingTransactions: parsed.pendingTransactions || []
+        };
+        const norm = normalizeAffiliateSales(memoryStore);
+        memoryStore = norm.store;
+        saveLocalStore(memoryStore);
+        if (norm.changed) {
+          saveStoreToSupabase(memoryStore).catch(() => {});
         }
+        return memoryStore;
       }
     }
   } catch (err) {
@@ -209,27 +190,12 @@ export async function loadStoreFromSupabase(): Promise<AffiliatesStore> {
   return loadStore();
 }
 
-export async function saveStoreToSupabase(store: AffiliatesStore) {
+export async function saveStoreToSupabase(store: AffiliatesStore): Promise<void> {
   saveLocalStore(store);
   try {
-    const supabase = getSupabase();
-    if (supabase) {
-      const token = JSON.stringify(store);
-      const { error } = await supabase
-        .from('verification_tokens')
-        .update({ token, expires: new Date('2099-01-01').toISOString() })
-        .eq('identifier', SUPABASE_STORE_KEY);
-
-      if (error) {
-        await supabase
-          .from('verification_tokens')
-          .insert({
-            identifier: SUPABASE_STORE_KEY,
-            token,
-            expires: new Date('2099-01-01').toISOString()
-          });
-      }
-    }
+    const token = JSON.stringify(store);
+    await saveVerificationToken(SUPABASE_STORE_KEY, token);
+    console.log(`[AFILIADOS] Store persistido no Supabase (${store.affiliates.length} afiliados, ${store.sales.length} vendas, ${store.pendingTransactions?.length || 0} pendentes)`);
   } catch (err) {
     console.error('[AFILIADOS] Erro ao sincronizar com Supabase:', err);
   }
@@ -237,7 +203,6 @@ export async function saveStoreToSupabase(store: AffiliatesStore) {
 
 export function saveStore(store: AffiliatesStore) {
   saveLocalStore(store);
-  // Persist to Supabase asynchronously without blocking
   saveStoreToSupabase(store).catch(() => {});
 }
 
@@ -274,6 +239,11 @@ export async function registerPendingTransaction(tx: PendingTransaction): Promis
         paidCommission: 0,
       };
       store.affiliates.unshift(aff);
+    }
+
+    // Lead lock perpétuo imediato
+    if (tx.email) {
+      bindLeadToAffiliate(tx.email, cleanCode).catch(() => {});
     }
   }
 
@@ -338,15 +308,8 @@ export async function bindLeadToAffiliate(email: string, affiliateCode: string):
   memoryLeadCache.set(cleanEmail, cleanCode);
 
   try {
-    const supabase = getSupabase();
-    if (supabase) {
-      await supabase.from('verification_tokens').upsert({
-        identifier: `affiliate_lead:${cleanEmail}`,
-        token: cleanCode,
-        expires: new Date('2099-01-01').toISOString()
-      });
-      console.log(`[AFILIADOS LEAD LOCK] Lead ${cleanEmail} preso com sucesso ao afiliado ${cleanCode}`);
-    }
+    await saveVerificationToken(`affiliate_lead:${cleanEmail}`, cleanCode);
+    console.log(`[AFILIADOS LEAD LOCK] Lead ${cleanEmail} preso com sucesso ao afiliado ${cleanCode}`);
   } catch (err) {
     console.warn(`[AFILIADOS LEAD LOCK] Erro ao vincular lead ${cleanEmail} ao afiliado:`, err);
   }
@@ -374,19 +337,11 @@ export async function getLeadAffiliate(email: string): Promise<string | null> {
 
   // 3. Query Supabase verification_tokens
   try {
-    const supabase = getSupabase();
-    if (supabase) {
-      const { data } = await supabase
-        .from('verification_tokens')
-        .select('token')
-        .eq('identifier', `affiliate_lead:${cleanEmail}`)
-        .maybeSingle();
-
-      if (data?.token) {
-        const found = String(data.token).toLowerCase().trim();
-        memoryLeadCache.set(cleanEmail, found);
-        return found;
-      }
+    const foundToken = await loadVerificationToken(`affiliate_lead:${cleanEmail}`);
+    if (foundToken) {
+      const found = String(foundToken).toLowerCase().trim();
+      memoryLeadCache.set(cleanEmail, found);
+      return found;
     }
   } catch (err) {
     console.warn(`[AFILIADOS LEAD LOCK] Erro ao buscar vínculo do lead ${cleanEmail}:`, err);
@@ -395,7 +350,7 @@ export async function getLeadAffiliate(email: string): Promise<string | null> {
   return null;
 }
 
-export function recordAffiliateSaleOnServer(params: {
+export async function recordAffiliateSaleOnServer(params: {
   affiliateCode: string;
   plan: 'monthly' | 'lifetime';
   planPrice: number;
@@ -407,14 +362,14 @@ export function recordAffiliateSaleOnServer(params: {
   customerPhone?: string;
   customerCpf?: string;
   transactionId?: string;
-}): ServerAffiliateSale | null {
+}): Promise<ServerAffiliateSale | null> {
   // BLOQUEIO TOTAL: Taxa de saque / antecipação NUNCA gera comissão para afiliados
   if ((params.plan as any) === 'taxa_antecipacao') {
     console.warn(`[AFILIADOS SERVER] Bloqueio: Taxa de saque não gera comissão para afiliados.`);
     return null;
   }
 
-  const store = loadStore();
+  const store = await loadStoreFromSupabase();
   const cleanCode = (params.affiliateCode || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
   if (!cleanCode) return null;
 
@@ -504,7 +459,7 @@ export function recordAffiliateSaleOnServer(params: {
   affiliate.pendingCommission = Number(((affiliate.pendingCommission || 0) + commissionAmount).toFixed(2));
 
   store.sales.unshift(newSale);
-  saveStore(store);
+  await saveStoreToSupabase(store);
 
   console.log(`[AFILIADOS SERVER] Venda registrada para "${affiliate.name}" (${cleanCode}) - Total: R$ ${params.totalAmount} - Comissão: R$ ${commissionAmount}`);
   return newSale;
@@ -512,11 +467,35 @@ export function recordAffiliateSaleOnServer(params: {
 
 export async function GET() {
   const store = await loadStoreFromSupabase();
+
+  // Load registered users from database to assist manager with attribution visibility
+  let paidUsers: any[] = [];
+  try {
+    const supabase = getSupabaseAdmin('next_auth');
+    const { data: users } = await supabase
+      .from('users')
+      .select('id, name, email, plan, plan_expires_at')
+      .in('plan', ['monthly', 'lifetime'])
+      .order('id', { ascending: false });
+
+    if (users) {
+      paidUsers = users.map(u => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        plan: u.plan,
+        planExpiresAt: u.plan_expires_at,
+        isAttributed: store.sales.some(s => s.customerEmail.toLowerCase() === u.email.toLowerCase())
+      }));
+    }
+  } catch {}
+
   return NextResponse.json({
     success: true,
     affiliates: store.affiliates,
     sales: store.sales,
     pendingTransactions: store.pendingTransactions || [],
+    paidUsers
   });
 }
 
@@ -601,8 +580,32 @@ export async function POST(req: Request) {
     }
 
     if (action === 'record_sale') {
-      const sale = recordAffiliateSaleOnServer(body.sale);
+      const sale = await recordAffiliateSaleOnServer(body.sale);
       return NextResponse.json({ success: true, sale });
+    }
+
+    if (action === 'attribute_past_user') {
+      const { customerEmail, affiliateCode, plan, totalAmount, customerName } = body;
+      if (!customerEmail || !affiliateCode) {
+        return NextResponse.json({ success: false, error: 'E-mail do cliente e código do afiliado são obrigatórios.' }, { status: 400 });
+      }
+
+      const userPlan = (plan === 'monthly' ? 'monthly' : 'lifetime') as 'monthly' | 'lifetime';
+      const planBase = userPlan === 'monthly' ? 89.90 : 179.90;
+      const numTotal = Number(totalAmount) || planBase;
+
+      const sale = await recordAffiliateSaleOnServer({
+        affiliateCode,
+        plan: userPlan,
+        planPrice: planBase,
+        bumps: [],
+        bumpPrices: Math.max(0, numTotal - planBase),
+        totalAmount: numTotal,
+        customerName: customerName || customerEmail.split('@')[0],
+        customerEmail: customerEmail.trim().toLowerCase(),
+      });
+
+      return NextResponse.json({ success: true, sale, message: 'Venda atribuída com sucesso ao afiliado!' });
     }
 
     if (action === 'sync_all') {

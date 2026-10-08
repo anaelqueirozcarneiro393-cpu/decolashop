@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { validateAndSanitizePayload, isValidEmail } from "@/lib/security";
 import { recordAffiliateSaleOnServer, getPendingTransaction, getPendingTransactionAsync, getLeadAffiliate, bindLeadToAffiliate } from "@/app/api/affiliates/route";
 import { recordPaidWithdrawalFee } from "@/lib/withdrawalFeesStore";
@@ -18,11 +18,6 @@ export async function POST(req: Request) {
     }
 
     const body = rawBody;
-    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = 
-      process.env.SUPABASE_SERVICE_ROLE_KEY || 
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     console.log("🔥 [WEBHOOK SIGILOPAY RECEBIDO] 🔥", JSON.stringify(body, null, 2));
 
@@ -188,43 +183,33 @@ async function processApproval(options: {
   const safeBumps = Array.isArray(bumps) ? bumps.map((b: any) => String(b.name || b.id || b)) : [];
 
   // 1. Atualiza/cria usuário no banco de dados se Supabase estiver ativo
-  if (supabaseUrl && supabaseKey) {
-    try {
-      const supabase = createClient(supabaseUrl, supabaseKey, {
-        db: { schema: 'next_auth' }
-      });
+  try {
+    const supabase = getSupabaseAdmin('next_auth');
 
-      const { data: user } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', email)
-        .maybeSingle();
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + (plan === 'monthly' ? 30 : 3650));
 
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + (plan === 'monthly' ? 30 : 3650));
+    const userMetadata = JSON.stringify({
+      avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(email)}`,
+      pwd: 'decola123',
+      bumps: safeBumps,
+      phone: phone || null,
+      cpf: cpf || null
+    });
 
-      const userMetadata = JSON.stringify({
-        avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(email)}`,
-        pwd: 'decola123',
-        bumps: safeBumps,
-        phone: phone || null,
-        cpf: cpf || null
-      });
+    await supabase
+      .from('users')
+      .upsert({
+        email,
+        name: name || email.split('@')[0],
+        plan: plan || 'lifetime',
+        plan_expires_at: expiresAt.toISOString(),
+        image: userMetadata
+      }, { onConflict: 'email' });
 
-      await supabase
-        .from('users')
-        .upsert({
-          email,
-          name: name || email.split('@')[0],
-          plan: plan || 'lifetime',
-          plan_expires_at: expiresAt.toISOString(),
-          image: userMetadata
-        }, { onConflict: 'email' });
-
-      console.log(`[SigiloPay Webhook] Usuário pago ${email} registrado/atualizado no plano ${plan}!`);
-    } catch (dbErr) {
-      console.warn('[SigiloPay Webhook] Aviso ao salvar usuário no Supabase:', dbErr);
-    }
+    console.log(`[SigiloPay Webhook] Usuário pago ${email} registrado/atualizado no plano ${plan}!`);
+  } catch (dbErr) {
+    console.warn('[SigiloPay Webhook] Aviso ao salvar usuário no Supabase:', dbErr);
   }
 
   // 2. REGISTRO 100% GARANTIDO DA COMISSÃO DO AFILIADO
@@ -233,7 +218,7 @@ async function processApproval(options: {
       const userPlan = (plan === 'monthly' ? 'monthly' : 'lifetime') as 'monthly' | 'lifetime';
       const planBase = userPlan === 'monthly' ? 89.90 : 179.90;
       const totalAmount = Number(total) || planBase;
-      const sale = recordAffiliateSaleOnServer({
+      const sale = await recordAffiliateSaleOnServer({
         affiliateCode,
         plan: userPlan,
         planPrice: planBase,

@@ -72,13 +72,22 @@ export default function AfiliadosView() {
   const [affiliates, setAffiliates] = useState<Affiliate[]>(() => getAffiliates());
   const [sales, setSales] = useState<AffiliateSale[]>(() => getAffiliateSales());
   const [pendingTxs, setPendingTxs] = useState<PendingPixTransaction[]>(() => getPendingPixTransactions());
+  const [paidUsers, setPaidUsers] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [salesFilter, setSalesFilter] = useState<'all' | 'awaiting_pix' | 'pending' | 'paid' | 'self_purchase'>('all');
+  const [salesFilter, setSalesFilter] = useState<'all' | 'awaiting_pix' | 'pending' | 'paid' | 'self_purchase' | 'paid_users'>('all');
   
   // Modals state
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [editingAffiliate, setEditingAffiliate] = useState<Affiliate | null>(null);
   const [payingAffiliate, setPayingAffiliate] = useState<Affiliate | null>(null);
+  const [attributeModal, setAttributeModal] = useState<{
+    isOpen: boolean;
+    email: string;
+    name: string;
+    plan: 'monthly' | 'lifetime';
+    affiliateCode: string;
+    amount: number;
+  } | null>(null);
   
   // Form fields for create / edit
   const [formData, setFormData] = useState({
@@ -105,18 +114,20 @@ export default function AfiliadosView() {
     loadData();
 
     // 1. Initial server sync
-    syncAffiliatesFromServer().then(({ affiliates: affs, sales: sls, pendingTransactions: pts }) => {
+    syncAffiliatesFromServer().then(({ affiliates: affs, sales: sls, pendingTransactions: pts, paidUsers: pus }) => {
       setAffiliates(affs);
       setSales(sls);
       setPendingTxs(pts || []);
+      if (pus) setPaidUsers(pus);
     });
 
     // 2. Real-time background polling every 3 seconds for instant updates across devices
     const pollInterval = setInterval(() => {
-      syncAffiliatesFromServer().then(({ affiliates: affs, sales: sls, pendingTransactions: pts }) => {
+      syncAffiliatesFromServer().then(({ affiliates: affs, sales: sls, pendingTransactions: pts, paidUsers: pus }) => {
         setAffiliates(affs);
         setSales(sls);
         setPendingTxs(pts || []);
+        if (pus) setPaidUsers(pus);
       });
     }, 3000);
 
@@ -316,6 +327,59 @@ export default function AfiliadosView() {
     loadData();
   };
 
+  const handleOpenAttributeModal = (user?: { email: string; name?: string; plan?: string }) => {
+    setAttributeModal({
+      isOpen: true,
+      email: user?.email || '',
+      name: user?.name || '',
+      plan: (user?.plan === 'monthly' ? 'monthly' : 'lifetime'),
+      affiliateCode: affiliates[0]?.code || '',
+      amount: user?.plan === 'monthly' ? 89.90 : 179.90
+    });
+  };
+
+  const handleConfirmAttributeUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!attributeModal?.email.trim()) {
+      toast.error('Informe o e-mail do cliente');
+      return;
+    }
+    if (!attributeModal?.affiliateCode.trim()) {
+      toast.error('Selecione ou digite o código do afiliado');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/affiliates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'attribute_past_user',
+          customerEmail: attributeModal.email.trim().toLowerCase(),
+          customerName: attributeModal.name.trim(),
+          plan: attributeModal.plan,
+          totalAmount: attributeModal.amount,
+          affiliateCode: attributeModal.affiliateCode.trim().toLowerCase()
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`🎉 Venda atribuída com sucesso ao afiliado ${attributeModal.affiliateCode.toUpperCase()}!`);
+        setAttributeModal(null);
+        syncAffiliatesFromServer().then(({ affiliates: affs, sales: sls, pendingTransactions: pts, paidUsers: pus }) => {
+          setAffiliates(affs);
+          setSales(sls);
+          setPendingTxs(pts || []);
+          if (pus) setPaidUsers(pus);
+        });
+      } else {
+        toast.error(data.error || 'Erro ao atribuir venda');
+      }
+    } catch {
+      toast.error('Erro de conexão ao atribuir venda');
+    }
+  };
+
   if (status === 'loading') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-6 space-y-4 animate-in fade-in duration-200">
@@ -358,13 +422,24 @@ export default function AfiliadosView() {
           </p>
         </div>
 
-        <button
-          onClick={handleOpenCreateModal}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-black font-extrabold text-xs shadow-lg shadow-[#22c55e]/25 transition-all transform active:scale-95 cursor-pointer flex-shrink-0"
-        >
-          <UserPlus size={16} className="stroke-[2.5]" />
-          <span>+ Cadastrar Novo Afiliado</span>
-        </button>
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+          <button
+            onClick={() => handleOpenAttributeModal()}
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 font-bold text-xs transition-all cursor-pointer flex-shrink-0"
+            title="Atribuir venda de usuário a um afiliado"
+          >
+            <Sparkles size={15} />
+            <span>⚡ Vincular Venda / Usuário</span>
+          </button>
+
+          <button
+            onClick={handleOpenCreateModal}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-black font-extrabold text-xs shadow-lg shadow-[#22c55e]/25 transition-all transform active:scale-95 cursor-pointer flex-shrink-0"
+          >
+            <UserPlus size={16} className="stroke-[2.5]" />
+            <span>+ Cadastrar Novo Afiliado</span>
+          </button>
+        </div>
       </div>
 
       {/* Security & Rules Banner */}
@@ -765,6 +840,15 @@ export default function AfiliadosView() {
               Pagas ({sales.filter(s => s.status === 'paid_to_affiliate').length})
             </button>
             <button
+              onClick={() => setSalesFilter('paid_users')}
+              className={`px-3 py-1.5 rounded-lg font-bold transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+                salesFilter === 'paid_users' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <span>👥 Clientes da Plataforma</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-cyan-500/20 text-[10px] font-mono">{paidUsers.length}</span>
+            </button>
+            <button
               onClick={() => setSalesFilter('self_purchase')}
               className={`px-3 py-1.5 rounded-lg font-bold transition-colors whitespace-nowrap ${
                 salesFilter === 'self_purchase' ? 'bg-red-500/20 text-red-300 border border-red-500/30' : 'text-slate-400 hover:text-white'
@@ -775,7 +859,78 @@ export default function AfiliadosView() {
           </div>
         </div>
 
-        {salesFilter === 'awaiting_pix' ? (
+        {salesFilter === 'paid_users' ? (
+          paidUsers.length === 0 ? (
+            <div className="text-center py-10 text-slate-400 bg-black/20 rounded-xl border border-white/5 p-6">
+              <Users size={28} className="mx-auto mb-2 opacity-40 text-cyan-400" />
+              <p className="text-xs font-bold text-slate-300">Nenhum cliente pago encontrado no banco de dados</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-xl flex items-start gap-2 text-xs text-cyan-300">
+                <Users size={16} className="mt-0.5 flex-shrink-0 text-cyan-400" />
+                <div>
+                  <strong className="font-bold">Clientes Cadastrados no Banco:</strong> Aqui você visualiza todos os usuários com plano pago (Vitalício ou Mensal). Se algum cliente comprou por indicação de um afiliado mas não foi rastreado, clique em <strong>"Vincular a Afiliado"</strong> para creditar a comissão imediatamente!
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-white/10 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                      <th className="py-2.5 px-3">Cliente</th>
+                      <th className="py-2.5 px-3">Plano</th>
+                      <th className="py-2.5 px-3">Status de Atribuição</th>
+                      <th className="py-2.5 px-3 text-center">Ação</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {paidUsers.map((u) => {
+                      const attributedSale = sales.find(s => s.customerEmail.toLowerCase() === u.email.toLowerCase());
+                      const isAttributed = !!attributedSale;
+
+                      return (
+                        <tr key={u.id || u.email} className="hover:bg-white/[0.02] transition-colors">
+                          <td className="py-3 px-3">
+                            <div className="font-bold text-white text-xs">{u.name || 'Cliente'}</div>
+                            <div className="text-[11px] text-slate-400 font-mono">{u.email}</div>
+                          </td>
+                          <td className="py-3 px-3">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              u.plan === 'lifetime' ? 'bg-[#22c55e]/15 text-[#4ade80] border border-[#22c55e]/30' : 'bg-blue-500/15 text-blue-300 border border-blue-500/30'
+                            }`}>
+                              {u.plan === 'lifetime' ? '💎 Vitalício (R$ 179,90)' : '⚡ Mensal (R$ 89,90)'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3">
+                            {isAttributed ? (
+                              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">
+                                <Check size={12} />
+                                <span>Atribuído a {attributedSale.affiliateName} (?af={attributedSale.affiliateCode})</span>
+                              </div>
+                            ) : (
+                              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-bold">
+                                <span>⚠️ Venda Direta / Sem Afiliado</span>
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-3 px-3 text-center">
+                            <button
+                              onClick={() => handleOpenAttributeModal(u)}
+                              className="px-2.5 py-1 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 font-bold text-[11px] transition-colors inline-flex items-center gap-1 cursor-pointer"
+                            >
+                              <Sparkles size={12} />
+                              <span>{isAttributed ? 'Alterar Afiliado' : 'Vincular a Afiliado'}</span>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
+        ) : salesFilter === 'awaiting_pix' ? (
           filteredPendingTxs.length === 0 ? (
             <div className="text-center py-10 text-slate-400 bg-black/20 rounded-xl border border-white/5 p-6">
               <Clock size={28} className="mx-auto mb-2 opacity-40 text-yellow-500" />
@@ -1203,6 +1358,149 @@ export default function AfiliadosView() {
                 Confirmar que já paguei o Pix
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Vincular / Atribuir Venda a Afiliado */}
+      {attributeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="max-w-md w-full bg-[#0d121f] border border-purple-500/40 rounded-2xl p-6 shadow-2xl relative text-white">
+            <button
+              onClick={() => setAttributeModal(null)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg bg-white/5 hover:bg-white/10"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center gap-2 mb-4">
+              <div className="p-2.5 rounded-xl bg-purple-500/15 text-purple-400">
+                <Sparkles size={20} />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-white">Vincular Venda a Afiliado</h3>
+                <p className="text-xs text-slate-400">Atribui a venda e credita a comissão imediatamente</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleConfirmAttributeUser} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">E-mail do Cliente</label>
+                <input
+                  type="email"
+                  required
+                  value={attributeModal.email}
+                  onChange={(e) => setAttributeModal({ ...attributeModal, email: e.target.value })}
+                  placeholder="cliente@exemplo.com"
+                  className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">Nome do Cliente (opcional)</label>
+                <input
+                  type="text"
+                  value={attributeModal.name}
+                  onChange={(e) => setAttributeModal({ ...attributeModal, name: e.target.value })}
+                  placeholder="Nome do Cliente"
+                  className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">Plano</label>
+                  <select
+                    value={attributeModal.plan}
+                    onChange={(e) => {
+                      const p = e.target.value as 'monthly' | 'lifetime';
+                      setAttributeModal({
+                        ...attributeModal,
+                        plan: p,
+                        amount: p === 'monthly' ? 89.90 : 179.90
+                      });
+                    }}
+                    className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-purple-500"
+                  >
+                    <option value="lifetime">Vitalício (R$ 179,90)</option>
+                    <option value="monthly">Mensal (R$ 89,90)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">Valor Total (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={attributeModal.amount}
+                    onChange={(e) => setAttributeModal({ ...attributeModal, amount: Number(e.target.value) })}
+                    className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-purple-500 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">
+                  Afiliado que Receberá a Comissão
+                </label>
+                {affiliates.length > 0 ? (
+                  <div className="space-y-2">
+                    <select
+                      value={attributeModal.affiliateCode}
+                      onChange={(e) => setAttributeModal({ ...attributeModal, affiliateCode: e.target.value })}
+                      className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-purple-500 font-mono"
+                    >
+                      {affiliates.map(a => (
+                        <option key={a.id} value={a.code}>
+                          {a.name} (?af={a.code}) - {a.commissionPercent}% comissão
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-[10px] text-slate-400">
+                      Ou digite um código de afiliado personalizado:
+                    </p>
+                    <input
+                      type="text"
+                      placeholder="Ex: kaio, higor, lucas"
+                      value={attributeModal.affiliateCode}
+                      onChange={(e) => setAttributeModal({ ...attributeModal, affiliateCode: e.target.value })}
+                      className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-mono"
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Digite o código do afiliado (ex: kaio)"
+                      value={attributeModal.affiliateCode}
+                      onChange={(e) => setAttributeModal({ ...attributeModal, affiliateCode: e.target.value })}
+                      className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-mono"
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      O afiliado será criado e auto-provisionado com 50% de comissão caso ainda não exista.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAttributeModal(null)}
+                  className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 font-bold text-xs"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold text-xs shadow-lg shadow-purple-600/20"
+                >
+                  Confirmar Atribuição
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
