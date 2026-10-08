@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import QRCode from 'qrcode';
 import { validateAndSanitizePayload, isValidEmail } from '@/lib/security';
-import { dbSavePendingPix, dbBindLead, dbGetLeadAffiliate } from '@/lib/affiliateDb';
+import { dbSavePendingPix, dbBindLead, dbGetLeadAffiliate, dbGetAffiliates } from '@/lib/affiliateDb';
 
 export const dynamic = 'force-dynamic';
 
@@ -120,6 +120,20 @@ export async function POST(req: Request) {
         if (boundCode) {
           effectiveAffiliateCode = boundCode;
           console.log(`[AFILIADOS LEAD LOCK DB] Lead recorrente recuperado do Supabase! ${customer.email} -> ${boundCode}`);
+        }
+      } catch {}
+    }
+
+    // AUTO-ATTRIBUTION: Se não veio código e não há lead amarrado, atribui ao afiliado ativo da loja
+    if (!effectiveAffiliateCode && !isTaxaAntecipacao) {
+      try {
+        const activeAffs = await dbGetAffiliates();
+        if (activeAffs && activeAffs.length > 0) {
+          const primary = activeAffs.find(a => a.active) || activeAffs[0];
+          if (primary && primary.code) {
+            effectiveAffiliateCode = primary.code;
+            console.log(`[AFILIADOS PIX AUTO-ATTRIBUTION] Código atribuído automaticamente ao afiliado ativo: ${primary.code}`);
+          }
         }
       } catch {}
     }

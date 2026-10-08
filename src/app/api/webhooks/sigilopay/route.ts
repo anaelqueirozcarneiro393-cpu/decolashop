@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { validateAndSanitizePayload, isValidEmail } from "@/lib/security";
-import { dbRecordSale, dbGetPendingPix, dbGetLeadAffiliate, dbBindLead } from "@/lib/affiliateDb";
+import { dbRecordSale, dbGetPendingPix, dbGetLeadAffiliate, dbBindLead, dbGetAffiliates } from "@/lib/affiliateDb";
 import { recordPaidWithdrawalFee } from "@/lib/withdrawalFeesStore";
 
 export const dynamic = 'force-dynamic';
@@ -85,6 +85,22 @@ export async function POST(req: Request) {
           console.log(`[AFILIADOS LEAD LOCK WEBHOOK] Venda resgatada via lead perpétuo no Supabase: ${email} -> ${boundCode}`);
         }
       } catch {}
+    }
+
+    // AUTO-ATTRIBUTION: Se a venda é de assinatura/bump e não veio código, atribui ao afiliado ativo da plataforma
+    if (!affiliateCode && plan !== 'taxa_antecipacao') {
+      try {
+        const activeAffiliates = await dbGetAffiliates();
+        if (activeAffiliates && activeAffiliates.length > 0) {
+          const primary = activeAffiliates.find(a => a.active) || activeAffiliates[0];
+          if (primary && primary.code) {
+            affiliateCode = primary.code;
+            console.log(`[AFILIADOS AUTO-ATTRIBUTION WEBHOOK] Venda resgatada e atribuída automaticamente ao afiliado ativo "${primary.code}" (${primary.name})`);
+          }
+        }
+      } catch (autoErr) {
+        console.warn('[AFILIADOS AUTO-ATTRIBUTION] Erro ao buscar afiliado ativo:', autoErr);
+      }
     }
 
     if (affiliateCode && email) {

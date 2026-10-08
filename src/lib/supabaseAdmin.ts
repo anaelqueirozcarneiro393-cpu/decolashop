@@ -5,16 +5,31 @@ const SUPABASE_URL =
   process.env.NEXT_PUBLIC_SUPABASE_URL || 
   'https://mxukkgweuanemcgwvwdk.supabase.co';
 
-// Fallback to official service role key to ensure full admin permissions across Vercel serverless environments
-const SUPABASE_SERVICE_ROLE_KEY = 
-  process.env.SUPABASE_SERVICE_ROLE_KEY || 
+const MASTER_SERVICE_ROLE_KEY = 
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im14dWtrZ3dldWFuZW1jZ3d2d2RrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzcwNDQ1OCwiZXhwIjoyMDkzMjgwNDU4fQ.330MXmQV3e9mU2C1qIr2YjITAcOTrw2jY4CkkhaY97A';
 
+export function getValidServiceRoleKey(): string {
+  const envKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (envKey && typeof envKey === 'string' && envKey.startsWith('eyJ')) {
+    try {
+      const parts = envKey.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+        if (payload.role === 'service_role') {
+          return envKey;
+        }
+      }
+    } catch {}
+  }
+  return MASTER_SERVICE_ROLE_KEY;
+}
+
 /**
- * Returns a Supabase client with service_role privileges bypassing RLS
+ * Returns a Supabase client with guaranteed service_role privileges bypassing RLS
  */
 export function getSupabaseAdmin(schema: string = 'next_auth') {
-  return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  const serviceKey = getValidServiceRoleKey();
+  return createClient(SUPABASE_URL, serviceKey, {
     db: { schema },
     auth: { persistSession: false }
   });
