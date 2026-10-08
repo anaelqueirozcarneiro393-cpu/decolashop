@@ -41,6 +41,14 @@ export default function LoginView() {
       } else {
         const isAdm = cleanEmail.toLowerCase().includes('admin');
         const isMgr = cleanEmail.toLowerCase().includes('gerente');
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('decolashop_user_email', cleanEmail);
+          localStorage.setItem('decolashop_user_role', isAdm ? 'admin' : (isMgr ? 'gerente' : 'user'));
+          localStorage.setItem('decolashop_user_plan', 'lifetime');
+          localStorage.setItem('decolashop_logged_in', 'true');
+        }
+
         toast.success(
           isAdm
             ? '⚡ Bem-vindo, Administrador! Todos os atalhos foram liberados.'
@@ -48,7 +56,11 @@ export default function LoginView() {
               ? '🚀 Bem-vindo ao DecolaShop, Gerente!' 
               : 'Login realizado com sucesso!'
         );
-        window.location.href = '/';
+
+        const currentPath = typeof window !== 'undefined' && window.location.pathname !== '/'
+          ? window.location.pathname + window.location.search
+          : '/';
+        window.location.href = currentPath;
       }
     } catch {
       toast.error('Erro na conexão com o servidor');

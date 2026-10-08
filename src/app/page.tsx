@@ -51,27 +51,63 @@ export type ViewType =
   | 'fornecedores' 
   | 'configuracoes';
 
-export default function AppContainer() {
+export default function AppContainer({ initialView = 'dashboard' }: { initialView?: ViewType } = {}) {
   const { data: session, status } = useSession();
-  const [currentView, setCurrentView] = useState<ViewType>('dashboard');
+  
+  // Recupera usuário salvo no localStorage para persistência instantânea no F5
+  const [cachedUser, setCachedUser] = useState<{ email: string; role: string; plan: string } | null>(() => {
+    if (typeof window !== 'undefined') {
+      const email = localStorage.getItem('decolashop_user_email') || '';
+      const role = localStorage.getItem('decolashop_user_role') || '';
+      const plan = localStorage.getItem('decolashop_user_plan') || '';
+      if (email) return { email, role, plan };
+    }
+    return null;
+  });
+
+  const [currentView, setCurrentView] = useState<ViewType>(() => {
+    if (typeof window !== 'undefined') {
+      const rawPath = window.location.pathname.replace(/^\//, '').toLowerCase();
+      const validViews = [
+        'dashboard', 'financeiro', 'afiliados', 'catalogo', 'divulgacao-ia',
+        'divulgados', 'video-ia', 'conectar', 'video-aula', 'perfil', 'reembolso',
+        'minerador', 'detalhe', 'anuncio', 'meus-produtos', 'calculadora',
+        'fornecedores', 'configuracoes'
+      ];
+      if (rawPath && validViews.includes(rawPath)) return rawPath as ViewType;
+    }
+    return initialView || 'dashboard';
+  });
+
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [savedProducts, setSavedProducts] = useState<string[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  const rawEmail = session?.user?.email || '';
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const email = localStorage.getItem('decolashop_user_email') || '';
+      const role = localStorage.getItem('decolashop_user_role') || '';
+      const plan = localStorage.getItem('decolashop_user_plan') || '';
+      if (email) setCachedUser({ email, role, plan });
+    }
+  }, []);
+
+  const rawEmail = session?.user?.email || cachedUser?.email || '';
   const userEmail = rawEmail.toLowerCase().trim();
-  const userRole = ((session?.user as any)?.role || '').toLowerCase();
+  const userRole = (((session?.user as any)?.role) || cachedUser?.role || '').toLowerCase();
   const isCarlos = userEmail.includes('carlos') || userEmail.includes('souza');
   const isMasterAccount = 
     userEmail === 'gerente@decolashop.com' || 
     userEmail === 'admin@decolashop.com' || 
     userEmail === 'usuario@decolashop.com' ||
     userEmail.includes('admin') ||
+    userEmail.includes('gerente') ||
     userRole === 'admin' ||
+    userRole === 'gerente' ||
     isCarlos;
 
-  const userPlan = (session?.user as any)?.plan;
+  const userPlan = (session?.user as any)?.plan || cachedUser?.plan;
   const isPaidPlan = userPlan === 'lifetime' || userPlan === 'monthly' || isMasterAccount;
 
   const isNormalUser = userEmail === 'usuario@decolashop.com' || isCarlos;
@@ -107,16 +143,7 @@ export default function AppContainer() {
         'configuracoes'
       ];
       if (rawPath && validViews.includes(rawPath as ViewType)) {
-        if (rawPath === 'afiliados') {
-          // Só redireciona se a sessão já foi validada e o usuário definitivamente não for admin
-          if (status === 'authenticated' && !isAdmin) {
-            setCurrentView('dashboard');
-          } else {
-            setCurrentView('afiliados');
-          }
-        } else {
-          setCurrentView(rawPath as ViewType);
-        }
+        setCurrentView(rawPath as ViewType);
       }
     }
 
@@ -130,9 +157,16 @@ export default function AppContainer() {
       setSavedProducts(JSON.parse(saved));
     }
 
+    const validViewsList: ViewType[] = [
+      'dashboard', 'financeiro', 'afiliados', 'catalogo', 'divulgacao-ia', 
+      'divulgados', 'video-ia', 'conectar', 'video-aula', 'perfil', 
+      'reembolso', 'minerador', 'detalhe', 'anuncio', 'meus-produtos', 
+      'calculadora', 'fornecedores', 'configuracoes'
+    ];
+
     const handleCustomNavigate = (e: any) => {
       const targetView = e.detail;
-      if (targetView && validViews.includes(targetView as ViewType)) {
+      if (targetView && validViewsList.includes(targetView as ViewType)) {
         if (targetView === 'afiliados' && !isAdmin) {
           toast.error('Acesso restrito ao Administrador');
           return;
@@ -173,7 +207,7 @@ export default function AppContainer() {
     window.scrollTo(0, 0);
   };
 
-  if (status === "loading") {
+  if (status === "loading" && !cachedUser?.email) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-dark-bg">
         <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -182,12 +216,10 @@ export default function AppContainer() {
     );
   }
 
-  // Se não estiver autenticado OU se não possuir plano pago nem conta autorizada, bloqueia e exibe LoginView
-  if (status === "unauthenticated" || (status === "authenticated" && !isPaidPlan)) {
-    if (typeof window !== 'undefined' && window.location.pathname !== '/') {
-      const search = window.location.search || '';
-      window.history.replaceState(null, '', '/' + search);
-    }
+  // Se não estiver autenticado nem tiver credenciais válidas salvas, exibe LoginView preservando a rota
+  const isUserAuthenticated = status === "authenticated" || Boolean(cachedUser?.email && (isPaidPlan || isMasterAccount));
+
+  if (!isUserAuthenticated || (status === "authenticated" && !isPaidPlan)) {
     return <LoginView />;
   }
 

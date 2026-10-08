@@ -56,9 +56,9 @@ const BUMP_NAMES: Record<string, string> = {
 
 export default function AfiliadosView() {
   const { data: session, status } = useSession();
-  const rawEmail = session?.user?.email || '';
+  const rawEmail = session?.user?.email || (typeof window !== 'undefined' ? localStorage.getItem('decolashop_user_email') || '' : '');
   const userEmail = rawEmail.toLowerCase().trim();
-  const userRole = (session?.user as any)?.role || '';
+  const userRole = (((session?.user as any)?.role) || (typeof window !== 'undefined' ? localStorage.getItem('decolashop_user_role') || '' : '')).toLowerCase();
 
   const isNormalUser = userEmail === 'usuario@decolashop.com';
   const isAuthorized = !isNormalUser && (

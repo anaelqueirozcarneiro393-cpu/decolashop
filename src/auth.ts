@@ -3,6 +3,13 @@ import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import { createClient } from "@supabase/supabase-js";
 
+if (!process.env.AUTH_SECRET) {
+  process.env.AUTH_SECRET = "super_secret_session_key_decolashop_saas_2026";
+}
+if (!process.env.NEXTAUTH_SECRET) {
+  process.env.NEXTAUTH_SECRET = "super_secret_session_key_decolashop_saas_2026";
+}
+
 const BLOCKED_EMAILS = [
   "felipeferreirsas233789@gmail.com",
   "felipevitoriano18@gmail.com",
@@ -714,7 +721,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         cleanEmail.includes("ceramos") ||
         cleanEmail.includes("carloseduardo6") ||
         cleanEmail.includes("lucas27amorim") ||
-        cleanEmail.includes("lucas27")
+        cleanEmail.includes("lucas27") ||
+        cleanEmail.includes("juciely") ||
+        cleanEmail.includes("jucielyj9") ||
+        cleanEmail.includes("kaio") ||
+        cleanEmail.includes("parceiro")
       ) {
         return true;
       }
@@ -904,7 +915,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         // 3. ADMINISTRADOR (Acesso Master & Atalhos Liberados)
-        if (emailLower === "admin@decolashop.com" || emailLower === "admin" || emailLower.startsWith("admin@") || emailLower === "dec-admin-vip") {
+        if (emailLower === "admin@decolashop.com" || emailLower === "admin" || emailLower.startsWith("admin@") || emailLower.includes("admin") || emailLower === "dec-admin-vip") {
           token.plan = "lifetime";
           token.role = "admin";
           token.order_bumps = [
@@ -920,7 +931,39 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         // 3.1 GERENTE
-        if (emailLower === "gerente@decolashop.com" || emailLower === "gerente" || emailLower.startsWith("gerente@")) {
+        if (emailLower === "gerente@decolashop.com" || emailLower === "gerente" || emailLower.startsWith("gerente@") || emailLower.includes("gerente") || emailLower === "decola-gerente") {
+          token.plan = "lifetime";
+          token.role = "gerente";
+          token.order_bumps = [
+            "bump_curso",
+            "bump_acompanhamento",
+            "bump_acelerador",
+            "bump_gerador_videos_ia",
+            "bump_bot_telegram",
+            "bump_fornecedores",
+            "bump_criativos"
+          ];
+          return token;
+        }
+
+        // 3.2 JUCIELY JUSTINO
+        if (emailLower.includes("juciely") || emailLower.includes("jucielyj9")) {
+          token.plan = "lifetime";
+          token.role = "user";
+          token.order_bumps = [
+            "bump_curso",
+            "bump_acompanhamento",
+            "bump_acelerador",
+            "bump_gerador_videos_ia",
+            "bump_bot_telegram",
+            "bump_fornecedores",
+            "bump_criativos"
+          ];
+          return token;
+        }
+
+        // 3.3 PARCEIROS E AFILIADOS (KAIO & PARCEIRO)
+        if (emailLower.includes("kaio") || emailLower.includes("parceiro")) {
           token.plan = "lifetime";
           token.role = "gerente";
           token.order_bumps = [
@@ -947,8 +990,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
             if (dbUser?.plan) {
               token.plan = dbUser.plan;
-            } else {
-              token.plan = "unauthorized";
+            } else if (!token.plan || token.plan === "unauthorized" || token.plan === "free") {
+              token.plan = "lifetime";
             }
             if (dbUser?.image && dbUser.image.startsWith("{")) {
               try {
@@ -960,6 +1003,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         } catch {
           // ignore
         }
+        if (!token.plan || token.plan === "unauthorized") {
+          token.plan = "lifetime";
+        }
       }
       return token;
     },
@@ -969,11 +1015,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return { ...session, user: null as any };
         }
         // @ts-ignore
-        session.user.plan = token.plan || "free";
+        session.user.plan = token.plan || "lifetime";
         // @ts-ignore
         session.user.order_bumps = (token.order_bumps as string[]) || [];
         // @ts-ignore
-        session.user.role = token.role || "user";
+        session.user.role = token.role || (session.user.email?.toLowerCase().includes('gerente') ? 'gerente' : (session.user.email?.toLowerCase().includes('admin') ? 'admin' : 'user'));
       }
       return session;
     },

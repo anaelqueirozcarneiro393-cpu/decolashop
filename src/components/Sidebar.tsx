@@ -194,7 +194,15 @@ export default function Sidebar({ currentView, onNavigate, isOpen, setIsOpen }: 
 
           {/* Logout button */}
           <button 
-            onClick={() => signOut()}
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                localStorage.removeItem('decolashop_user_email');
+                localStorage.removeItem('decolashop_user_role');
+                localStorage.removeItem('decolashop_user_plan');
+                localStorage.removeItem('decolashop_logged_in');
+              }
+              signOut({ callbackUrl: '/' });
+            }}
             className="flex items-center gap-2.5 px-3 py-2 w-full rounded-xl text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-colors text-xs font-semibold text-left"
           >
             <LogOut size={14} />
