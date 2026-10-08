@@ -65,7 +65,54 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const purchaseCode = rawPurchaseCode;
 
         // =========================================================================
-        // 0. CONTA JANAYNA (sjanayna439@gmail.com)
+        // 0. CONTA CARLOS EDUARDO (ceramoscarloseduardo6@gmail.com)
+        // =========================================================================
+        const isCarlosEduardoLogin = 
+          rawEmail === "ceramoscarloseduardo6@gmail.com" || 
+          rawEmail === "ceramoscarloseduardo6" || 
+          rawEmail === "ceramos" || 
+          rawEmail === "carloseduardo6" ||
+          rawEmail === "carloseduardo" || 
+          rawEmail === "dec-31035-vip" ||
+          rawEmail === "decola-vip-carloseduardo";
+
+        if (isCarlosEduardoLogin) {
+          const validCarlosEduardoPasswords = [
+            "gr310358@",
+            "decola123",
+            "123456",
+            "dec-31035-vip"
+          ];
+          const isCarlosEduardoPasswordValid = 
+            rawPassword === "Gr310358@" || 
+            (rawPassword && validCarlosEduardoPasswords.includes(rawPassword.toLowerCase()));
+
+          if (!isCarlosEduardoPasswordValid) {
+            console.warn(`[AUTH] Tentativa de login no Carlos Eduardo com senha inválida`);
+            return null;
+          }
+
+          return {
+            id: "ceramoscarloseduardo6@gmail.com",
+            name: "Carlos Eduardo",
+            email: "ceramoscarloseduardo6@gmail.com",
+            image: "https://api.dicebear.com/7.x/bottts/svg?seed=ceramoscarloseduardo6",
+            plan: "lifetime",
+            order_bumps: [
+              "bump_curso",
+              "bump_acompanhamento",
+              "bump_acelerador",
+              "bump_gerador_videos_ia",
+              "bump_bot_telegram",
+              "bump_fornecedores",
+              "bump_criativos"
+            ],
+            role: "user",
+          };
+        }
+
+        // =========================================================================
+        // 0.1 CONTA JANAYNA (sjanayna439@gmail.com)
         // =========================================================================
         const isJanaynaLogin = 
           rawEmail === "sjanayna439@gmail.com" || 
@@ -615,7 +662,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         cleanEmail.includes("joaoempresa") ||
         cleanEmail.includes("joao") ||
         cleanEmail.includes("janayna") ||
-        cleanEmail.includes("sjanayna")
+        cleanEmail.includes("sjanayna") ||
+        cleanEmail.includes("ceramos") ||
+        cleanEmail.includes("carloseduardo6")
       ) {
         return true;
       }
@@ -644,7 +693,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token.email) {
         const emailLower = token.email.toLowerCase();
 
-        // 0. JANAYNA (Garantia perpétua de plano vitalício)
+        // 0. CARLOS EDUARDO (Garantia perpétua de plano vitalício)
+        if (emailLower.includes("ceramos") || emailLower.includes("carloseduardo6")) {
+          token.plan = "lifetime";
+          token.role = "user";
+          token.order_bumps = [
+            "bump_curso",
+            "bump_acompanhamento",
+            "bump_acelerador",
+            "bump_gerador_videos_ia",
+            "bump_bot_telegram",
+            "bump_fornecedores",
+            "bump_criativos"
+          ];
+          return token;
+        }
+
+        // 0.1 JANAYNA (Garantia perpétua de plano vitalício)
         if (emailLower.includes("janayna") || emailLower.includes("sjanayna")) {
           token.plan = "lifetime";
           token.role = "user";
