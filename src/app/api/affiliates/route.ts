@@ -30,15 +30,64 @@ export const getPendingTransaction = (id: string) => null;
 export const getLeadAffiliate = dbGetLeadAffiliate;
 export const bindLeadToAffiliate = dbBindLead;
 
+const MOCK_OR_INTERNAL_EMAILS = new Set([
+  'carlos.souza@decolashop.com',
+  'carlos@decolashop.com',
+  'admin@decolashop.com',
+  'gerente@decolashop.com',
+  'usuario@decolashop.com',
+  'digital405060@gmail.com',
+  'aleghartz@gmail.com',
+  'emanuelpixel61@gmail.com',
+  'higorfernandez151@outlook.com',
+  'joaoempresa54@gmail.com',
+  'henrique.vedia@gmail.com',
+  'bia.santana.andion@gmail.com',
+  'viniciusseabra2512@gmail.com',
+  'io23457636@gmail.com'
+]);
+
+function isRealCustomer(email?: string | null): boolean {
+  if (!email) return false;
+  const clean = email.toLowerCase().trim();
+  if (clean.endsWith('@decolashop.com')) return false;
+  if (MOCK_OR_INTERNAL_EMAILS.has(clean)) return false;
+  return true;
+}
+
 export async function GET() {
   try {
-    const [affiliates, sales, pendingTransactions] = await Promise.all([
+    const [rawAffiliates, rawSales, pendingTransactions] = await Promise.all([
       dbGetAffiliates(),
       dbGetSales(),
       dbGetPendingPixList()
     ]);
 
-    // Load registered users from database to assist manager with attribution visibility
+    // Filtrar apenas vendas reais confirmadas da plataforma
+    const sales = (rawSales || []).filter(s => {
+      if (!s || !s.id) return false;
+      const em = (s.customerEmail || '').toLowerCase();
+      const nm = (s.customerName || '').toLowerCase();
+      if (em.includes('aleghartz') || nm.includes('alessandra hartz')) return false;
+      if ((s.plan as any) === 'taxa_antecipacao') return false;
+      return true;
+    });
+
+    // Recalcular métricas de cada parceiro estritamente a partir das vendas reais confirmadas
+    const affiliates = (rawAffiliates || [])
+      .filter(a => a && a.code && !['af_pedro', 'af_lucas', 'af_carla'].includes(a.id) && !a.name?.includes('Pedro Alcântara'))
+      .map(aff => {
+        const affSales = sales.filter(s => s.affiliateCode?.toLowerCase() === aff.code?.toLowerCase());
+        return {
+          ...aff,
+          totalSalesCount: affSales.length,
+          totalRevenue: Number(affSales.reduce((acc, s) => acc + (s.totalAmount || 0), 0).toFixed(2)),
+          pendingCommission: Number(affSales.filter(s => s.status !== 'paid_to_affiliate').reduce((acc, s) => acc + (s.commissionAmount || 0), 0).toFixed(2)),
+          paidCommission: Number(affSales.filter(s => s.status === 'paid_to_affiliate').reduce((acc, s) => acc + (s.commissionAmount || 0), 0).toFixed(2)),
+        };
+      });
+
+    // Load registered users from database, strictly excluding internal / demo accounts
     let paidUsers: any[] = [];
     try {
       const supabase = getSupabaseAdmin('next_auth');
@@ -49,14 +98,16 @@ export async function GET() {
         .order('id', { ascending: false });
 
       if (users) {
-        paidUsers = users.map(u => ({
-          id: u.id,
-          name: u.name,
-          email: u.email,
-          plan: u.plan,
-          planExpiresAt: u.plan_expires_at,
-          isAttributed: sales.some(s => s.customerEmail.toLowerCase() === u.email.toLowerCase())
-        }));
+        paidUsers = users
+          .filter(u => isRealCustomer(u.email))
+          .map(u => ({
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            plan: u.plan,
+            planExpiresAt: u.plan_expires_at,
+            isAttributed: sales.some(s => s.customerEmail.toLowerCase() === u.email.toLowerCase())
+          }));
       }
     } catch (uErr) {
       console.warn('[API AFILIADOS] Erro ao carregar paidUsers:', uErr);

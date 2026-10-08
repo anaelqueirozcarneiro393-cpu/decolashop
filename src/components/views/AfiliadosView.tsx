@@ -111,6 +111,23 @@ export default function AfiliadosView() {
   };
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const legacyKeys = [
+          'decolashop_affiliates_real_v2',
+          'decolashop_affiliate_sales_real_v2',
+          'decolashop_affiliate_pending_txs_v2',
+          'decolashop_deleted_affiliates_real_v2',
+          'decolashop_affiliates_v1',
+          'decolashop_affiliate_sales_v1'
+        ];
+        legacyKeys.forEach(k => {
+          try { localStorage.removeItem(k); } catch {}
+          try { sessionStorage.removeItem(k); } catch {}
+        });
+      } catch {}
+    }
+
     loadData();
 
     // 1. Initial server sync
@@ -159,12 +176,12 @@ export default function AfiliadosView() {
     }
   }, [isAuthorized, userEmail]);
 
-  // Summary Metrics
+  // Summary Metrics - 100% calculados diretamente sobre as vendas confirmadas reais
   const metrics = useMemo(() => {
-    const totalAffiliateRevenue = affiliates.reduce((acc, a) => acc + (a.totalRevenue || 0), 0);
-    const totalPendingCommission = affiliates.reduce((acc, a) => acc + (a.pendingCommission || 0), 0);
-    const totalPaidCommission = affiliates.reduce((acc, a) => acc + (a.paidCommission || 0), 0);
-    const totalSalesCount = affiliates.reduce((acc, a) => acc + (a.totalSalesCount || 0), 0);
+    const totalAffiliateRevenue = Number(sales.reduce((acc, s) => acc + (s.totalAmount || 0), 0).toFixed(2));
+    const totalPendingCommission = Number(sales.filter(s => s.status !== 'paid_to_affiliate').reduce((acc, s) => acc + (s.commissionAmount || 0), 0).toFixed(2));
+    const totalPaidCommission = Number(sales.filter(s => s.status === 'paid_to_affiliate').reduce((acc, s) => acc + (s.commissionAmount || 0), 0).toFixed(2));
+    const totalSalesCount = sales.length;
     const selfPurchaseCount = sales.filter(s => s.isSelfPurchase).length;
     const totalPendingPixCount = pendingTxs.length;
     const totalPendingPixAmount = Number(pendingTxs.reduce((acc, p) => acc + (p.total || 0), 0).toFixed(2));
@@ -659,7 +676,14 @@ export default function AfiliadosView() {
                 {filteredAffiliates.map((aff) => {
                   const isCopied = copiedCode === aff.code;
                   const isPixCopied = copiedPix === aff.pixKey;
-                  const hasPending = aff.pendingCommission > 0;
+                  
+                  // Métricas calculadas em tempo real sobre as vendas confirmadas
+                  const affSales = sales.filter(s => s.affiliateCode?.toLowerCase() === aff.code?.toLowerCase());
+                  const realSalesCount = affSales.length;
+                  const realRevenue = Number(affSales.reduce((acc, s) => acc + (s.totalAmount || 0), 0).toFixed(2));
+                  const realPendingCommission = Number(affSales.filter(s => s.status !== 'paid_to_affiliate').reduce((acc, s) => acc + (s.commissionAmount || 0), 0).toFixed(2));
+                  const realPaidCommission = Number(affSales.filter(s => s.status === 'paid_to_affiliate').reduce((acc, s) => acc + (s.commissionAmount || 0), 0).toFixed(2));
+                  const hasPending = realPendingCommission > 0;
 
                   return (
                     <tr key={aff.id} className="hover:bg-white/[0.02] transition-colors">
@@ -736,21 +760,21 @@ export default function AfiliadosView() {
                       {/* Total Revenue */}
                       <td className="py-3.5 px-3 text-right">
                         <div className="font-bold text-white text-xs">
-                          R$ {aff.totalRevenue.toFixed(2).replace('.', ',')}
+                          R$ {realRevenue.toFixed(2).replace('.', ',')}
                         </div>
                         <div className="text-[10px] text-slate-500">
-                          {aff.totalSalesCount} {aff.totalSalesCount === 1 ? 'venda' : 'vendas'}
+                          {realSalesCount} {realSalesCount === 1 ? 'venda' : 'vendas'}
                         </div>
                       </td>
 
                       {/* Pending Commission */}
                       <td className="py-3.5 px-3 text-right">
                         <div className={`font-black text-xs ${hasPending ? 'text-amber-400' : 'text-slate-400'}`}>
-                          R$ {aff.pendingCommission.toFixed(2).replace('.', ',')}
+                          R$ {realPendingCommission.toFixed(2).replace('.', ',')}
                         </div>
                         {hasPending && (
                           <button
-                            onClick={() => setPayingAffiliate(aff)}
+                            onClick={() => setPayingAffiliate({ ...aff, pendingCommission: realPendingCommission })}
                             className="mt-1 px-2 py-0.5 rounded bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 font-bold text-[10px] transition-colors inline-block"
                           >
                             💸 Pagar Pix
@@ -760,7 +784,7 @@ export default function AfiliadosView() {
 
                       {/* Paid Commission */}
                       <td className="py-3.5 px-3 text-right font-medium text-slate-400 text-xs">
-                        R$ {aff.paidCommission.toFixed(2).replace('.', ',')}
+                        R$ {realPaidCommission.toFixed(2).replace('.', ',')}
                       </td>
 
                       {/* Actions */}

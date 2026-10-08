@@ -56,16 +56,46 @@ export interface PendingPixTransaction {
   createdAt: number;
 }
 
-const AFFILIATES_STORAGE_KEY = 'decolashop_affiliates_real_v2';
-const AFFILIATE_SALES_STORAGE_KEY = 'decolashop_affiliate_sales_real_v2';
-const PENDING_TXS_STORAGE_KEY = 'decolashop_affiliate_pending_txs_v2';
-const DELETED_AFFILIATES_KEY = 'decolashop_deleted_affiliates_real_v2';
+const AFFILIATES_STORAGE_KEY = 'decolashop_affiliates_real_v3';
+const AFFILIATE_SALES_STORAGE_KEY = 'decolashop_affiliate_sales_real_v3';
+const PENDING_TXS_STORAGE_KEY = 'decolashop_affiliate_pending_txs_v3';
+const DELETED_AFFILIATES_KEY = 'decolashop_deleted_affiliates_real_v3';
 const AFFILIATE_REF_COOKIE = 'decolashop_af';
 const AFFILIATE_REF_STORAGE = 'decolashop_affiliate_ref';
+
+export function purgeObsoleteAffiliateStorage(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const legacyKeys = [
+      'decolashop_affiliates_real_v2',
+      'decolashop_affiliate_sales_real_v2',
+      'decolashop_affiliate_pending_txs_v2',
+      'decolashop_deleted_affiliates_real_v2',
+      'decolashop_affiliates_v1',
+      'decolashop_affiliate_sales_v1',
+      'decolashop_affiliate_pending_txs_v1',
+      'decolashop_affiliates_real',
+      'decolashop_affiliate_sales_real',
+      'decolashop_affiliates',
+      'decolashop_affiliate_sales',
+      'affiliates',
+      'affiliate_sales'
+    ];
+    legacyKeys.forEach(k => {
+      try { localStorage.removeItem(k); } catch {}
+      try { sessionStorage.removeItem(k); } catch {}
+    });
+  } catch {}
+}
+
+if (typeof window !== 'undefined') {
+  purgeObsoleteAffiliateStorage();
+}
 
 function getDeletedAffiliateIds(): Set<string> {
   if (typeof window === 'undefined') return new Set();
   try {
+    purgeObsoleteAffiliateStorage();
     const raw = localStorage.getItem(DELETED_AFFILIATES_KEY);
     return new Set(raw ? JSON.parse(raw) : []);
   } catch {
@@ -265,9 +295,7 @@ export function clearAffiliateRef(): void {
 export function getAffiliates(): Affiliate[] {
   if (typeof window === 'undefined') return [];
   try {
-    // Purge legacy fake keys if any
-    localStorage.removeItem('decolashop_affiliates_v1');
-    localStorage.removeItem('decolashop_affiliate_sales_v1');
+    purgeObsoleteAffiliateStorage();
 
     const raw = localStorage.getItem(AFFILIATES_STORAGE_KEY);
     if (!raw) {
@@ -275,12 +303,24 @@ export function getAffiliates(): Affiliate[] {
     }
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
-      // Purge any fake seed affiliates
+      // 1. Purge any fake seed affiliates
       const filtered = parsed.filter(a => !['af_pedro', 'af_lucas', 'af_carla'].includes(a.id) && !a.name?.includes('Pedro Alcântara'));
-      if (filtered.length !== parsed.length) {
-        localStorage.setItem(AFFILIATES_STORAGE_KEY, JSON.stringify(filtered));
-      }
-      return filtered;
+      
+      // 2. Recalcula métricas com precisão a partir das vendas reais confirmadas
+      const realSales = getAffiliateSales();
+      return filtered.map(aff => {
+        const affSales = realSales.filter(s => s.affiliateCode?.toLowerCase() === aff.code?.toLowerCase());
+        const totalRev = Number(affSales.reduce((acc, s) => acc + (s.totalAmount || 0), 0).toFixed(2));
+        const pendingComm = Number(affSales.filter(s => s.status !== 'paid_to_affiliate').reduce((acc, s) => acc + (s.commissionAmount || 0), 0).toFixed(2));
+        const paidComm = Number(affSales.filter(s => s.status === 'paid_to_affiliate').reduce((acc, s) => acc + (s.commissionAmount || 0), 0).toFixed(2));
+        return {
+          ...aff,
+          totalSalesCount: affSales.length,
+          totalRevenue: totalRev,
+          pendingCommission: pendingComm,
+          paidCommission: paidComm,
+        };
+      });
     }
     return [];
   } catch {
@@ -308,6 +348,7 @@ function postAffiliatesApi(payload: any) {
 export function getPendingPixTransactions(): PendingPixTransaction[] {
   if (typeof window === 'undefined') return [];
   try {
+    purgeObsoleteAffiliateStorage();
     const raw = localStorage.getItem(PENDING_TXS_STORAGE_KEY);
     return raw ? JSON.parse(raw) : [];
   } catch {
@@ -321,6 +362,8 @@ export function getPendingPixTransactions(): PendingPixTransaction[] {
 export async function syncAffiliatesFromServer(): Promise<{ affiliates: Affiliate[]; sales: AffiliateSale[]; pendingTransactions: PendingPixTransaction[]; paidUsers?: any[] }> {
   if (typeof window === 'undefined') return { affiliates: [], sales: [], pendingTransactions: [], paidUsers: [] };
   try {
+    purgeObsoleteAffiliateStorage();
+
     let data: any = null;
     try {
       const res = await fetch('/api/affiliates', { cache: 'no-store' });
@@ -343,91 +386,67 @@ export async function syncAffiliatesFromServer(): Promise<{ affiliates: Affiliat
     }
 
     if (data && data.success && Array.isArray(data.affiliates)) {
-      const localAffiliates = getAffiliates();
-      const localSales = getAffiliateSales();
-
-        // 1. Salva transações pendentes (Pix gerados aguardando pagamento)
-        const incomingPending: PendingPixTransaction[] = Array.isArray(data.pendingTransactions) ? data.pendingTransactions : [];
-        const prevRawPending = localStorage.getItem(PENDING_TXS_STORAGE_KEY) || '[]';
-        const nextRawPending = JSON.stringify(incomingPending);
-        if (prevRawPending !== nextRawPending) {
-          localStorage.setItem(PENDING_TXS_STORAGE_KEY, nextRawPending);
-          window.dispatchEvent(new Event('decolashop_affiliate_pending_updated'));
-        }
-
-        // Se o servidor estiver vazio mas o cliente tiver dados locais, envia os dados locais para salvar no servidor!
-        if (data.affiliates.length === 0 && localAffiliates.length > 0) {
-          fetch('/api/affiliates', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'sync_all', affiliates: localAffiliates, sales: localSales })
-          }).catch(() => {});
-          return { affiliates: localAffiliates, sales: localSales, pendingTransactions: incomingPending, paidUsers: data.paidUsers || [] };
-        }
-
-        // O banco de dados Supabase é a fonte única e definitiva da verdade
-        const affiliatesMap = new Map<string, Affiliate>();
-        data.affiliates.forEach((serverAff: Affiliate) => {
-          if (serverAff && serverAff.code) {
-            affiliatesMap.set(serverAff.code.toLowerCase(), serverAff);
-          }
-        });
-
-        // Preserva afiliados locais que ainda não estejam no banco de dados e sincroniza
-        const unsyncedAffiliates: Affiliate[] = [];
-        localAffiliates.forEach(a => {
-          if (a && a.code && !affiliatesMap.has(a.code.toLowerCase())) {
-            affiliatesMap.set(a.code.toLowerCase(), a);
-            unsyncedAffiliates.push(a);
-          }
-        });
-
-        const mergedAffiliates = Array.from(affiliatesMap.values());
-
-        // Vendas: o banco de dados é a autoridade máxima
-        const salesMap = new Map<string, AffiliateSale>();
-        (data.sales || []).forEach((s: AffiliateSale) => {
-          if (s && s.id && s.customerEmail !== 'aleghartz@gmail.com' && !s.customerName?.includes('Alessandra Hartz')) {
-            salesMap.set(s.id, s);
-          }
-        });
-
-        const unsyncedSales: AffiliateSale[] = [];
-        localSales.forEach(s => {
-          if (s && s.id && !salesMap.has(s.id) && s.customerEmail !== 'aleghartz@gmail.com' && !s.customerName?.includes('Alessandra Hartz')) {
-            salesMap.set(s.id, s);
-            unsyncedSales.push(s);
-          }
-        });
-
-        const mergedSales = Array.from(salesMap.values()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-
-        const prevRawAff = localStorage.getItem(AFFILIATES_STORAGE_KEY) || '[]';
-        const prevRawSales = localStorage.getItem(AFFILIATE_SALES_STORAGE_KEY) || '[]';
-        const nextRawAff = JSON.stringify(mergedAffiliates);
-        const nextRawSales = JSON.stringify(mergedSales);
-
-        localStorage.setItem(AFFILIATES_STORAGE_KEY, nextRawAff);
-        localStorage.setItem(AFFILIATE_SALES_STORAGE_KEY, nextRawSales);
-
-        // Se havia novos dados locais que não estavam no servidor, envia ao banco
-        if (unsyncedAffiliates.length > 0 || unsyncedSales.length > 0) {
-          fetch('/api/affiliates', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'sync_all', affiliates: unsyncedAffiliates, sales: unsyncedSales })
-          }).catch(() => {});
-        }
-
-        if (prevRawAff !== nextRawAff) {
-          window.dispatchEvent(new Event('decolashop_affiliate_updated'));
-        }
-        if (prevRawSales !== nextRawSales) {
-          window.dispatchEvent(new Event('decolashop_affiliate_sales_updated'));
-        }
-        return { affiliates: mergedAffiliates, sales: mergedSales, pendingTransactions: incomingPending, paidUsers: data.paidUsers || [] };
+      // 1. Salva transações pendentes (Pix gerados aguardando pagamento)
+      const incomingPending: PendingPixTransaction[] = Array.isArray(data.pendingTransactions) ? data.pendingTransactions : [];
+      const prevRawPending = localStorage.getItem(PENDING_TXS_STORAGE_KEY) || '[]';
+      const nextRawPending = JSON.stringify(incomingPending);
+      if (prevRawPending !== nextRawPending) {
+        localStorage.setItem(PENDING_TXS_STORAGE_KEY, nextRawPending);
+        window.dispatchEvent(new Event('decolashop_affiliate_pending_updated'));
       }
-    } catch (e) {
+
+      // 2. Vendas: o banco de dados Supabase é a autoridade máxima e absoluta
+      const serverSales: AffiliateSale[] = (data.sales || [])
+        .filter((s: AffiliateSale) => {
+          if (!s || !s.id) return false;
+          const email = (s.customerEmail || '').toLowerCase();
+          const name = (s.customerName || '').toLowerCase();
+          if (email.includes('aleghartz') || name.includes('alessandra hartz')) return false;
+          if ((s.plan as any) === 'taxa_antecipacao') return false;
+          return true;
+        })
+        .sort((a: AffiliateSale, b: AffiliateSale) => (b.createdAt || 0) - (a.createdAt || 0));
+
+      // 3. Afiliados cadastrados no Supabase
+      const affiliatesMap = new Map<string, Affiliate>();
+      data.affiliates.forEach((serverAff: Affiliate) => {
+        if (serverAff && serverAff.code) {
+          affiliatesMap.set(serverAff.code.toLowerCase(), serverAff);
+        }
+      });
+
+      const mergedAffiliates = Array.from(affiliatesMap.values()).map(aff => {
+        const affSales = serverSales.filter(s => s.affiliateCode?.toLowerCase() === aff.code?.toLowerCase());
+        const totalRev = Number(affSales.reduce((acc, s) => acc + (s.totalAmount || 0), 0).toFixed(2));
+        const pendingComm = Number(affSales.filter(s => s.status !== 'paid_to_affiliate').reduce((acc, s) => acc + (s.commissionAmount || 0), 0).toFixed(2));
+        const paidComm = Number(affSales.filter(s => s.status === 'paid_to_affiliate').reduce((acc, s) => acc + (s.commissionAmount || 0), 0).toFixed(2));
+        return {
+          ...aff,
+          totalSalesCount: affSales.length,
+          totalRevenue: totalRev,
+          pendingCommission: pendingComm,
+          paidCommission: paidComm,
+        };
+      });
+
+      const prevRawAff = localStorage.getItem(AFFILIATES_STORAGE_KEY) || '[]';
+      const prevRawSales = localStorage.getItem(AFFILIATE_SALES_STORAGE_KEY) || '[]';
+      const nextRawAff = JSON.stringify(mergedAffiliates);
+      const nextRawSales = JSON.stringify(serverSales);
+
+      // Atualiza o storage local estritamente com os dados reais do servidor
+      localStorage.setItem(AFFILIATES_STORAGE_KEY, nextRawAff);
+      localStorage.setItem(AFFILIATE_SALES_STORAGE_KEY, nextRawSales);
+
+      if (prevRawAff !== nextRawAff) {
+        window.dispatchEvent(new Event('decolashop_affiliate_updated'));
+      }
+      if (prevRawSales !== nextRawSales) {
+        window.dispatchEvent(new Event('decolashop_affiliate_sales_updated'));
+      }
+      return { affiliates: mergedAffiliates, sales: serverSales, pendingTransactions: incomingPending, paidUsers: data.paidUsers || [] };
+    }
+  } catch (e) {
     console.warn('Erro ao sincronizar afiliados do servidor:', e);
   }
   return { affiliates: getAffiliates(), sales: getAffiliateSales(), pendingTransactions: getPendingPixTransactions(), paidUsers: [] };
@@ -450,6 +469,8 @@ export function saveAffiliates(affiliates: Affiliate[]): void {
 export function getAffiliateSales(): AffiliateSale[] {
   if (typeof window === 'undefined') return [];
   try {
+    purgeObsoleteAffiliateStorage();
+
     const raw = localStorage.getItem(AFFILIATE_SALES_STORAGE_KEY);
     if (!raw) {
       return [];
@@ -458,13 +479,15 @@ export function getAffiliateSales(): AffiliateSale[] {
     if (Array.isArray(parsed)) {
       let changed = false;
       // 1. Purge fake seed sales and taxa_antecipacao sales
-      let filtered = parsed.filter(s => 
-        !s.id.startsWith('sale_af_10') && 
-        !s.affiliateName?.includes('Pedro Alcântara') &&
-        s.customerEmail !== 'aleghartz@gmail.com' &&
-        !s.customerName?.includes('Alessandra Hartz') &&
-        (s.plan as any) !== 'taxa_antecipacao'
-      );
+      let filtered = parsed.filter(s => {
+        if (!s || !s.id) return false;
+        if (s.id.startsWith('sale_af_10') || s.affiliateName?.includes('Pedro Alcântara')) return false;
+        const email = (s.customerEmail || '').toLowerCase();
+        const name = (s.customerName || '').toLowerCase();
+        if (email.includes('aleghartz') || name.includes('alessandra hartz')) return false;
+        if ((s.plan as any) === 'taxa_antecipacao') return false;
+        return true;
+      });
       if (filtered.length !== parsed.length) changed = true;
 
       // 2. Normaliza preços oficiais: Vitalício = R$ 179,90, Mensal = R$ 89,90
