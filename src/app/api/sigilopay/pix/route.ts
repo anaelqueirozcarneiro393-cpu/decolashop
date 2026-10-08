@@ -113,6 +113,13 @@ export async function POST(req: Request) {
     const isTaxaAntecipacao = plan === 'taxa_antecipacao';
     let effectiveAffiliateCode = isTaxaAntecipacao ? undefined : (affiliateCode || undefined);
 
+    if (effectiveAffiliateCode) {
+      const cleanAf = effectiveAffiliateCode.toLowerCase().trim();
+      if (cleanAf === 'kaio' || cleanAf === 'kaiofredy' || cleanAf === 'kaiofredy2908') {
+        effectiveAffiliateCode = 'rwjncwiofw';
+      }
+    }
+
     // LEAD LOCK-IN NO SUPABASE: Se não veio código na requisição, busca se o email já está vinculado a um afiliado
     if (!effectiveAffiliateCode && !isTaxaAntecipacao && customer?.email) {
       try {
@@ -124,11 +131,15 @@ export async function POST(req: Request) {
       } catch {}
     }
 
-    // AUTO-ATTRIBUTION: Se não veio código e não há lead amarrado, atribui ao afiliado ativo da loja
+    // AUTO-ATTRIBUTION: Se não veio código e não há lead amarrado, atribui ao afiliado ativo da loja (rwjncwiofw)
     if (!effectiveAffiliateCode && !isTaxaAntecipacao) {
       try {
         const activeAffs = await dbGetAffiliates();
-        if (activeAffs && activeAffs.length > 0) {
+        const rwj = activeAffs.find(a => a.code === 'rwjncwiofw');
+        if (rwj && rwj.active) {
+          effectiveAffiliateCode = 'rwjncwiofw';
+          console.log(`[AFILIADOS PIX AUTO-ATTRIBUTION] Código atribuído automaticamente ao afiliado rwjncwiofw`);
+        } else if (activeAffs && activeAffs.length > 0) {
           const primary = activeAffs.find(a => a.active) || activeAffs[0];
           if (primary && primary.code) {
             effectiveAffiliateCode = primary.code;

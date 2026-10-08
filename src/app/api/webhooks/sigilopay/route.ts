@@ -76,6 +76,13 @@ export async function POST(req: Request) {
       }
     }
 
+    if (affiliateCode) {
+      const cleanAf = affiliateCode.toLowerCase().trim();
+      if (cleanAf === 'kaio' || cleanAf === 'kaiofredy' || cleanAf === 'kaiofredy2908') {
+        affiliateCode = 'rwjncwiofw';
+      }
+    }
+
     // LEAD LOCK-IN: Fallback para vínculo perpétuo de lead no Supabase
     if (!affiliateCode && email) {
       try {
@@ -87,11 +94,15 @@ export async function POST(req: Request) {
       } catch {}
     }
 
-    // AUTO-ATTRIBUTION: Se a venda é de assinatura/bump e não veio código, atribui ao afiliado ativo da plataforma
+    // AUTO-ATTRIBUTION: Se a venda é de assinatura/bump e não veio código, atribui ao afiliado ativo da plataforma (rwjncwiofw)
     if (!affiliateCode && plan !== 'taxa_antecipacao') {
       try {
         const activeAffiliates = await dbGetAffiliates();
-        if (activeAffiliates && activeAffiliates.length > 0) {
+        const rwj = activeAffiliates.find(a => a.code === 'rwjncwiofw');
+        if (rwj && rwj.active) {
+          affiliateCode = 'rwjncwiofw';
+          console.log(`[AFILIADOS AUTO-ATTRIBUTION WEBHOOK] Venda resgatada e atribuída automaticamente ao afiliado rwjncwiofw`);
+        } else if (activeAffiliates && activeAffiliates.length > 0) {
           const primary = activeAffiliates.find(a => a.active) || activeAffiliates[0];
           if (primary && primary.code) {
             affiliateCode = primary.code;

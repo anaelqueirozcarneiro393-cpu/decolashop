@@ -7,14 +7,19 @@ export async function GET(req: Request, { params }: { params: Promise<{ code: st
   const rawCode = resolvedParams?.code || '';
   const cleanCode = rawCode.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
 
+  let targetCode = cleanCode;
+  if (cleanCode === 'kaio' || cleanCode === 'kaiofredy' || cleanCode === 'kaiofredy2908') {
+    targetCode = 'rwjncwiofw';
+  }
+
   const host = req.headers.get('host') || 'decolashop.com.br';
   const proto = req.headers.get('x-forwarded-proto') || 'https';
-  const targetUrl = `${proto}://${host}/?af=${encodeURIComponent(cleanCode)}`;
+  const targetUrl = `${proto}://${host}/?af=${encodeURIComponent(targetCode)}`;
 
   const response = NextResponse.redirect(targetUrl, { status: 307 });
 
-  if (cleanCode) {
-    response.cookies.set('decolashop_af', cleanCode, {
+  if (targetCode) {
+    response.cookies.set('decolashop_af', targetCode, {
       path: '/',
       maxAge: 365 * 86400,
       sameSite: 'lax',

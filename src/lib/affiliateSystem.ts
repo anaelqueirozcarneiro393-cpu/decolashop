@@ -387,12 +387,14 @@ export async function syncAffiliatesFromServer(): Promise<{ affiliates: Affiliat
         // Vendas: o banco de dados é a autoridade máxima
         const salesMap = new Map<string, AffiliateSale>();
         (data.sales || []).forEach((s: AffiliateSale) => {
-          if (s && s.id) salesMap.set(s.id, s);
+          if (s && s.id && s.customerEmail !== 'aleghartz@gmail.com' && !s.customerName?.includes('Alessandra Hartz')) {
+            salesMap.set(s.id, s);
+          }
         });
 
         const unsyncedSales: AffiliateSale[] = [];
         localSales.forEach(s => {
-          if (s && s.id && !salesMap.has(s.id)) {
+          if (s && s.id && !salesMap.has(s.id) && s.customerEmail !== 'aleghartz@gmail.com' && !s.customerName?.includes('Alessandra Hartz')) {
             salesMap.set(s.id, s);
             unsyncedSales.push(s);
           }
@@ -459,6 +461,8 @@ export function getAffiliateSales(): AffiliateSale[] {
       let filtered = parsed.filter(s => 
         !s.id.startsWith('sale_af_10') && 
         !s.affiliateName?.includes('Pedro Alcântara') &&
+        s.customerEmail !== 'aleghartz@gmail.com' &&
+        !s.customerName?.includes('Alessandra Hartz') &&
         (s.plan as any) !== 'taxa_antecipacao'
       );
       if (filtered.length !== parsed.length) changed = true;

@@ -199,7 +199,7 @@ export async function POST(req: Request) {
         const currentSales = await dbGetSales();
         const existingIds = new Set(currentSales.map(s => s.id));
         for (const s of body.sales) {
-          if (s && s.id && !existingIds.has(s.id) && s.affiliateCode) {
+          if (s && s.id && !existingIds.has(s.id) && s.affiliateCode && s.customerEmail !== 'aleghartz@gmail.com') {
             await dbRecordSale(s);
           }
         }
