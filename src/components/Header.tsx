@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Bell, User, Menu, Zap, Volume2, VolumeX, CheckCircle, X, Eye, EyeOff } from 'lucide-react';
+import { Search, Bell, User, Menu, Volume2, VolumeX, CheckCircle, X, Eye, EyeOff } from 'lucide-react';
 import { useSession, signIn } from 'next-auth/react';
 import { useSales, formatSaleTime } from '@/lib/salesContext';
 import { usePrivacy } from '@/lib/privacyContext';
@@ -28,7 +28,6 @@ export default function Header({ onMenuClick, session: propSession }: HeaderProp
   );
   const isSuperAdmin = userRole === 'admin' || userEmail.includes('admin');
   const userBadge = isAdmin ? (isSuperAdmin ? 'Administrador' : 'Gerente') : 'Membro VIP';
-  const canUseQuickActions = isAdmin || userEmail === 'usuario@decolashop.com' || isCarlos;
 
   const { isSoundEnabled, toggleSound, recentSales } = useSales();
   const { hideEmail, toggleHideEmail, maskEmail } = usePrivacy();
@@ -181,32 +180,11 @@ export default function Header({ onMenuClick, session: propSession }: HeaderProp
           </span>
         </button>
 
-        {/* Botão Atalhos Rápidos Admin [Alt + A] */}
-        {canUseQuickActions && (
-          <button
-            type="button"
-            onClick={() => window.dispatchEvent(new CustomEvent('decolashop_open_admin_actions'))}
-            className="p-2 sm:px-2.5 sm:py-1.5 rounded-xl border border-[#22c55e]/30 bg-[#22c55e]/10 hover:bg-[#22c55e]/20 text-[#4ade80] transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold shadow-sm shadow-[#22c55e]/10"
-            title="Atalhos Rápidos de Admin (Alt + A)"
-          >
-            <Zap size={14} className="fill-current text-[#22c55e]" />
-            <span className="hidden sm:inline text-[11px] font-black uppercase tracking-wider">
-              Atalhos [Alt+A]
-            </span>
-          </button>
-        )}
-
         <div className="h-6 w-[1px] bg-white/10 mx-1 hidden sm:block" />
 
         {isAuthenticated ? (
           <div 
-            onClick={() => {
-              if (canUseQuickActions) {
-                window.dispatchEvent(new CustomEvent('decolashop_open_admin_actions'));
-              }
-            }}
-            title={canUseQuickActions ? "Atalhos & Simulação (clique para abrir)" : undefined}
-            className="flex items-center gap-3 pl-1 cursor-pointer group"
+            className="flex items-center gap-3 pl-1 group"
           >
             <div className="flex flex-col items-end hidden sm:flex">
               <span className="text-xs font-bold text-slate-200 group-hover:text-[#4ade80] transition-colors">
