@@ -398,20 +398,38 @@ export async function syncAffiliatesFromServer(): Promise<{ affiliates: Affiliat
       }
 
       // 2. Vendas: o banco de dados Supabase é a autoridade máxima e absoluta
-      const GHOST_SALE_IDS = new Set([
+      const MOCK_OR_GHOST_SALE_IDS = new Set([
+        'DEC-27270-VIP',
+        'DEC-31035-VIP',
+        'DEC-43900-VIP',
+        'DEC-JUCIELY-PIX',
+        'sale_af_lucas_amorim_vip',
+        'sale_af_carlos_eduardo_vip',
+        'sale_af_janayna_vip',
+        'sale_af_juciely_justino_pix',
         'sale_af_1791505170601_eeq2',
         'sale_af_1791491585193_3kmc',
         'sale_af_1791490399560_4tlx',
         'sale_af_1791493534767_u8wy'
       ]);
 
+      const MOCK_EMAILS = new Set([
+        'lucas27amorim@gmail.com',
+        'ceramoscarloseduardo6@gmail.com',
+        'sjanayna439@gmail.com',
+        'jucielyj9@gmail.com',
+        'aleghartz@gmail.com'
+      ]);
+
       const serverSales: AffiliateSale[] = (data.sales || [])
         .filter((s: AffiliateSale) => {
           if (!s || !s.id) return false;
-          if (GHOST_SALE_IDS.has(s.id)) return false;
-          const email = (s.customerEmail || '').toLowerCase();
-          const name = (s.customerName || '').toLowerCase();
-          if (email.includes('aleghartz') || name.includes('alessandra hartz')) return false;
+          if (MOCK_OR_GHOST_SALE_IDS.has(s.id)) return false;
+          if (s.transactionId && MOCK_OR_GHOST_SALE_IDS.has(s.transactionId)) return false;
+          if (s.transactionId && s.transactionId.startsWith('DEC-')) return false;
+          const email = (s.customerEmail || '').toLowerCase().trim();
+          const name = (s.customerName || '').toLowerCase().trim();
+          if (MOCK_EMAILS.has(email) || email.includes('aleghartz') || name.includes('alessandra hartz')) return false;
           if ((s.plan as any) === 'taxa_antecipacao') return false;
           return true;
         })
@@ -489,20 +507,38 @@ export function getAffiliateSales(): AffiliateSale[] {
     if (Array.isArray(parsed)) {
       let changed = false;
       // 1. Purge fake seed sales and taxa_antecipacao sales
-      const GHOST_SALE_IDS = new Set([
+      const MOCK_OR_GHOST_SALE_IDS = new Set([
+        'DEC-27270-VIP',
+        'DEC-31035-VIP',
+        'DEC-43900-VIP',
+        'DEC-JUCIELY-PIX',
+        'sale_af_lucas_amorim_vip',
+        'sale_af_carlos_eduardo_vip',
+        'sale_af_janayna_vip',
+        'sale_af_juciely_justino_pix',
         'sale_af_1791505170601_eeq2',
         'sale_af_1791491585193_3kmc',
         'sale_af_1791490399560_4tlx',
         'sale_af_1791493534767_u8wy'
       ]);
 
+      const MOCK_EMAILS = new Set([
+        'lucas27amorim@gmail.com',
+        'ceramoscarloseduardo6@gmail.com',
+        'sjanayna439@gmail.com',
+        'jucielyj9@gmail.com',
+        'aleghartz@gmail.com'
+      ]);
+
       let filtered = parsed.filter(s => {
         if (!s || !s.id) return false;
-        if (GHOST_SALE_IDS.has(s.id)) return false;
+        if (MOCK_OR_GHOST_SALE_IDS.has(s.id)) return false;
+        if (s.transactionId && MOCK_OR_GHOST_SALE_IDS.has(s.transactionId)) return false;
+        if (s.transactionId && s.transactionId.startsWith('DEC-')) return false;
         if (s.id.startsWith('sale_af_10') || s.affiliateName?.includes('Pedro Alcântara')) return false;
-        const email = (s.customerEmail || '').toLowerCase();
-        const name = (s.customerName || '').toLowerCase();
-        if (email.includes('aleghartz') || name.includes('alessandra hartz')) return false;
+        const email = (s.customerEmail || '').toLowerCase().trim();
+        const name = (s.customerName || '').toLowerCase().trim();
+        if (MOCK_EMAILS.has(email) || email.includes('aleghartz') || name.includes('alessandra hartz')) return false;
         if ((s.plan as any) === 'taxa_antecipacao') return false;
         return true;
       });

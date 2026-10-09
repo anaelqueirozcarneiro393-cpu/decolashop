@@ -44,7 +44,11 @@ const MOCK_OR_INTERNAL_EMAILS = new Set([
   'henrique.vedia@gmail.com',
   'bia.santana.andion@gmail.com',
   'viniciusseabra2512@gmail.com',
-  'io23457636@gmail.com'
+  'io23457636@gmail.com',
+  'lucas27amorim@gmail.com',
+  'ceramoscarloseduardo6@gmail.com',
+  'sjanayna439@gmail.com',
+  'jucielyj9@gmail.com'
 ]);
 
 function isRealCustomer(email?: string | null): boolean {
@@ -63,19 +67,30 @@ export async function GET() {
       dbGetPendingPixList()
     ]);
 
-    const GHOST_SALE_IDS = new Set([
+    const MOCK_OR_GHOST_SALE_IDS = new Set([
+      'DEC-27270-VIP',
+      'DEC-31035-VIP',
+      'DEC-43900-VIP',
+      'DEC-JUCIELY-PIX',
+      'sale_af_lucas_amorim_vip',
+      'sale_af_carlos_eduardo_vip',
+      'sale_af_janayna_vip',
+      'sale_af_juciely_justino_pix',
       'sale_af_1791505170601_eeq2',
       'sale_af_1791491585193_3kmc',
       'sale_af_1791490399560_4tlx',
       'sale_af_1791493534767_u8wy'
     ]);
 
-    // Filtrar apenas vendas reais confirmadas da plataforma
+    // Filtrar apenas vendas 100% reais confirmadas da plataforma
     const sales = (rawSales || []).filter(s => {
       if (!s || !s.id) return false;
-      if (GHOST_SALE_IDS.has(s.id)) return false;
-      const em = (s.customerEmail || '').toLowerCase();
-      const nm = (s.customerName || '').toLowerCase();
+      if (MOCK_OR_GHOST_SALE_IDS.has(s.id)) return false;
+      if (s.transactionId && MOCK_OR_GHOST_SALE_IDS.has(s.transactionId)) return false;
+      if (s.transactionId && s.transactionId.startsWith('DEC-')) return false;
+      const em = (s.customerEmail || '').toLowerCase().trim();
+      const nm = (s.customerName || '').toLowerCase().trim();
+      if (MOCK_OR_INTERNAL_EMAILS.has(em)) return false;
       if (em.includes('aleghartz') || nm.includes('alessandra hartz')) return false;
       if ((s.plan as any) === 'taxa_antecipacao') return false;
       return true;
