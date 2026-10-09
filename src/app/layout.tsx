@@ -45,6 +45,9 @@ export const metadata: Metadata = {
       'max-snippet': -1,
     },
   },
+  verification: {
+    google: 'PV9ZKSBDDmnLfcuuyJeczZcZdbNys9RUD5XIF8Yt10I',
+  },
   openGraph: {
     title: "DecolaShop | Mineração de Produtos Virais & Fornecedores Nacionais",
     description: "A plataforma inteligente para minerar produtos campeões de vendas no Brasil, conectar com fornecedores nacionais com estoque real e criar anúncios com inteligência artificial.",
