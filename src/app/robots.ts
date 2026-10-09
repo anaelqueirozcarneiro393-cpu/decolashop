@@ -1,4 +1,4 @@
-import { MetadataRoute } from 'next'
+import { MetadataRoute } from 'next';
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -7,7 +7,7 @@ export default function robots(): MetadataRoute.Robots {
       allow: '/',
       disallow: ['/api/', '/private/'],
     },
-    sitemap: 'https://decolashop.com.br/sitemap.xml',
-    host: 'https://decolashop.com.br',
-  }
+    sitemap: 'https://www.decolashop.com.br/sitemap.xml',
+    host: 'https://www.decolashop.com.br',
+  };
 }
