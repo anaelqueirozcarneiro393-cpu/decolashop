@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { validateAndSanitizePayload, isValidEmail, sanitizeString } from '@/lib/security';
-import { dbRecordSale, dbGetPendingPix, dbGetLeadAffiliate, dbBindLead } from '@/lib/affiliateDb';
+import { dbRecordSale, dbGetPendingPix, dbGetLeadAffiliate, dbBindLead, dbGetAffiliates } from '@/lib/affiliateDb';
 import { recordPaidWithdrawalFee } from '@/lib/withdrawalFeesStore';
 
 export const dynamic = 'force-dynamic';
@@ -199,13 +199,31 @@ export async function POST(req: Request) {
         });
       }
 
+      // Busca dados pendentes pré-registrados para resgate de bumps, valor e afiliado
+      let pendingTx: any = null;
+      if (transactionId) {
+        pendingTx = await dbGetPendingPix(transactionId);
+      }
+      if (!pendingTx && cleanEmail) {
+        pendingTx = await dbGetPendingPix(cleanEmail);
+      }
+
+      const finalBumps = (safeBumps && safeBumps.length > 0) ? safeBumps : (pendingTx?.bumps || []);
+      const planBase = userPlan === 'monthly' ? 89.90 : 179.90;
+      const totalAmount = 
+        Number(txData.amount || txData.chargeAmount) || 
+        Number(rawBody.total) || 
+        Number(pendingTx?.total) || 
+        planBase;
+      const finalTxId = transactionId || pendingTx?.transactionId;
+
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + (userPlan === 'monthly' ? 30 : 3650)); // 10 years for lifetime
 
       const userMetadata = JSON.stringify({
         avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(cleanEmail)}`,
         pwd: cleanPassword || 'decola123',
-        bumps: safeBumps,
+        bumps: finalBumps,
         phone: cleanPhone || null,
         cpf: cleanCpf || null
       });
@@ -231,18 +249,16 @@ export async function POST(req: Request) {
       const matchAf = cookiesHeader.match(/(?:^|;\s*)decolashop_af=([^;]+)/);
       let affiliateCode = rawBody.affiliateCode || (matchAf ? decodeURIComponent(matchAf[1]) : null);
 
-      if (!affiliateCode && transactionId) {
-        const pending = await dbGetPendingPix(transactionId);
-        if (pending?.affiliateCode) {
-          affiliateCode = pending.affiliateCode;
-        }
+      let pendingTx: any = null;
+      if (transactionId) {
+        pendingTx = await dbGetPendingPix(transactionId);
+      }
+      if (!pendingTx && cleanEmail) {
+        pendingTx = await dbGetPendingPix(cleanEmail);
       }
 
-      if (!affiliateCode && cleanEmail) {
-        const pending = await dbGetPendingPix(cleanEmail);
-        if (pending?.affiliateCode) {
-          affiliateCode = pending.affiliateCode;
-        }
+      if (!affiliateCode && pendingTx?.affiliateCode) {
+        affiliateCode = pendingTx.affiliateCode;
       }
 
       // LEAD LOCK-IN: Vínculo perpétuo de email do lead com afiliado no Supabase
@@ -256,6 +272,17 @@ export async function POST(req: Request) {
         } catch {}
       }
 
+      // AUTO-ATTRIBUTION: Se a venda é de assinatura/bump e não veio código, atribui ao afiliado ativo da loja (rwjncwiofw)
+      if (!affiliateCode) {
+        try {
+          const activeAffs = await dbGetAffiliates();
+          const rwj = activeAffs.find(a => a.code === 'rwjncwiofw');
+          if (rwj && rwj.active) {
+            affiliateCode = 'rwjncwiofw';
+          }
+        } catch {}
+      }
+
       if (affiliateCode && cleanEmail) {
         await dbBindLead(cleanEmail, affiliateCode).catch(() => {});
       }
@@ -263,19 +290,26 @@ export async function POST(req: Request) {
       if (affiliateCode) {
         try {
           const planBase = userPlan === 'monthly' ? 89.90 : 179.90;
-          const totalAmount = Number(rawBody.total) || planBase;
+          const finalBumps = (safeBumps && safeBumps.length > 0) ? safeBumps : (pendingTx?.bumps || []);
+          const totalAmount = 
+            Number(txData.amount || txData.chargeAmount) || 
+            Number(rawBody.total) || 
+            Number(pendingTx?.total) || 
+            planBase;
+          const finalTxId = transactionId || pendingTx?.transactionId;
+
           await dbRecordSale({
             affiliateCode,
             plan: userPlan,
             planPrice: planBase,
-            bumps: safeBumps,
-            bumpPrices: Math.max(0, totalAmount - planBase),
+            bumps: finalBumps,
+            bumpPrices: Math.max(0, Number((totalAmount - planBase).toFixed(2))),
             totalAmount,
             customerName: cleanName,
             customerEmail: cleanEmail,
             customerPhone: cleanPhone || undefined,
             customerCpf: cleanCpf || undefined,
-            transactionId: transactionId || undefined,
+            transactionId: finalTxId || undefined,
           });
         } catch (affServerErr) {
           console.error('[AFILIADOS] Erro ao registrar venda de afiliado no Supabase:', affServerErr);
