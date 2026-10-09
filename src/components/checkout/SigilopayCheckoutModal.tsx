@@ -22,7 +22,7 @@ import {
 import { toast } from 'react-hot-toast';
 import { signIn } from 'next-auth/react';
 import { unlockOrderBumpsLocally } from '@/lib/orderBumps';
-import { recordAffiliateSale, getAffiliateRef, bindLeadEmailToAffiliate } from '@/lib/affiliateSystem';
+import { syncAffiliatesFromServer, getAffiliateRef, bindLeadEmailToAffiliate } from '@/lib/affiliateSystem';
 
 export interface OrderBump {
   id: string;
@@ -295,22 +295,11 @@ export default function SigilopayCheckoutModal({
       const confirmData = await confirmRes.json();
 
       if (confirmData.success) {
-        // Record affiliate commission on initial checkout (subscription + bumps)
+        // Sincroniza dados com o banco Supabase (onde a venda já foi validada e gravada com segurança pelo servidor)
         try {
-          recordAffiliateSale({
-            plan: selectedPlan,
-            planPrice: planBasePrice,
-            bumps: selectedBumps,
-            bumpPrices: bumpsTotal,
-            totalAmount: totalPrice,
-            customerName: name.trim(),
-            customerEmail: email.trim().toLowerCase(),
-            customerPhone: phone.replace(/\D/g, ''),
-            customerCpf: cpf.replace(/\D/g, ''),
-            transactionId: pixData?.transactionId,
-          });
+          syncAffiliatesFromServer();
         } catch (affErr) {
-          console.error('Erro ao registrar venda de afiliado:', affErr);
+          console.error('Erro ao sincronizar dados de afiliado:', affErr);
         }
 
         // Unlock order bumps locally for immediate client-side access

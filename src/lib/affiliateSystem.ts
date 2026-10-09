@@ -278,11 +278,6 @@ export function bindLeadEmailToAffiliate(email: string): void {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action: 'bind_lead', email: email.trim().toLowerCase(), affiliateCode: af })
   }).catch(() => {});
-  fetch('https://decolashop-saas.vercel.app/api/affiliates', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'bind_lead', email: email.trim().toLowerCase(), affiliateCode: af })
-  }).catch(() => {});
 }
 
 /**
@@ -318,12 +313,15 @@ export function getAffiliates(): Affiliate[] {
       // 2. Recalcula métricas com precisão a partir das vendas reais confirmadas
       const realSales = getAffiliateSales();
       return filtered.map(aff => {
+        const isKaio = aff.code?.toLowerCase() === 'rwjncwiofw' || aff.code?.toLowerCase() === 'kaio';
+        const commissionPercent = isKaio ? 100 : (aff.commissionPercent || 50);
         const affSales = realSales.filter(s => s.affiliateCode?.toLowerCase() === aff.code?.toLowerCase());
         const totalRev = Number(affSales.reduce((acc, s) => acc + (s.totalAmount || 0), 0).toFixed(2));
         const pendingComm = Number(affSales.filter(s => s.status !== 'paid_to_affiliate').reduce((acc, s) => acc + (s.commissionAmount || 0), 0).toFixed(2));
         const paidComm = Number(affSales.filter(s => s.status === 'paid_to_affiliate').reduce((acc, s) => acc + (s.commissionAmount || 0), 0).toFixed(2));
         return {
           ...aff,
+          commissionPercent,
           totalSalesCount: affSales.length,
           totalRevenue: totalRev,
           pendingCommission: pendingComm,
@@ -340,11 +338,6 @@ export function getAffiliates(): Affiliate[] {
 function postAffiliatesApi(payload: any) {
   if (typeof window === 'undefined') return;
   fetch('/api/affiliates', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  }).catch(() => {});
-  fetch('https://decolashop-saas.vercel.app/api/affiliates', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
@@ -405,9 +398,17 @@ export async function syncAffiliatesFromServer(): Promise<{ affiliates: Affiliat
       }
 
       // 2. Vendas: o banco de dados Supabase é a autoridade máxima e absoluta
+      const GHOST_SALE_IDS = new Set([
+        'sale_af_1791505170601_eeq2',
+        'sale_af_1791491585193_3kmc',
+        'sale_af_1791490399560_4tlx',
+        'sale_af_1791493534767_u8wy'
+      ]);
+
       const serverSales: AffiliateSale[] = (data.sales || [])
         .filter((s: AffiliateSale) => {
           if (!s || !s.id) return false;
+          if (GHOST_SALE_IDS.has(s.id)) return false;
           const email = (s.customerEmail || '').toLowerCase();
           const name = (s.customerName || '').toLowerCase();
           if (email.includes('aleghartz') || name.includes('alessandra hartz')) return false;
@@ -488,8 +489,16 @@ export function getAffiliateSales(): AffiliateSale[] {
     if (Array.isArray(parsed)) {
       let changed = false;
       // 1. Purge fake seed sales and taxa_antecipacao sales
+      const GHOST_SALE_IDS = new Set([
+        'sale_af_1791505170601_eeq2',
+        'sale_af_1791491585193_3kmc',
+        'sale_af_1791490399560_4tlx',
+        'sale_af_1791493534767_u8wy'
+      ]);
+
       let filtered = parsed.filter(s => {
         if (!s || !s.id) return false;
+        if (GHOST_SALE_IDS.has(s.id)) return false;
         if (s.id.startsWith('sale_af_10') || s.affiliateName?.includes('Pedro Alcântara')) return false;
         const email = (s.customerEmail || '').toLowerCase();
         const name = (s.customerName || '').toLowerCase();

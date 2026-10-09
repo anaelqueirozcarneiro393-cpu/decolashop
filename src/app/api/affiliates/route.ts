@@ -63,9 +63,17 @@ export async function GET() {
       dbGetPendingPixList()
     ]);
 
+    const GHOST_SALE_IDS = new Set([
+      'sale_af_1791505170601_eeq2',
+      'sale_af_1791491585193_3kmc',
+      'sale_af_1791490399560_4tlx',
+      'sale_af_1791493534767_u8wy'
+    ]);
+
     // Filtrar apenas vendas reais confirmadas da plataforma
     const sales = (rawSales || []).filter(s => {
       if (!s || !s.id) return false;
+      if (GHOST_SALE_IDS.has(s.id)) return false;
       const em = (s.customerEmail || '').toLowerCase();
       const nm = (s.customerName || '').toLowerCase();
       if (em.includes('aleghartz') || nm.includes('alessandra hartz')) return false;
@@ -77,9 +85,12 @@ export async function GET() {
     const affiliates = (rawAffiliates || [])
       .filter(a => a && a.code && a.code !== 'kaio' && !a.name?.includes('(alias)') && !['af_pedro', 'af_lucas', 'af_carla'].includes(a.id) && !a.name?.includes('Pedro Alcântara'))
       .map(aff => {
+        const isKaio = aff.code?.toLowerCase() === 'rwjncwiofw';
+        const commissionPercent = isKaio ? 100 : (aff.commissionPercent || 50);
         const affSales = sales.filter(s => s.affiliateCode?.toLowerCase() === aff.code?.toLowerCase());
         return {
           ...aff,
+          commissionPercent,
           totalSalesCount: affSales.length,
           totalRevenue: Number(affSales.reduce((acc, s) => acc + (s.totalAmount || 0), 0).toFixed(2)),
           pendingCommission: Number(affSales.filter(s => s.status !== 'paid_to_affiliate').reduce((acc, s) => acc + (s.commissionAmount || 0), 0).toFixed(2)),

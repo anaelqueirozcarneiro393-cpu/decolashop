@@ -266,7 +266,8 @@ export async function dbRecordSale(params: {
 
   const supabase = getSupabaseAdmin('next_auth');
 
-  // 1. Verificação contra duplicatas por transactionId
+  // 1. Verificação contra duplicatas
+  // 1.1 Se tem transactionId, verifica por chave direta
   if (params.transactionId) {
     const saleIdKey = `affiliate_sale:${params.transactionId}`;
     const { data: existingTx } = await supabase
@@ -283,18 +284,57 @@ export async function dbRecordSale(params: {
     }
   }
 
+  // 1.2 Verificação por email: impede duplicatas para o mesmo cliente
+  const { data: customerSales } = await supabase
+    .from('verification_tokens')
+    .select('identifier, token')
+    .like('identifier', 'affiliate_sale:%');
+
+  let existingGhostKey: string | null = null;
+  let existingCustomerSale: AffiliateSale | null = null;
+
+  for (const row of customerSales || []) {
+    try {
+      const s = JSON.parse(row.token);
+      if (s.customerEmail && s.customerEmail.toLowerCase().trim() === cleanEmail) {
+        if (params.transactionId && s.transactionId === params.transactionId) {
+          return s;
+        }
+        if (!s.transactionId || row.identifier.startsWith('affiliate_sale:sale_af_')) {
+          existingGhostKey = row.identifier;
+        } else {
+          existingCustomerSale = s;
+        }
+      }
+    } catch {}
+  }
+
+  // Se a nova requisição NÃO tem transactionId, mas o cliente já possui uma venda real confirmada:
+  if (!params.transactionId && existingCustomerSale) {
+    console.log(`[DB AFILIADOS] Cliente ${cleanEmail} já possui venda confirmada. Ignorando gravação sem transactionId.`);
+    return existingCustomerSale;
+  }
+
+  // Se há um registro fantasma antigo e agora chegou a venda real com transactionId:
+  if (existingGhostKey && params.transactionId) {
+    console.log(`[DB AFILIADOS] Substituindo registro temporário ${existingGhostKey} pela venda real com TxId ${params.transactionId}`);
+    await supabase.from('verification_tokens').delete().eq('identifier', existingGhostKey);
+  }
+
   // 2. Busca ou auto-provisiona o afiliado no banco Supabase
   let affiliate = await dbGetAffiliateByCode(cleanCode);
+  const isKaio = cleanCode === 'rwjncwiofw' || cleanCode === 'kaio';
+
   if (!affiliate) {
-    console.log(`[DB AFILIADOS] Código "${cleanCode}" não existia no banco. Auto-cadastrando parceiro com 50% de comissão.`);
+    console.log(`[DB AFILIADOS] Código "${cleanCode}" não existia no banco. Auto-cadastrando parceiro...`);
     affiliate = {
       id: `af_${cleanCode}_${Date.now().toString(36)}`,
-      name: `Afiliado ${cleanCode.toUpperCase()}`,
+      name: isKaio ? 'kaio' : `Afiliado ${cleanCode.toUpperCase()}`,
       code: cleanCode,
-      email: '',
-      pixKey: '',
-      pixKeyType: 'random',
-      commissionPercent: 50,
+      email: isKaio ? 'kaiofredy2908@gmail.com' : '',
+      pixKey: isKaio ? '63992369341' : '',
+      pixKeyType: isKaio ? 'phone' : 'random',
+      commissionPercent: isKaio ? 100 : 50,
       active: true,
       createdAt: Date.now(),
       totalRevenue: 0,
@@ -305,8 +345,13 @@ export async function dbRecordSale(params: {
     await dbSaveAffiliate(affiliate);
   }
 
+  // Garante que o dono Kaio tem 100% de comissão
+  if (isKaio && affiliate.commissionPercent !== 100) {
+    affiliate.commissionPercent = 100;
+  }
+
   // 3. Calcula comissões
-  const commissionPercent = affiliate.commissionPercent || 50;
+  const commissionPercent = affiliate.commissionPercent ?? (isKaio ? 100 : 50);
   const totalAmount = Number(params.totalAmount) || (params.plan === 'monthly' ? 89.90 : 179.90);
   const commissionAmount = Number(((totalAmount * commissionPercent) / 100).toFixed(2));
   const isSelfPurchase = affiliate.email ? cleanEmail === affiliate.email.toLowerCase().trim() : false;
@@ -344,11 +389,51 @@ export async function dbRecordSale(params: {
     expires: EXPIRY_FAR_FUTURE
   });
 
-  // 5. Atualiza métricas acumuladas do afiliado no Supabase
-  affiliate.totalRevenue = Number(((affiliate.totalRevenue || 0) + totalAmount).toFixed(2));
-  affiliate.totalSalesCount = (affiliate.totalSalesCount || 0) + 1;
-  affiliate.pendingCommission = Number(((affiliate.pendingCommission || 0) + commissionAmount).toFixed(2));
+  // 5. Atualiza métricas acumuladas do afiliado no Supabase baseando-se estritamente nas vendas reais gravadas
+  const { data: allAffSales } = await supabase
+    .from('verification_tokens')
+    .select('token')
+    .like('identifier', 'affiliate_sale:%');
+
+  let totalRev = 0;
+  let count = 0;
+  let pendingComm = 0;
+  let paidComm = 0;
+
+  for (const row of allAffSales || []) {
+    try {
+      const s = JSON.parse(row.token);
+      if (s.affiliateCode && (s.affiliateCode.toLowerCase() === affiliate.code.toLowerCase() || (isKaio && (s.affiliateCode.toLowerCase() === 'kaio' || s.affiliateCode.toLowerCase() === 'rwjncwiofw')))) {
+        totalRev += (s.totalAmount || 0);
+        count += 1;
+        if (s.status === 'paid_to_affiliate') {
+          paidComm += (s.commissionAmount || 0);
+        } else {
+          pendingComm += (s.commissionAmount || 0);
+        }
+      }
+    } catch {}
+  }
+
+  affiliate.totalRevenue = Number(totalRev.toFixed(2));
+  affiliate.totalSalesCount = count;
+  affiliate.pendingCommission = Number(pendingComm.toFixed(2));
+  affiliate.paidCommission = Number(paidComm.toFixed(2));
   await dbSaveAffiliate(affiliate);
+
+  // Se Kaio, também atualiza o alias kaio com as mesmas métricas
+  if (isKaio) {
+    await supabase.from('verification_tokens').delete().eq('identifier', 'affiliate:kaio');
+    await supabase.from('verification_tokens').insert({
+      identifier: 'affiliate:kaio',
+      token: JSON.stringify({
+        ...affiliate,
+        code: 'kaio',
+        name: 'kaio (alias)'
+      }),
+      expires: EXPIRY_FAR_FUTURE
+    });
+  }
 
   // 6. Limpa transação pendente se houver
   if (params.transactionId) {
