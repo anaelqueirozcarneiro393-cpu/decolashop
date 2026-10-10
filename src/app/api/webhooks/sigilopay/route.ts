@@ -24,12 +24,48 @@ export async function POST(req: Request) {
     // Extract customer & order details (SigiloPay payload structure)
     const client = body.client || body.customer || body.payer || body.data?.client || body.data?.customer || {};
     const status = (body.status || body.event || body.type || body.data?.status || "").toUpperCase();
-    const transactionId = body.transactionId || body.id || body.data?.id || body.clientIdentifier || body.identifier;
+    let transactionId = 
+      body.transactionId || 
+      body.id || 
+      body.data?.id || 
+      body.data?.transactionId ||
+      body.transaction?.id ||
+      body.data?.transaction?.id ||
+      body.clientIdentifier || 
+      body.data?.clientIdentifier ||
+      body.identifier;
 
-    // Check pending transaction registry in Supabase for fallback data
-    const pendingLocal = transactionId ? await dbGetPendingPix(transactionId) : null;
+    let email = (client.email || body.email || body.data?.email || "").toLowerCase().trim();
 
-    let email = (client.email || body.email || body.data?.email || pendingLocal?.email || "").toLowerCase().trim();
+    // Check pending transaction registry in Supabase for fallback data (by TxId and by Email)
+    let pendingLocal = transactionId ? await dbGetPendingPix(transactionId) : null;
+    if (!pendingLocal && email) {
+      pendingLocal = await dbGetPendingPix(email);
+    }
+
+    if (pendingLocal) {
+      if (!transactionId && pendingLocal.transactionId) transactionId = pendingLocal.transactionId;
+      if (!email && pendingLocal.email) email = pendingLocal.email.toLowerCase().trim();
+    }
+
+    // Direct gateway query if transactionId is available for 100% authoritative amounts
+    let gatewayAmount = Number(body.amount || body.chargeAmount || body.value || body.data?.amount || body.data?.chargeAmount || body.transaction?.amount || 0);
+    if (transactionId) {
+      try {
+        const sigiloPublicKey = process.env.SIGILOPAY_PUBLIC_KEY || 'kaiofredy2908_1cmq6fd3bmq2s24u';
+        const sigiloSecretKey = process.env.SIGILOPAY_SECRET_KEY || 'tzlk0xxe8t4dybi2t0o1udw1ckczp01a4a9hbgptalozcan5hh0r59qw41seo3ze';
+        const sigiloBaseUrl = process.env.SIGILOPAY_BASE_URL || 'https://app.sigilopay.com.br';
+        const checkRes = await fetch(`${sigiloBaseUrl}/api/v1/gateway/transactions?id=${encodeURIComponent(transactionId)}`, {
+          headers: { 'x-public-key': sigiloPublicKey, 'x-secret-key': sigiloSecretKey }
+        });
+        if (checkRes.ok) {
+          const apiTx = await checkRes.json();
+          const apiAmt = Number(apiTx.amount || apiTx.chargeAmount || 0);
+          if (apiAmt > 0) gatewayAmount = apiAmt;
+        }
+      } catch {}
+    }
+
     let affiliateCode = 
       body.metadata?.affiliateCode || 
       body.metadata?.affiliate_code || 
@@ -39,9 +75,21 @@ export async function POST(req: Request) {
       pendingLocal?.affiliateCode || 
       null;
 
-    let plan = body.metadata?.plan || pendingLocal?.plan || 'lifetime';
+    // Detect plan strictly: if paid amount <= 130, it is 100% monthly (R$ 89,90)
+    let plan = body.metadata?.plan || pendingLocal?.plan;
+    if (gatewayAmount > 0) {
+      if (gatewayAmount <= 130) {
+        plan = 'monthly';
+      } else if (gatewayAmount >= 160) {
+        plan = 'lifetime';
+      }
+    }
+    if (!plan) plan = 'monthly'; // Safe default
+
     let bumps = body.items || body.metadata?.bumps || pendingLocal?.bumps || [];
-    let total = Number(body.amount || body.total || pendingLocal?.total || (plan === 'monthly' ? 89.90 : 179.90));
+    let total = gatewayAmount > 0 
+      ? gatewayAmount 
+      : Number(body.amount || body.total || pendingLocal?.total || (plan === 'monthly' ? 89.90 : 179.90));
     let customerName = client.name || pendingLocal?.name;
     let customerPhone = client.phone || pendingLocal?.phone;
     let customerCpf = client.document || pendingLocal?.cpf;
@@ -52,12 +100,12 @@ export async function POST(req: Request) {
         if (pending && pending.email) {
           console.log(`[SigiloPay Webhook] Dados recuperados via Supabase pending_pix (${transactionId}): ${pending.email}`);
           email = pending.email.toLowerCase().trim();
-          if (pending.plan) plan = pending.plan;
+          if (pending.plan && !gatewayAmount) plan = pending.plan;
           if (pending.bumps) bumps = pending.bumps;
-          if (pending.total) total = Number(pending.total);
+          if (pending.total && !gatewayAmount) total = Number(pending.total);
           if (pending.name) customerName = pending.name;
-          if (pending.phone) customerPhone = pending.phone;
-          if (pending.cpf) customerCpf = pending.cpf;
+          if (pending.phone) customerPhone = customerPhone || pending.phone;
+          if (pending.cpf) customerCpf = customerCpf || pending.cpf;
           if (!affiliateCode && pending.affiliateCode) affiliateCode = pending.affiliateCode;
         }
       }

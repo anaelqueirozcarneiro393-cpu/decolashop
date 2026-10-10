@@ -166,7 +166,16 @@ export async function POST(req: Request) {
     const cleanCpf = cpf ? String(cpf).replace(/\D/g, '') : null;
     const cleanPhone = phone ? String(phone).replace(/\D/g, '') : null;
     const cleanPassword = sanitizeString(password || '');
-    const userPlan = plan === 'monthly' ? 'monthly' : 'lifetime';
+    let userPlan = plan === 'monthly' ? 'monthly' : 'lifetime';
+    if (paidAmount > 0) {
+      if (paidAmount <= 130) {
+        userPlan = 'monthly';
+      } else if (paidAmount >= 160) {
+        userPlan = 'lifetime';
+      }
+    } else if (pendingTx?.plan === 'monthly') {
+      userPlan = 'monthly';
+    }
     const safeBumps = Array.isArray(bumps) 
       ? bumps.map((b: any) => sanitizeString(String(b)))
       : [];
