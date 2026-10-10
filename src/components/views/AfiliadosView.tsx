@@ -336,12 +336,32 @@ export default function AfiliadosView() {
     }
   };
 
-  const handleConfirmPayCommission = () => {
+  const handleConfirmPayCommission = async () => {
     if (!payingAffiliate) return;
-    markCommissionPaid(payingAffiliate.id);
-    toast.success(`💸 Repasse de R$ ${payingAffiliate.pendingCommission.toFixed(2).replace('.', ',')} marcado como pago!`);
-    setPayingAffiliate(null);
-    loadData();
+    try {
+      await fetch('/api/affiliates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'pay',
+          affiliateId: payingAffiliate.id,
+          affiliateCode: payingAffiliate.code
+        })
+      });
+      markCommissionPaid(payingAffiliate.id);
+      toast.success(`💸 Repasse de R$ ${payingAffiliate.pendingCommission.toFixed(2).replace('.', ',')} marcado como pago!`);
+      setPayingAffiliate(null);
+      const res = await syncAffiliatesFromServer();
+      if (res) {
+        setAffiliates(res.affiliates);
+        setSales(res.sales);
+      }
+      loadData();
+    } catch {
+      markCommissionPaid(payingAffiliate.id);
+      setPayingAffiliate(null);
+      loadData();
+    }
   };
 
   const handleOpenAttributeModal = (user?: { email: string; name?: string; plan?: string }) => {

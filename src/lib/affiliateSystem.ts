@@ -686,7 +686,7 @@ export function deleteAffiliate(id: string): boolean {
  */
 export function markCommissionPaid(affiliateId: string): boolean {
   const affiliates = getAffiliates();
-  const aff = affiliates.find(a => a.id === affiliateId);
+  const aff = affiliates.find(a => a.id === affiliateId || a.code.toLowerCase() === affiliateId.toLowerCase());
   if (!aff || aff.pendingCommission <= 0) return false;
 
   const paidAmount = aff.pendingCommission;
@@ -699,8 +699,16 @@ export function markCommissionPaid(affiliateId: string): boolean {
   // Update associated sales to 'paid_to_affiliate'
   const sales = getAffiliateSales();
   let salesUpdated = false;
+  const isKaioAff = aff.code === 'rwjncwiofw' || aff.code === 'kaio';
+
   sales.forEach(sale => {
-    if (sale.affiliateId === affiliateId && sale.status === 'confirmed') {
+    const isThisAff = 
+      sale.affiliateId === affiliateId || 
+      sale.affiliateId === aff.id ||
+      sale.affiliateCode?.toLowerCase() === aff.code.toLowerCase() ||
+      (isKaioAff && (sale.affiliateCode === 'rwjncwiofw' || sale.affiliateCode === 'kaio'));
+
+    if (isThisAff && sale.status === 'confirmed') {
       sale.status = 'paid_to_affiliate';
       salesUpdated = true;
     }
@@ -710,7 +718,7 @@ export function markCommissionPaid(affiliateId: string): boolean {
     saveAffiliateSales(sales);
   }
 
-  postAffiliatesApi({ action: 'pay', affiliateId });
+  postAffiliatesApi({ action: 'pay', affiliateId: aff.id, affiliateCode: aff.code });
   return true;
 }
 

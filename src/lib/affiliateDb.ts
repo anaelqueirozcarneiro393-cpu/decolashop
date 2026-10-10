@@ -640,9 +640,15 @@ export async function dbMarkCommissionPaid(affiliateIdOrCode: string): Promise<b
     // Atualiza status das vendas associadas para 'paid_to_affiliate'
     const sales = await dbGetSales();
     const supabase = getSupabaseAdmin('next_auth');
+    const isKaioAff = aff.code.toLowerCase() === 'rwjncwiofw' || aff.code.toLowerCase() === 'kaio';
 
     for (const s of sales) {
-      if ((s.affiliateId === aff.id || s.affiliateCode.toLowerCase() === aff.code.toLowerCase()) && s.status === 'confirmed') {
+      const isTargetSale = 
+        s.affiliateId === aff.id || 
+        s.affiliateCode?.toLowerCase() === aff.code.toLowerCase() ||
+        (isKaioAff && (s.affiliateCode?.toLowerCase() === 'rwjncwiofw' || s.affiliateCode?.toLowerCase() === 'kaio'));
+
+      if (isTargetSale && s.status === 'confirmed') {
         const updatedSale = { ...s, status: 'paid_to_affiliate' as const };
         const key = `affiliate_sale:${s.transactionId || s.id}`;
         await supabase.from('verification_tokens').delete().eq('identifier', key);
