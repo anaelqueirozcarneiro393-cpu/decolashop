@@ -3,6 +3,7 @@
 import { searchYouTubeTrends } from '@/lib/google-services';
 import { supabase } from '@/lib/supabase';
 import { mockProducts } from '@/lib/mockData';
+import { ALL_SUPPLIER_PRODUCTS } from '@/lib/supplierCatalogData';
 import { sanitizeString } from '@/lib/security';
 
 /**
@@ -360,10 +361,18 @@ export async function getProductsFromSupabase(): Promise<{ success: boolean; dat
       });
     }
 
-    // Merge with mockProducts to guarantee full catalog (80+ items) and avoid duplicate items
+    // Merge with supplier products and mockProducts to guarantee full catalog
     const existingNames = new Set(
       mappedData.map(p => (p.name || p.title || '').toLowerCase().trim().slice(0, 25))
     );
+
+    for (const supItem of ALL_SUPPLIER_PRODUCTS) {
+      const supNameSnippet = (supItem.name || supItem.title || '').toLowerCase().trim().slice(0, 25);
+      if (!existingNames.has(supNameSnippet)) {
+        mappedData.push(supItem);
+        existingNames.add(supNameSnippet);
+      }
+    }
 
     for (const mockItem of mockProducts) {
       const mockNameSnippet = (mockItem.name || mockItem.title || '').toLowerCase().trim().slice(0, 25);
@@ -379,7 +388,7 @@ export async function getProductsFromSupabase(): Promise<{ success: boolean; dat
     return { success: true, data: mappedData };
   } catch (error: any) {
     console.warn("Supabase fetch exception, using mock fallback:", error.message);
-    return { success: true, data: mockProducts };
+    return { success: true, data: ALL_SUPPLIER_PRODUCTS };
   }
 }
 

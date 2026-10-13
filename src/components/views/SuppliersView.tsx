@@ -211,6 +211,9 @@ export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
     setActivated(updated);
     try {
       localStorage.setItem('decolashop_activated_suppliers_v2', JSON.stringify(updated));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('decolashop_suppliers_updated'));
+      }
     } catch {
       // ignore
     }
@@ -220,6 +223,9 @@ export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
     setActivated(ALL_SUPPLIER_IDS);
     try {
       localStorage.setItem('decolashop_activated_suppliers_v2', JSON.stringify(ALL_SUPPLIER_IDS));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('decolashop_suppliers_updated'));
+      }
     } catch {}
     toast.success('🎉 Todos os 8 fornecedores homologados foram ativados com mais de 400 produtos cada!');
   };
@@ -228,6 +234,9 @@ export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
     setActivated([]);
     try {
       localStorage.setItem('decolashop_activated_suppliers_v2', JSON.stringify([]));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('decolashop_suppliers_updated'));
+      }
     } catch {}
     toast('Todos os fornecedores foram desconectados.');
   };
