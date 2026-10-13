@@ -200,7 +200,7 @@ export default function LandingPageView() {
             onClick={() => setSelectedPlanModal('monthly')}
             className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#16a34a] hover:to-[#15803d] text-black font-black text-base rounded-2xl shadow-xl shadow-[#22c55e]/30 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
-            <span>QUERO COMEÇAR POR R$ 89,90</span>
+            <span>QUERO COMEÇAR AGORA</span>
             <ArrowRight size={18} className="stroke-[3]" />
           </button>
           
