@@ -15,7 +15,8 @@ import {
   ArrowRight,
   ShieldCheck,
   CheckCircle2,
-  RefreshCw
+  RefreshCw,
+  Globe
 } from 'lucide-react';
 import { Product, mockProducts } from '@/lib/mockData';
 import { 
@@ -23,6 +24,12 @@ import {
   getProductsByActivatedSuppliers, 
   SUPPLIER_METADATA 
 } from '@/lib/supplierCatalogData';
+import {
+  ALL_INTERNATIONAL_PRODUCTS,
+  INTERNATIONAL_SUPPLIER_METADATA,
+  getInternationalProductsByActivatedSuppliers
+} from '@/lib/internationalCatalogData';
+import { useRegionCurrency } from '@/lib/regionState';
 import SafeImage from '@/components/SafeImage';
 import { toast } from 'react-hot-toast';
 
@@ -47,6 +54,7 @@ const CATEGORIES = [
 ];
 
 export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }: CatalogoViewProps) {
+  const { currency, isUsd, setCurrency } = useRegionCurrency();
   const [products, setProducts] = useState<Product[]>([]);
   const [activatedSuppliers, setActivatedSuppliers] = useState<string[]>([]);
   const [selectedSupplier, setSelectedSupplier] = useState<string>('todos');
@@ -84,9 +92,21 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
     return combined;
   };
 
-  // Carrega fornecedores ativados e produtos únicos do catálogo
+  // Carrega fornecedores ativados e produtos únicos do catálogo (Nacional vs Exterior)
   const loadSuppliersAndProducts = () => {
     setIsLoading(true);
+
+    if (isUsd) {
+      // MODO EXTERIOR / GLOBAL: Fornecedores internacionais exclusivos em USD
+      const intlSupplierIds = Object.keys(INTERNATIONAL_SUPPLIER_METADATA);
+      setActivatedSuppliers(intlSupplierIds);
+      const intlProducts = getInternationalProductsByActivatedSuppliers(intlSupplierIds);
+      setProducts(intlProducts);
+      setIsLoading(false);
+      return;
+    }
+
+    // MODO NACIONAL: Fornecedores homologados brasileiros em R$
     let activeIds: string[] = [];
     try {
       const saved = localStorage.getItem('decolashop_activated_suppliers_v3');
@@ -100,7 +120,6 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
       activeIds = [];
     }
 
-    // Se nenhum fornecedor estiver registrado ainda, ativa todos os homologados por padrão
     if (activeIds.length === 0) {
       activeIds = Object.keys(SUPPLIER_METADATA);
       try {
@@ -115,6 +134,7 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
   };
 
   useEffect(() => {
+    setSelectedSupplier('todos');
     loadSuppliersAndProducts();
 
     const handleUpdate = () => {
@@ -127,9 +147,18 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
       window.removeEventListener('decolashop_suppliers_updated', handleUpdate);
       window.removeEventListener('storage', handleUpdate);
     };
-  }, []);
+  }, [isUsd]);
 
   const handleActivateAllSuppliers = () => {
+    if (isUsd) {
+      const allIds = Object.keys(INTERNATIONAL_SUPPLIER_METADATA);
+      setActivatedSuppliers(allIds);
+      const uniqueList = getInternationalProductsByActivatedSuppliers(allIds);
+      setProducts(uniqueList);
+      toast.success('🎉 Todos os 8 fornecedores globais ativados com catálogo em Dólar (US$)!');
+      return;
+    }
+
     const allIds = Object.keys(SUPPLIER_METADATA);
     setActivatedSuppliers(allIds);
     try {
@@ -193,27 +222,74 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
     return counts;
   }, [products, selectedSupplier]);
 
+  const activeMetadata = isUsd ? (INTERNATIONAL_SUPPLIER_METADATA as any) : (SUPPLIER_METADATA as any);
+
   return (
     <div className="space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-16">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold mb-3 border border-primary/20">
             <ShoppingBag className="w-3.5 h-3.5" />
-            <span>Catálogo Completo & Afiliados DecolaShop</span>
+            <span>{isUsd ? 'Catálogo Internacional Global • US$' : 'Catálogo Completo & Afiliados DecolaShop'}</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight mb-2 text-white">
-            Catálogo de <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-emerald-400 to-green-500">Produtos Vencedores</span>
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight mb-2 text-white flex items-center gap-2.5 flex-wrap">
+            <span>Catálogo de</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-emerald-400 to-green-500">
+              {isUsd ? 'Produtos Globais (US$)' : 'Produtos Vencedores'}
+            </span>
+            <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider ${
+              isUsd 
+                ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40' 
+                : 'bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/40'
+            }`}>
+              {isUsd ? '🗽 Vender no Exterior' : '🇧🇷 Mercado Nacional'}
+            </span>
           </h1>
           <p className="text-muted-foreground text-xs sm:text-sm max-w-xl">
-            {activatedSuppliers.length > 0 
-              ? `${products.length} produtos minerados e integrados diretamente com seus fornecedores ativados em SP.`
-              : 'Ative seus fornecedores homologados para desbloquear mais de 2.800 produtos prontos para despacho.'}
+            {isUsd
+              ? `Catálogo Global: ${products.length} produtos de alta conversão em Dólar integrados aos armazéns prioritários dos EUA e Europa com fulfillment rápido.`
+              : `${products.length} produtos minerados e integrados diretamente com seus fornecedores homologados nacionais.`}
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="relative w-full sm:w-72">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          {/* Seletor de Vender para o Exterior: Brasil (R$) vs Exterior (US$) */}
+          <div className="flex items-center p-1 rounded-xl bg-black/60 border border-white/10 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setCurrency('BRL');
+                toast.success('🇧🇷 Catálogo Nacional em Reais (R$) ativado!', { duration: 2500 });
+              }}
+              className={`px-3.5 py-1.5 rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+                !isUsd
+                  ? 'bg-[#22c55e] text-black shadow-md font-black'
+                  : 'text-slate-400 hover:text-white font-bold'
+              }`}
+            >
+              <span>🇧🇷</span>
+              <span>Brasil (R$)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setCurrency('USD');
+                toast.success('🇺🇸 Modo Vender no Exterior ativado! Fornecedores e catálogo global em Dólar (US$).', { duration: 3000 });
+              }}
+              className={`px-3.5 py-1.5 rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+                isUsd
+                  ? 'bg-blue-500 text-white shadow-md font-black shadow-blue-500/30'
+                  : 'text-slate-400 hover:text-white font-bold'
+              }`}
+            >
+              <span>🇺🇸</span>
+              <span>Vender no Exterior (US$)</span>
+            </button>
+          </div>
+
+          <div className="relative w-full sm:w-64">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               type="text"
@@ -222,15 +298,15 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
                 setSearch(e.target.value);
                 setVisibleCount(24);
               }}
-              placeholder="Buscar por produto, modelo, especificação..."
-              className="bg-secondary/30 border border-border/50 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 w-full transition-all"
+              placeholder={isUsd ? "Buscar produto global, US warehouse..." : "Buscar por produto, modelo, especificação..."}
+              className="bg-secondary/30 border border-border/50 rounded-xl py-2 pl-10 pr-4 text-xs sm:text-sm text-white placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 w-full transition-all"
             />
           </div>
         </div>
       </div>
 
-      {/* Banner de Fornecedores Desativados */}
-      {activatedSuppliers.length === 0 && !isLoading && (
+      {/* Banner de Fornecedores Desativados (Apenas se nacional e vazio) */}
+      {!isUsd && activatedSuppliers.length === 0 && !isLoading && (
         <div className="p-6 rounded-3xl bg-gradient-to-r from-amber-500/15 via-[#111726] to-[#0d121f] border border-amber-500/40 text-white shadow-xl">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
             <div className="space-y-2">
@@ -242,7 +318,7 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
                 Ative seus fornecedores para liberar o catálogo completo
               </h3>
               <p className="text-xs text-slate-300 leading-relaxed max-w-2xl">
-                Os fornecedores não vêm ativados por padrão para você ter controle total da sua esteira. Cada distribuidora homologada possui <strong>entre 350 e 400 produtos minerados</strong> (mais de 2.800 produtos no total) com imagens em estúdio, fotos fiéis e despacho em até 24h.
+                Os fornecedores nacionais possuem produtos minerados com fotos fiéis e despacho em até 24h.
               </p>
             </div>
 
@@ -253,7 +329,7 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
                 className="py-3 px-5 rounded-2xl bg-gradient-to-r from-[#22c55e] via-[#16a34a] to-[#22c55e] hover:brightness-110 active:scale-95 text-black font-black text-xs uppercase tracking-wider shadow-lg shadow-[#22c55e]/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Sparkles size={14} fill="currentColor" />
-                <span>Ativar Todos os 8 Fornecedores (+2.880 Produtos)</span>
+                <span>Ativar Todos os Fornecedores</span>
               </button>
 
               <button
@@ -275,11 +351,15 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
           <div className="flex items-center justify-between text-xs text-slate-400">
             <div className="flex items-center gap-2">
               <span className="font-bold text-white flex items-center gap-1.5">
-                <Truck size={14} className="text-[#22c55e]" />
-                Filtrar por Fornecedor Homologado:
+                <Truck size={14} className={isUsd ? "text-cyan-400" : "text-[#22c55e]"} />
+                {isUsd ? 'Filtrar por Hub Internacional (EUA / Europa):' : 'Filtrar por Fornecedor Homologado:'}
               </span>
-              <span className="text-[10px] bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/30 px-2 py-0.5 rounded-full font-black">
-                {activatedSuppliers.length} de 8 ATIVOS
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-black border ${
+                isUsd 
+                  ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' 
+                  : 'bg-[#22c55e]/20 text-[#4ade80] border-[#22c55e]/30'
+              }`}>
+                {activatedSuppliers.length} {isUsd ? 'HUBS GLOBAIS' : 'FORNECEDORES ATIVOS'}
               </span>
             </div>
 
@@ -287,7 +367,7 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
               onClick={() => onNavigate('fornecedores')}
               className="text-xs text-[#4ade80] hover:underline font-bold flex items-center gap-1 cursor-pointer"
             >
-              <span>Gerenciar Fornecedores</span>
+              <span>{isUsd ? 'Ver Fornecedores Internacionais' : 'Gerenciar Fornecedores'}</span>
               <ArrowRight size={12} />
             </button>
           </div>
@@ -301,21 +381,25 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
               }}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all whitespace-nowrap flex items-center gap-1.5 shrink-0 cursor-pointer ${
                 selectedSupplier === 'todos'
-                  ? 'bg-primary text-black border-primary font-black shadow-md shadow-primary/20'
+                  ? (isUsd ? 'bg-blue-500 text-white border-blue-500 font-black shadow-md shadow-blue-500/25' : 'bg-primary text-black border-primary font-black shadow-md shadow-primary/20')
                   : 'bg-secondary/40 text-slate-300 border-border/50 hover:bg-secondary hover:text-white'
               }`}
             >
-              <span>Todos os Ativos</span>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${selectedSupplier === 'todos' ? 'bg-black/20 text-black font-black' : 'bg-white/10 text-slate-400'}`}>
+              <span>Todos os {isUsd ? 'Hubs Globais' : 'Ativos'}</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${selectedSupplier === 'todos' ? 'bg-black/20 text-current font-black' : 'bg-white/10 text-slate-400'}`}>
                 {products.length}
               </span>
             </button>
 
             {activatedSuppliers.map((supId) => {
-              const meta = SUPPLIER_METADATA[supId];
+              const meta = activeMetadata[supId];
               if (!meta) return null;
               const isSelected = selectedSupplier === supId;
-              const count = products.filter(p => p.supplierId === supId).length;
+              const count = products.filter(p => (p.supplierId || '').toLowerCase() === supId.toLowerCase()).length;
+
+              const shortName = isUsd 
+                ? (supId === 'cjdropshipping' ? 'CJ US Hub 🇺🇸' : supId === 'hypersku' ? 'HyperSKU 🌐' : supId === 'zendrop' ? 'Zendrop US 🇺🇸' : supId === 'autods' ? 'AutoDS 🇪🇺' : supId === 'fastship' ? 'FastShip Miami 🇺🇸' : supId === 'eurofulfill' ? 'EuroFulfill 🇪🇺' : supId === 'apextech' ? 'Apex Wholesale 🇺🇸' : 'TrendVibe NY 🇺🇸')
+                : meta.name.split(' ')[0];
 
               return (
                 <button
@@ -327,12 +411,12 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
                   }}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all whitespace-nowrap flex items-center gap-1.5 shrink-0 cursor-pointer ${
                     isSelected
-                      ? 'bg-[#22c55e] text-black border-[#22c55e] font-black shadow-md shadow-[#22c55e]/20'
+                      ? (isUsd ? 'bg-blue-500 text-white border-blue-500 font-black shadow-md shadow-blue-500/25' : 'bg-[#22c55e] text-black border-[#22c55e] font-black shadow-md shadow-[#22c55e]/20')
                       : 'bg-secondary/40 text-slate-300 border-border/50 hover:bg-secondary hover:text-white'
                   }`}
                 >
-                  <span>{meta.name.split(' ')[0]}</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isSelected ? 'bg-black/20 text-black font-black' : 'bg-white/10 text-slate-400'}`}>
+                  <span>{shortName}</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isSelected ? 'bg-black/20 text-current font-black' : 'bg-white/10 text-slate-400'}`}>
                     {count}
                   </span>
                 </button>
@@ -375,7 +459,7 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
           Mostrando <span className="font-bold text-white">{displayedProducts.length}</span> de <span className="font-bold text-primary">{filtered.length}</span> produtos encontrados
           {selectedSupplier !== 'todos' && (
             <span className="ml-1 text-slate-400">
-              (Fornecedor: <strong className="text-white">{SUPPLIER_METADATA[selectedSupplier]?.name}</strong>)
+              (Hub / Fornecedor: <strong className="text-white">{activeMetadata[selectedSupplier]?.name}</strong>)
             </span>
           )}
         </div>
@@ -412,11 +496,17 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
               ? prod.price 
               : parseFloat(String(prod.price || '99.90').replace(/[^0-9.]/g, '')) || 99.90;
             
-            const commissionVal = typeof prod.commission === 'string' && prod.commission.includes('R$')
+            const commissionVal = typeof prod.commission === 'string' && (prod.commission.includes('R$') || prod.commission.includes('US$'))
               ? prod.commission
-              : `R$ ${(numPrice * 0.32).toFixed(2).replace('.', ',')}`;
+              : (isUsd ? `US$ ${(numPrice * 0.32).toFixed(2)}` : `R$ ${(numPrice * 0.32).toFixed(2).replace('.', ',')}`);
 
-            const originalPrice = (numPrice * 1.55).toFixed(2).replace('.', ',');
+            const displayPrice = isUsd 
+              ? `US$ ${numPrice.toFixed(2)}`
+              : `R$ ${numPrice.toFixed(2).replace('.', ',')}`;
+
+            const originalPrice = isUsd
+              ? `US$ ${(numPrice * 1.45).toFixed(2)}`
+              : `R$ ${(numPrice * 1.55).toFixed(2).replace('.', ',')}`;
 
             return (
               <div 
@@ -431,7 +521,9 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
                       alt={prod.name || prod.title} 
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                     />
-                    <div className="absolute top-2.5 left-2.5 bg-black/80 backdrop-blur-md px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider text-emerald-400 border border-emerald-500/30">
+                    <div className={`absolute top-2.5 left-2.5 bg-black/80 backdrop-blur-md px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border ${
+                      isUsd ? 'text-blue-300 border-blue-500/40' : 'text-emerald-400 border-emerald-500/30'
+                    }`}>
                       Comissão: {commissionVal}
                     </div>
                     {onSave && (
@@ -456,8 +548,8 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
                     </div>
 
                     <div className="text-[10px] text-slate-400 font-medium truncate flex items-center gap-1">
-                      <Truck size={10} className="text-[#22c55e] shrink-0" />
-                      <span className="truncate">{prod.supplier}</span>
+                      <Truck size={10} className={isUsd ? "text-cyan-400 shrink-0" : "text-[#22c55e] shrink-0"} />
+                      <span className="truncate">{prod.shippingOrigin || prod.supplier || (isUsd ? 'US Fulfillment Hub' : 'Distribuidora SP')}</span>
                     </div>
 
                     <h3 className="font-bold text-sm sm:text-base text-white group-hover:text-primary transition-colors line-clamp-2 leading-snug">
@@ -465,10 +557,10 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
                     </h3>
                     <div className="flex items-baseline gap-2 pt-1">
                       <span className="text-lg font-black text-white">
-                        R$ {numPrice.toFixed(2).replace('.', ',')}
+                        {displayPrice}
                       </span>
                       <span className="text-[10px] text-muted-foreground line-through">
-                        R$ {originalPrice}
+                        {originalPrice}
                       </span>
                     </div>
                   </div>

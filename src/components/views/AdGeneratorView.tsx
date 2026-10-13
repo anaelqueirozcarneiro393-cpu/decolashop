@@ -147,12 +147,27 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
         setRemainingSeconds(0);
         setIsPublishFinished(true);
 
+        const isUsd = (selectedProduct as any)?.currency === 'USD' || 
+          (typeof selectedProduct.price === 'string' && selectedProduct.price.includes('$') && !selectedProduct.price.includes('R$'));
+
         const rawPrice = typeof selectedProduct.price === 'string'
-          ? parseFloat(selectedProduct.price.replace('R$', '').replace('.', '').replace(',', '.').trim()) || 99.90
-          : (selectedProduct.price || 99.90);
+          ? parseFloat(selectedProduct.price.replace('US$', '').replace('$', '').replace('R$', '').replace('.', '').replace(',', '.').trim()) || (isUsd ? 39.90 : 99.90)
+          : (selectedProduct.price || (isUsd ? 39.90 : 99.90));
 
         // Ativa vendas com cadência natural
         triggerDelayedCampaignSales(selectedProduct, rawPrice);
+
+        const defaultCommission = isUsd 
+          ? `US$ ${(rawPrice * 0.32).toFixed(2).replace('.', ',')}`
+          : `R$ ${(rawPrice * 0.32).toFixed(2).replace('.', ',')}`;
+
+        const networks = isUsd
+          ? ['TikTok Shop US', 'Meta Ads (Instagram & Facebook US)', 'Google Shopping Global', 'Pinterest Ads US', 'Shopify Global Channel']
+          : ['Meta Ads (Instagram & Facebook)', 'TikTok Shop Ads', 'Google Shopping', 'Kwai Ads', 'WhatsApp Grupos VIP', 'Twitter/X Feed'];
+
+        const targetingLocation = isUsd 
+          ? 'Estados Unidos & Europa (Envio Prioritário Internacional)'
+          : 'Brasil (Entrega Rápida 7 Dias)';
 
         addDivulgado({
           productId: selectedProduct.id,
@@ -160,9 +175,11 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
           image_url: selectedProduct.image_url,
           category: selectedProduct.category || 'Geral',
           price: rawPrice,
-          commission: selectedProduct.commission || `R$ ${(rawPrice * 0.32).toFixed(2).replace('.', ',')}`,
+          commission: selectedProduct.commission || defaultCommission,
+          currency: isUsd ? 'USD' : 'BRL',
+          origin: (selectedProduct as any)?.origin || (isUsd ? 'East Brunswick, New Jersey - EUA' : 'São Paulo - SP (Hub Nacional)'),
           status: 'active',
-          networks: ['Meta Ads (Instagram & Facebook)', 'TikTok Shop Ads', 'Google Shopping', 'Kwai Ads', 'WhatsApp Grupos VIP', 'Twitter/X Feed'],
+          networks,
           impressions: Math.floor(Math.random() * 1500) + 950,
           clicks: Math.floor(Math.random() * 90) + 50,
           salesCount: 0,
@@ -172,13 +189,13 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
           targeting: {
             audience: `Compradores engajados na categoria ${selectedProduct.category || 'Geral'}`,
             ageRange: '18 - 50 anos',
-            location: 'Brasil (Entrega Rápida)',
-            interests: [selectedProduct.category || 'Compras Online', 'Ofertas Shopee', 'Tendências']
+            location: targetingLocation,
+            interests: [selectedProduct.category || 'Compras Online', isUsd ? 'Global Tech' : 'Ofertas Shopee', 'Tendências']
           },
           sampleCopy: {
-            headline: `🔥 OFERTA IMPERDÍVEL: ${selectedProduct.name || selectedProduct.title}`,
-            body: selectedProduct.description || 'Produto validado com alta taxa de satisfação e pronta entrega para todo o Brasil.',
-            cta: '👉 CLIQUE AQUI PARA GARANTIR O SEU'
+            headline: isUsd ? `🔥 BESTSELLER: ${selectedProduct.name || selectedProduct.title}` : `🔥 OFERTA IMPERDÍVEL: ${selectedProduct.name || selectedProduct.title}`,
+            body: selectedProduct.description || (isUsd ? 'Top-rated product with 7-day express delivery and 100% satisfaction guarantee.' : 'Produto validado com alta taxa de satisfação e pronta entrega para todo o Brasil.'),
+            cta: isUsd ? '👉 ORDER NOW - 7-DAY GUARANTEED DELIVERY' : '👉 CLIQUE AQUI PARA GARANTIR O SEU'
           }
         }, userEmail);
 

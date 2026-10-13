@@ -19,13 +19,16 @@ import {
   Download,
   ExternalLink,
   Flame,
-  Plus
+  Plus,
+  Globe
 } from 'lucide-react';
 import SafeImage from '@/components/SafeImage';
 import { toast } from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
 import { hasOrderBump } from '@/lib/orderBumps';
 import { SECRET_SUPPLIERS_50 } from '@/lib/secretSuppliers';
+import { useRegionCurrency } from '@/lib/regionState';
+import { INTERNATIONAL_SUPPLIERS } from '@/lib/internationalCatalogData';
 
 interface SuppliersViewProps {
   onNavigate?: (view: any, product?: any) => void;
@@ -241,11 +244,12 @@ export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
     toast('Todos os fornecedores foram desconectados.');
   };
 
-  const suppliers = ALL_SUPPLIERS;
+  const { currency, isUsd, setCurrency } = useRegionCurrency();
+  const suppliers = isUsd ? (INTERNATIONAL_SUPPLIERS as any) : ALL_SUPPLIERS;
 
   const isSecretTab = filter.includes('Lista Secreta');
 
-  const filteredSuppliers = suppliers.filter((s) => {
+  const filteredSuppliers = suppliers.filter((s: any) => {
     const matchFilter = filter === 'Todos (8)' || 
       (filter === 'Meus Ativos' && activated.includes(s.id)) ||
       s.category.toLowerCase().includes(filter.toLowerCase()) ||
@@ -270,17 +274,62 @@ export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
         <div className="absolute top-0 right-1/4 w-80 h-80 bg-[#22c55e]/15 rounded-full blur-[120px] pointer-events-none" />
         <div className="absolute -bottom-10 left-10 w-80 h-80 bg-[#10b981]/15 rounded-full blur-[120px] pointer-events-none" />
 
+        {/* Region Switcher Pills */}
+        <div className="flex items-center p-1 rounded-2xl bg-black/70 border border-white/10 mb-5 shadow-xl">
+          <button
+            type="button"
+            onClick={() => {
+              setCurrency('BRL');
+              toast.success('🇧🇷 Fornecedores Nacionais ativados!', { duration: 2500 });
+            }}
+            className={`px-4 py-2 rounded-xl text-xs transition-all flex items-center gap-2 cursor-pointer ${
+              !isUsd
+                ? 'bg-[#22c55e] text-black shadow-md font-black'
+                : 'text-slate-400 hover:text-white font-bold'
+            }`}
+          >
+            <span>🇧🇷</span>
+            <span>Fornecedores Brasil (R$)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setCurrency('USD');
+              toast.success('🇺🇸 Fornecedores Internacionais (EUA & Europa) ativados!', { duration: 3000 });
+            }}
+            className={`px-4 py-2 rounded-xl text-xs transition-all flex items-center gap-2 cursor-pointer ${
+              isUsd
+                ? 'bg-blue-500 text-white shadow-md font-black shadow-blue-500/30'
+                : 'text-slate-400 hover:text-white font-bold'
+            }`}
+          >
+            <span>🇺🇸</span>
+            <span>Fornecedores Exterior (US$)</span>
+          </button>
+        </div>
+
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#22c55e]/15 text-[#4ade80] text-[11px] font-black uppercase tracking-wider mb-3 border border-[#22c55e]/30 shadow-[0_0_10px_rgba(34,197,94,0.2)]">
           <ShieldCheck size={14} className="text-[#22c55e]" />
-          <span>PLATAFORMA COM FORNECEDORES HOMOLOGADOS</span>
+          <span>{isUsd ? 'REDE GLOBAL DE FULFILLMENT & DROPSHIPPING INTERNACIONAL' : 'PLATAFORMA COM FORNECEDORES HOMOLOGADOS'}</span>
         </div>
 
         <h1 className="text-2xl md:text-4xl font-black text-white tracking-tight max-w-3xl leading-tight">
-          Conecte-se aos <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#22c55e] via-[#4ade80] to-[#10b981]">Melhores Fornecedores</span> do Brasil
+          {isUsd ? (
+            <>
+              Conecte-se aos <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-cyan-300 to-[#4ade80]">Hubs Globais</span> dos EUA e Europa
+            </>
+          ) : (
+            <>
+              Conecte-se aos <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#22c55e] via-[#4ade80] to-[#10b981]">Melhores Fornecedores</span> do Brasil
+            </>
+          )}
         </h1>
 
         <p className="text-xs text-slate-400 mt-2 max-w-2xl leading-relaxed">
-          Catálogos auditados com mais de 400 produtos por fornecedor, estoque a pronta entrega em São Paulo, despacho em até 24h e integração direta para criar anúncios de alta conversão.
+          {isUsd
+            ? 'Armazéns próprios em New Jersey, Califórnia, Texas, Flórida e Berlim com estoque em Dólar e despacho diário via USPS, FedEx e DHL Express sem risco de retenção.'
+            : 'Catálogos auditados com mais de 400 produtos por fornecedor, estoque a pronta entrega em São Paulo, despacho em até 24h e integração direta para criar anúncios de alta conversão.'}
         </p>
 
         {/* 4 Stats Cards */}
@@ -289,28 +338,28 @@ export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block flex items-center gap-1">
               <Clock size={11} className="text-[#22c55e]" /> Despacho
             </span>
-            <span className="text-xs font-black text-white mt-0.5 block">Em até 24 horas</span>
+            <span className="text-xs font-black text-white mt-0.5 block">{isUsd ? '24h a 48h (USPS/DHL)' : 'Em até 24 horas'}</span>
           </div>
 
           <div className="bg-black/40 backdrop-blur-md rounded-xl p-2.5 border border-white/10 text-left">
             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block flex items-center gap-1">
               <TrendingUp size={11} className="text-[#4ade80]" /> Margens
             </span>
-            <span className="text-xs font-black text-white mt-0.5 block">Até 150% lucro</span>
+            <span className="text-xs font-black text-white mt-0.5 block">{isUsd ? 'Em Dólar (US$)' : 'Até 150% lucro'}</span>
           </div>
 
           <div className="bg-black/40 backdrop-blur-md rounded-xl p-2.5 border border-white/10 text-left">
             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block flex items-center gap-1">
               <Award size={11} className="text-[#22c55e]" /> Qualidade
             </span>
-            <span className="text-xs font-black text-white mt-0.5 block">100% Auditados</span>
+            <span className="text-xs font-black text-white mt-0.5 block">{isUsd ? 'CE & FCC Aprovados' : '100% Auditados'}</span>
           </div>
 
           <div className="bg-black/40 backdrop-blur-md rounded-xl p-2.5 border border-white/10 text-left">
             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block flex items-center gap-1">
               <Truck size={11} className="text-[#4ade80]" /> Canais
             </span>
-            <span className="text-xs font-black text-white mt-0.5 block">Shopee & TikTok</span>
+            <span className="text-xs font-black text-white mt-0.5 block">{isUsd ? 'Shopify & TikTok US' : 'Shopee & TikTok'}</span>
           </div>
         </div>
       </div>
@@ -603,7 +652,7 @@ export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {filteredSuppliers.map((sup) => {
+            {filteredSuppliers.map((sup: any) => {
               const isAct = activated.includes(sup.id);
               return (
                 <div
@@ -658,7 +707,7 @@ export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
                         <span className="text-[#22c55e] font-bold">+400 produtos disponíveis</span>
                       </div>
                       <div className="grid grid-cols-3 gap-2">
-                        {sup.highlights.map((h, i) => (
+                        {sup.highlights.map((h: any, i: number) => (
                           <div key={i} className="flex items-center gap-2 p-1.5 pr-2.5 rounded-xl bg-black/40 border border-white/5 min-w-0">
                             <div className="w-8 h-8 rounded-lg overflow-hidden bg-black flex-shrink-0">
                               <SafeImage src={h.image} alt={h.name} className="w-full h-full object-cover" />

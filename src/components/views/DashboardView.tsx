@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { 
   Users, 
   Eye, 
@@ -23,9 +24,10 @@ import {
 import { toast } from 'react-hot-toast';
 import { ViewType } from '@/app/page';
 import { useSales } from '@/lib/salesContext';
-import { useSession } from 'next-auth/react';
 import { Product } from '@/lib/mockData';
 import SalesOverviewChart from '@/components/SalesOverviewChart';
+import { useRegionCurrency } from '@/lib/regionState';
+import { ALL_INTERNATIONAL_PRODUCTS } from '@/lib/internationalCatalogData';
 
 interface DashboardViewProps {
   onNavigate: (view: ViewType, product?: Product) => void;
@@ -62,53 +64,47 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
   } = useSales();
 
   // Opção de Vender para o Exterior / Moeda do Dashboard (Dólar vs Real)
-  const [currency, setCurrency] = useState<'BRL' | 'USD'>('BRL');
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('decolashop_dashboard_currency') as 'BRL' | 'USD';
-      if (saved === 'BRL' || saved === 'USD') {
-        setCurrency(saved);
-      }
-    }
-  }, []);
+  const { currency, isUsd, setCurrency } = useRegionCurrency();
 
   const USD_RATE = 5.60;
-  const isUsd = currency === 'USD';
   const currencySymbol = isUsd ? 'US$' : 'R$';
   const displayVendasTotais = isUsd ? (vendasTotais / USD_RATE) : vendasTotais;
   const displaySaldoDisponivel = isUsd ? (saldoDisponivel / USD_RATE) : saldoDisponivel;
 
   const handleCurrencyChange = (newCurrency: 'BRL' | 'USD') => {
     setCurrency(newCurrency);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('decolashop_dashboard_currency', newCurrency);
-    }
     if (newCurrency === 'USD') {
-      toast.success('🇺🇸 Modo Vender para o Exterior ativado! Dashboard convertido para Dólar (US$).', {
+      toast.success('🇺🇸 Modo Vender para o Exterior ativado! Catálogo e fornecedores globais em Dólar (US$).', {
         icon: '🗽',
         duration: 3500
       });
     } else {
-      toast.success('🇧🇷 Modo Mercado Nacional ativado! Dashboard em Reais (R$).', {
+      toast.success('🇧🇷 Modo Mercado Nacional ativado! Catálogo em Reais (R$).', {
         icon: '🇧🇷',
         duration: 3000
       });
     }
   };
 
+  // Se estiver no modo Exterior (USD), usa os produtos internacionais reais
+  const candidateProducts = isUsd ? ALL_INTERNATIONAL_PRODUCTS : availableProducts;
+
   // Use real products for the Top 5
-  const topList = availableProducts.slice(0, 5).map((p, index) => {
-    let numericPrice = 99.90;
-    if (typeof p.price === 'number') {
-      numericPrice = p.price;
-    } else if (typeof p.price === 'string') {
-      const clean = p.price.replace(/[^\d,.-]/g, '').replace(',', '.');
-      numericPrice = parseFloat(clean) || 99.90;
+  const topList = candidateProducts.slice(0, 5).map((p, index) => {
+    let formattedPrice = 'R$ 99,90';
+    if (isUsd) {
+      const priceNum = typeof p.price === 'number' ? p.price : parseFloat(String(p.price).replace(/[^\d.]/g, '')) || 49.90;
+      formattedPrice = `US$ ${priceNum.toFixed(2)}`;
+    } else {
+      let numericPrice = 99.90;
+      if (typeof p.price === 'number') {
+        numericPrice = p.price;
+      } else if (typeof p.price === 'string') {
+        const clean = p.price.replace(/[^\d,.-]/g, '').replace(',', '.');
+        numericPrice = parseFloat(clean) || 99.90;
+      }
+      formattedPrice = `R$ ${numericPrice.toFixed(2).replace('.', ',')}`;
     }
-    const formattedPrice = isUsd 
-      ? `US$ ${(numericPrice / USD_RATE).toFixed(2)}`
-      : `R$ ${numericPrice.toFixed(2).replace('.', ',')}`;
 
     const units = pedidos > 0 ? Math.max(1, Math.floor(pedidos * (0.35 - index * 0.06))) : 0;
     const marketSales = p.vendas_mes 
