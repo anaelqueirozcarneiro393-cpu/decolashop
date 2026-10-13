@@ -8,8 +8,61 @@ import { usePrivacy } from '@/lib/privacyContext';
 
 export default function PerfilView() {
   const { data: session } = useSession();
-  const rawEmail = session?.user?.email || 'usuario@decolashop.com';
-  const userEmail = rawEmail.toLowerCase().trim();
+  
+  // Resolução prioritária do e-mail real do usuário (Sessão > localStorage > padrão)
+  const getInitialEmail = () => {
+    if (session?.user?.email) return session.user.email;
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('decolashop_user_email') || localStorage.getItem('decolashop_active_user_email');
+      if (stored) return stored;
+    }
+    return 'usuario@decolashop.com';
+  };
+
+  const getInitialName = (currentEmail: string) => {
+    if (session?.user?.name) return session.user.name;
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('decolashop_user_name');
+      if (stored) return stored;
+    }
+    if (currentEmail && currentEmail !== 'usuario@decolashop.com') {
+      return currentEmail.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    }
+    return 'Membro DecolaShop';
+  };
+
+  const [email, setEmail] = useState(getInitialEmail);
+  const [name, setName] = useState(() => getInitialName(getInitialEmail()));
+  const [isSaving, setIsSaving] = useState(false);
+  const { hideEmail, toggleHideEmail, maskEmail } = usePrivacy();
+
+  // Atualização reativa assim que a sessão NextAuth ou o localStorage carrega
+  React.useEffect(() => {
+    const realEmail = 
+      session?.user?.email || 
+      (typeof window !== 'undefined' ? (localStorage.getItem('decolashop_user_email') || localStorage.getItem('decolashop_active_user_email')) : null);
+
+    if (realEmail) {
+      setEmail(realEmail);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('decolashop_user_email', realEmail);
+      }
+    }
+
+    const realName = 
+      session?.user?.name || 
+      (typeof window !== 'undefined' ? localStorage.getItem('decolashop_user_name') : null) || 
+      (realEmail && realEmail !== 'usuario@decolashop.com' ? realEmail.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : null);
+
+    if (realName) {
+      setName(realName);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('decolashop_user_name', realName);
+      }
+    }
+  }, [session]);
+
+  const userEmail = email.toLowerCase().trim();
   const userRole = ((session?.user as any)?.role || '').toLowerCase();
   const isCarlos = userEmail.includes('carlos') || userEmail.includes('souza');
   const isNormalUser = userEmail === 'usuario@decolashop.com' || isCarlos;
@@ -24,19 +77,17 @@ export default function PerfilView() {
   const userBadge = isAdmin ? (isSuperAdmin ? 'Administrador' : 'Gerente') : 'Membro VIP';
   const planBadge = isAdmin ? 'Acesso Total ∞ (Ilimitado)' : 'Plano Vitalício Ativo';
 
-  const defaultName = session?.user?.name || (isAdmin ? (isSuperAdmin ? 'Administrador DecolaShop' : 'Gerente DecolaShop') : 'Membro DecolaShop');
-  const [name, setName] = useState(defaultName);
-  const [email, setEmail] = useState(rawEmail);
-  const [isSaving, setIsSaving] = useState(false);
-  const { hideEmail, toggleHideEmail, maskEmail } = usePrivacy();
-
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('decolashop_user_name', name.trim());
+      localStorage.setItem('decolashop_user_email', email.trim().toLowerCase());
+    }
     setTimeout(() => {
       setIsSaving(false);
       toast.success('Perfil atualizado com sucesso!');
-    }, 600);
+    }, 400);
   };
 
   return (
@@ -118,10 +169,13 @@ export default function PerfilView() {
             </div>
             <div className="relative">
               <input
-                type="text"
+                type={hideEmail ? "password" : "email"}
                 value={hideEmail ? maskEmail(email) : email}
-                disabled
-                className="w-full bg-secondary/15 border border-border/30 rounded-xl py-3 px-4 text-sm text-slate-300 cursor-not-allowed pr-10 font-mono"
+                onChange={(e) => {
+                  if (!hideEmail) setEmail(e.target.value);
+                }}
+                readOnly={hideEmail}
+                className="w-full bg-secondary/30 border border-border/50 rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 pr-10 font-mono"
               />
               <button
                 type="button"

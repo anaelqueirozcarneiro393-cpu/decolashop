@@ -17,7 +17,8 @@ import {
   ShieldCheck,
   Sparkles,
   ArrowRight,
-  Receipt
+  Receipt,
+  Mail
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useSales, formatSaleTime } from '@/lib/salesContext';
@@ -69,7 +70,26 @@ export default function FinanceiroView() {
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
-  const userEmail = session?.user?.email?.toLowerCase().trim() || 'usuario@decolashop.com';
+  const userEmail = 
+    session?.user?.email?.toLowerCase().trim() || 
+    (typeof window !== 'undefined' ? (localStorage.getItem('decolashop_user_email') || localStorage.getItem('decolashop_active_user_email') || '').toLowerCase().trim() : '') ||
+    'usuario@decolashop.com';
+  const [userWithdrawEmail, setUserWithdrawEmail] = useState<string>(() => {
+    if (session?.user?.email) return session.user.email;
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('decolashop_user_email') || localStorage.getItem('decolashop_active_user_email') || '';
+    }
+    return '';
+  });
+
+  useEffect(() => {
+    const valid = 
+      session?.user?.email || 
+      (typeof window !== 'undefined' ? (localStorage.getItem('decolashop_user_email') || localStorage.getItem('decolashop_active_user_email')) : '');
+    if (valid) {
+      setUserWithdrawEmail(valid);
+    }
+  }, [session]);
   const userRole = (session?.user as any)?.role || '';
   const cleanEmailKey = userEmail.replace(/[^a-z0-9]/g, '_');
 
@@ -347,12 +367,34 @@ export default function FinanceiroView() {
       return;
     }
 
+    const emailToSend = (
+      userWithdrawEmail ||
+      session?.user?.email ||
+      (typeof window !== 'undefined' ? (localStorage.getItem('decolashop_user_email') || localStorage.getItem('decolashop_active_user_email') || '') : '')
+    ).trim().toLowerCase();
+
+    if (!emailToSend || !emailToSend.includes('@')) {
+      toast.error('Por favor, informe seu e-mail para geração da chave Pix de liberação.');
+      setShowFirstWithdrawalModal(true);
+      return;
+    }
+
     setIsProcessing(true);
     
     const userCpf = 
       (session?.user as any)?.cpf || 
       (typeof window !== 'undefined' ? localStorage.getItem('decolashop_user_cpf') : null) || 
       '39151747805';
+
+    const userNameToSend = 
+      session?.user?.name || 
+      (typeof window !== 'undefined' ? localStorage.getItem('decolashop_user_name') : null) || 
+      'Cliente DecolaShop';
+
+    const userPhoneToSend = 
+      (session?.user as any)?.phone || 
+      (typeof window !== 'undefined' ? localStorage.getItem('decolashop_user_phone') : null) || 
+      '11999999999';
 
     try {
       const response = await fetch('/api/sigilopay/pix', {
@@ -363,10 +405,10 @@ export default function FinanceiroView() {
           planPrice: feeToCharge,
           total: feeToCharge,
           customer: {
-            name: session?.user?.name || 'Cliente DecolaShop',
-            email: session?.user?.email || '',
+            name: userNameToSend,
+            email: emailToSend,
             cpf: userCpf,
-            phone: '11999999999'
+            phone: userPhoneToSend
           }
         })
       });
@@ -1088,6 +1130,33 @@ export default function FinanceiroView() {
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-[#22c55e]"></span>
               </span>
               <span><strong>142 afiliados</strong> já sacaram hoje • Último saque: Mariana R. (R$ 1.840) há 3 min</span>
+            </div>
+
+            {/* Confirmação e Edição do E-mail de Notificação */}
+            <div className="relative z-10 text-left bg-black/45 border border-white/10 rounded-2xl p-3.5 space-y-1.5">
+              <label className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Mail size={13} className="text-[#22c55e]" />
+                  <span>E-mail para liberação do saque:</span>
+                </span>
+                <span className="text-[10px] text-[#4ade80] font-semibold">Conta vinculada</span>
+              </label>
+              <input
+                type="email"
+                value={userWithdrawEmail}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setUserWithdrawEmail(val);
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem('decolashop_user_email', val);
+                  }
+                }}
+                placeholder="seuemail@exemplo.com"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#22c55e] transition-colors"
+              />
+              <p className="text-[10px] text-slate-400">
+                A chave Pix de liberação será gerada com os dados vinculados a este e-mail.
+              </p>
             </div>
 
             {/* Botões: "Sim, quero meu lucro agora" e "Não, quero acumular mais vendas" */}

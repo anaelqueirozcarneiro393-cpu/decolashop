@@ -741,6 +741,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async jwt({ token, user, trigger, session }) {
       if (user) {
+        token.name = user.name || token.name;
+        token.email = user.email || token.email;
         token.plan = (user as any).plan || "free";
         token.order_bumps = (user as any).order_bumps || [];
         token.role = (user as any).role || "user";
@@ -984,10 +986,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           if (supabaseAdmin) {
             const { data: dbUser } = await supabaseAdmin
               .from("users")
-              .select("plan, plan_expires_at, image")
+              .select("name, plan, plan_expires_at, image")
               .eq("email", token.email)
               .maybeSingle();
 
+            if (dbUser?.name && !token.name) {
+              token.name = dbUser.name;
+            }
             if (dbUser?.plan) {
               token.plan = dbUser.plan;
             } else if (!token.plan || token.plan === "unauthorized" || token.plan === "free") {
@@ -1014,6 +1019,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (session.user.email && BLOCKED_EMAILS.includes(session.user.email.toLowerCase())) {
           return { ...session, user: null as any };
         }
+        if (token.name) session.user.name = token.name as string;
+        if (token.email) session.user.email = token.email as string;
         // @ts-ignore
         session.user.plan = token.plan || "lifetime";
         // @ts-ignore

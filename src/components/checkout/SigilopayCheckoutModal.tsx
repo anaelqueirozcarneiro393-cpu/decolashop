@@ -307,10 +307,26 @@ export default function SigilopayCheckoutModal({
           unlockOrderBumpsLocally(selectedBumps);
         }
 
+        const cleanUserEmail = email.trim().toLowerCase();
+        const cleanUserName = name.trim();
+        const cleanUserCpf = cpf.replace(/\D/g, '');
+        const cleanUserPhone = phone.replace(/\D/g, '');
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('decolashop_user_email', cleanUserEmail);
+          localStorage.setItem('decolashop_active_user_email', cleanUserEmail);
+          localStorage.setItem('decolashop_user_name', cleanUserName);
+          localStorage.setItem('decolashop_user_cpf', cleanUserCpf);
+          localStorage.setItem('decolashop_user_phone', cleanUserPhone);
+          localStorage.setItem('decolashop_user_plan', selectedPlan);
+          localStorage.setItem('decolashop_user_role', 'user');
+          localStorage.setItem('decolashop_logged_in', 'true');
+        }
+
         // 2. Automatically log the user in via NextAuth
         try {
           await signIn('credentials', {
-            email: email.trim().toLowerCase(),
+            email: cleanUserEmail,
             password: password,
             redirect: false
           });
