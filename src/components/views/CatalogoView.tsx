@@ -59,17 +59,26 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
   // Combina e filtra produtos garantindo unicidade absoluta de imagens e títulos
   const combineUniqueProducts = (supplierIds: string[]) => {
     const matched = getProductsByActivatedSuppliers(supplierIds);
-    const combined: Product[] = [...matched];
-    const seenImages = new Set<string>(matched.map(p => p.image_url));
-    const seenNames = new Set<string>(matched.map(p => (p.name || p.title || '').toLowerCase().trim().slice(0, 25)));
+    const combined: Product[] = [];
+    const seenImages = new Set<string>();
+    const seenNames = new Set<string>();
 
-    for (const m of mockProducts) {
-      const nameKey = (m.name || m.title || '').toLowerCase().trim().slice(0, 25);
-      if (!seenImages.has(m.image_url) && !seenNames.has(nameKey)) {
-        combined.push(m);
-        seenImages.add(m.image_url);
-        seenNames.add(nameKey);
+    const allCandidates = [...matched, ...mockProducts];
+    for (const p of allCandidates) {
+      if (!p || !p.image_url) continue;
+
+      // Normalização estrita da URL da imagem para evitar duplicatas por parâmetros de query
+      const normUrl = p.image_url.split('?')[0].trim().toLowerCase();
+      // Normalização do nome
+      const normName = (p.name || p.title || '').trim().toLowerCase().slice(0, 30);
+
+      if (seenImages.has(normUrl) || seenNames.has(normName)) {
+        continue;
       }
+
+      seenImages.add(normUrl);
+      seenNames.add(normName);
+      combined.push(p);
     }
 
     return combined;
@@ -80,7 +89,7 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
     setIsLoading(true);
     let activeIds: string[] = [];
     try {
-      const saved = localStorage.getItem('decolashop_activated_suppliers_v2');
+      const saved = localStorage.getItem('decolashop_activated_suppliers_v3');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -95,7 +104,7 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
     if (activeIds.length === 0) {
       activeIds = Object.keys(SUPPLIER_METADATA);
       try {
-        localStorage.setItem('decolashop_activated_suppliers_v2', JSON.stringify(activeIds));
+        localStorage.setItem('decolashop_activated_suppliers_v3', JSON.stringify(activeIds));
       } catch {}
     }
 
@@ -124,7 +133,7 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
     const allIds = Object.keys(SUPPLIER_METADATA);
     setActivatedSuppliers(allIds);
     try {
-      localStorage.setItem('decolashop_activated_suppliers_v2', JSON.stringify(allIds));
+      localStorage.setItem('decolashop_activated_suppliers_v3', JSON.stringify(allIds));
       window.dispatchEvent(new CustomEvent('decolashop_suppliers_updated'));
     } catch {}
     const uniqueList = combineUniqueProducts(allIds);

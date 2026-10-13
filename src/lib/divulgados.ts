@@ -340,34 +340,30 @@ export function getDivulgadosStorageKey(email?: string): string {
 }
 
 export function getDivulgados(email?: string): DivulgadoCampaign[] {
-  const isMgr = isGerenteOrAdminEmail(email);
-  if (typeof window === 'undefined') return isMgr ? INITIAL_DIVULGADOS : [];
+  if (typeof window === 'undefined') return INITIAL_DIVULGADOS;
   try {
     const key = getDivulgadosStorageKey(email);
     let raw = localStorage.getItem(key);
     
-    // Se for gerente e ainda não tiver a chave nova, lê da chave legada
-    if (isMgr && !raw) {
+    // Fallback para chave geral caso a específica do email ainda não exista
+    if (!raw) {
       raw = localStorage.getItem(STORAGE_KEY);
     }
 
     if (!raw) {
-      if (isMgr) {
-        localStorage.setItem(key, JSON.stringify(INITIAL_DIVULGADOS));
-        return INITIAL_DIVULGADOS;
-      }
-      // Usuários normais começam 100% ZERADOS, sem campanhas ou vendas preexistentes!
-      return [];
+      localStorage.setItem(key, JSON.stringify(INITIAL_DIVULGADOS));
+      return INITIAL_DIVULGADOS;
     }
 
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) {
-      return isMgr ? INITIAL_DIVULGADOS : [];
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      localStorage.setItem(key, JSON.stringify(INITIAL_DIVULGADOS));
+      return INITIAL_DIVULGADOS;
     }
     return parsed;
   } catch (e) {
     console.error('Erro ao ler produtos divulgados do localStorage:', e);
-    return isMgr ? INITIAL_DIVULGADOS : [];
+    return INITIAL_DIVULGADOS;
   }
 }
 
