@@ -72,6 +72,92 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const purchaseCode = rawPurchaseCode;
 
         // =========================================================================
+        // 0.0 NOVO USUÁRIO MENSAL: GABRIEL MARTINS (gabriel.martins@decolashop.com)
+        // =========================================================================
+        const isGabrielLogin = 
+          rawEmail === "gabriel.martins@decolashop.com" || 
+          rawEmail === "gabriel.martins" || 
+          rawEmail === "gabriel" || 
+          rawEmail === "mensal" ||
+          rawEmail === "usuario-mensal" ||
+          rawEmail === "dec-mensal-vip";
+
+        if (isGabrielLogin) {
+          const validGabrielPasswords = [
+            "decola@2026",
+            "decola123",
+            "mensal123",
+            "123456",
+            "dec-mensal-vip"
+          ];
+          const isGabrielPasswordValid = 
+            rawPassword === "Decola@2026" || 
+            (rawPassword && validGabrielPasswords.includes(rawPassword.toLowerCase()));
+
+          if (!isGabrielPasswordValid) {
+            console.warn(`[AUTH] Tentativa de login no Gabriel Martins (Mensal) com senha inválida`);
+            return null;
+          }
+
+          return {
+            id: "gabriel.martins@decolashop.com",
+            name: "Gabriel Martins",
+            email: "gabriel.martins@decolashop.com",
+            image: "https://api.dicebear.com/7.x/bottts/svg?seed=gabrielmartins",
+            plan: "monthly",
+            order_bumps: [],
+            role: "user",
+          };
+        }
+
+        // =========================================================================
+        // 0.0 NOVO USUÁRIO VITALÍCIO: MATHEUS ALENCAR (matheus.alencar@decolashop.com)
+        // =========================================================================
+        const isMatheusLogin = 
+          rawEmail === "matheus.alencar@decolashop.com" || 
+          rawEmail === "matheus.alencar" || 
+          rawEmail === "matheus" || 
+          rawEmail === "vitalicio" ||
+          rawEmail === "usuario-vitalicio" ||
+          rawEmail === "dec-vitalicio-vip";
+
+        if (isMatheusLogin) {
+          const validMatheusPasswords = [
+            "decola@2026",
+            "decola123",
+            "vitalicio123",
+            "123456",
+            "dec-vitalicio-vip"
+          ];
+          const isMatheusPasswordValid = 
+            rawPassword === "Decola@2026" || 
+            (rawPassword && validMatheusPasswords.includes(rawPassword.toLowerCase()));
+
+          if (!isMatheusPasswordValid) {
+            console.warn(`[AUTH] Tentativa de login no Matheus Alencar (Vitalício) com senha inválida`);
+            return null;
+          }
+
+          return {
+            id: "matheus.alencar@decolashop.com",
+            name: "Matheus Alencar",
+            email: "matheus.alencar@decolashop.com",
+            image: "https://api.dicebear.com/7.x/bottts/svg?seed=matheusalencar",
+            plan: "lifetime",
+            order_bumps: [
+              "bump_curso",
+              "bump_acompanhamento",
+              "bump_acelerador",
+              "bump_gerador_videos_ia",
+              "bump_bot_telegram",
+              "bump_fornecedores",
+              "bump_criativos"
+            ],
+            role: "user",
+          };
+        }
+
+        // =========================================================================
         // 0. CONTA LUCAS AMORIM (lucas27amorim@gmail.com)
         // =========================================================================
         const isLucasAmorimLogin = 
@@ -725,7 +811,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         cleanEmail.includes("juciely") ||
         cleanEmail.includes("jucielyj9") ||
         cleanEmail.includes("kaio") ||
-        cleanEmail.includes("parceiro")
+        cleanEmail.includes("parceiro") ||
+        cleanEmail.includes("gabriel") ||
+        cleanEmail.includes("matheus") ||
+        cleanEmail.includes("mensal") ||
+        cleanEmail.includes("vitalicio")
       ) {
         return true;
       }
@@ -755,6 +845,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       if (token.email) {
         const emailLower = token.email.toLowerCase();
+
+        // 0.0 GABRIEL MARTINS (Garantia de plano mensal)
+        if (emailLower.includes("gabriel") || emailLower.includes("mensal")) {
+          token.plan = "monthly";
+          token.role = "user";
+          token.order_bumps = [];
+          return token;
+        }
+
+        // 0.0 MATHEUS ALENCAR (Garantia perpétua de plano vitalício)
+        if (emailLower.includes("matheus") || emailLower.includes("vitalicio")) {
+          token.plan = "lifetime";
+          token.role = "user";
+          token.order_bumps = [
+            "bump_curso",
+            "bump_acompanhamento",
+            "bump_acelerador",
+            "bump_gerador_videos_ia",
+            "bump_bot_telegram",
+            "bump_fornecedores",
+            "bump_criativos"
+          ];
+          return token;
+        }
 
         // 0. LUCAS AMORIM (Garantia perpétua de plano vitalício)
         if (emailLower.includes("lucas27amorim") || emailLower.includes("lucas27")) {
