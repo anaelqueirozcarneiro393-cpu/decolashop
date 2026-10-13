@@ -18,7 +18,8 @@ import {
   Phone,
   Download,
   ExternalLink,
-  Flame
+  Flame,
+  Plus
 } from 'lucide-react';
 import SafeImage from '@/components/SafeImage';
 import { toast } from 'react-hot-toast';
@@ -159,25 +160,27 @@ export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
   const { data: session } = useSession();
   const [filter, setFilter] = useState('Todos (8)');
   const [search, setSearch] = useState('');
-  const [activated, setActivated] = useState<string[]>(ALL_SUPPLIER_IDS);
+  const [activated, setActivated] = useState<string[]>([]);
   const [isUnlockedSecret, setIsUnlockedSecret] = useState(false);
 
-  // Initialize and persist activated suppliers in localStorage
+  // Initialize and persist activated suppliers in localStorage (default: unactivated)
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('decolashop_activated_suppliers');
+      // Clear legacy key to avoid auto-activating all suppliers from older default
+      localStorage.removeItem('decolashop_activated_suppliers');
+      
+      const saved = localStorage.getItem('decolashop_activated_suppliers_v2');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           setActivated(parsed);
           return;
         }
       }
-      // If nothing saved yet, default all 8 active so user has full catalog access!
-      setActivated(ALL_SUPPLIER_IDS);
-      localStorage.setItem('decolashop_activated_suppliers', JSON.stringify(ALL_SUPPLIER_IDS));
+      // Padrão: NÃO vir ativado por padrão (o usuário ativa manualmente)
+      setActivated([]);
     } catch {
-      // ignore
+      setActivated([]);
     }
   }, []);
 
@@ -196,18 +199,18 @@ export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
     }));
   };
 
-  const toggleActivate = (id: string, name: string) => {
+  const toggleActivate = (id: string, name: string, productsCount?: string) => {
     let updated: string[];
     if (activated.includes(id)) {
       updated = activated.filter(i => i !== id);
       toast(`${name} desativado`);
     } else {
       updated = [...activated, id];
-      toast.success(`🎉 ${name} ativado com sucesso! Estoque sincronizado.`);
+      toast.success(`🎉 ${name} ativado com sucesso! ${productsCount || 'Mais de 400 produtos'} integrados.`);
     }
     setActivated(updated);
     try {
-      localStorage.setItem('decolashop_activated_suppliers', JSON.stringify(updated));
+      localStorage.setItem('decolashop_activated_suppliers_v2', JSON.stringify(updated));
     } catch {
       // ignore
     }
@@ -216,9 +219,17 @@ export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
   const handleActivateAll = () => {
     setActivated(ALL_SUPPLIER_IDS);
     try {
-      localStorage.setItem('decolashop_activated_suppliers', JSON.stringify(ALL_SUPPLIER_IDS));
+      localStorage.setItem('decolashop_activated_suppliers_v2', JSON.stringify(ALL_SUPPLIER_IDS));
     } catch {}
-    toast.success('🎉 Todos os 8 fornecedores homologados foram ativados!');
+    toast.success('🎉 Todos os 8 fornecedores homologados foram ativados com mais de 400 produtos cada!');
+  };
+
+  const handleDeactivateAll = () => {
+    setActivated([]);
+    try {
+      localStorage.setItem('decolashop_activated_suppliers_v2', JSON.stringify([]));
+    } catch {}
+    toast('Todos os fornecedores foram desconectados.');
   };
 
   const suppliers = ALL_SUPPLIERS;
@@ -260,7 +271,7 @@ export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
         </h1>
 
         <p className="text-xs text-slate-400 mt-2 max-w-2xl leading-relaxed">
-          Catálogos auditados com estoque a pronta entrega, despacho em até 24h e integração direta para criar anúncios de alta conversão.
+          Catálogos auditados com mais de 400 produtos por fornecedor, estoque a pronta entrega em São Paulo, despacho em até 24h e integração direta para criar anúncios de alta conversão.
         </p>
 
         {/* 4 Stats Cards */}
@@ -478,9 +489,14 @@ export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
                 >
                   <div>
                     <div className="flex items-center justify-between gap-2 mb-2">
-                      <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-[#22c55e]/15 text-[#4ade80] border border-[#22c55e]/30">
-                        {supplier.category}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-[#22c55e]/15 text-[#4ade80] border border-[#22c55e]/30">
+                          {supplier.category}
+                        </span>
+                        <span className="text-[9px] font-bold text-slate-300 bg-white/5 px-2 py-0.5 rounded border border-white/10">
+                          📦 +400 produtos
+                        </span>
+                      </div>
                       <span className="text-[10px] text-amber-400 font-bold flex items-center gap-1">
                         <Clock size={11} /> {supplier.dispatchTime}
                       </span>
@@ -528,7 +544,11 @@ export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
           <div className="flex items-center justify-between flex-wrap gap-2">
             <h2 className="text-base font-black text-white flex items-center gap-2">
               <span>Fornecedores Verificados Padrão</span>
-              <span className="text-xs text-[#22c55e] bg-[#22c55e]/15 px-2.5 py-0.5 rounded-full border border-[#22c55e]/30 font-bold">
+              <span className={`text-xs px-2.5 py-0.5 rounded-full border font-bold ${
+                activated.length > 0
+                  ? 'text-[#22c55e] bg-[#22c55e]/15 border-[#22c55e]/30'
+                  : 'text-amber-400 bg-amber-500/15 border-amber-500/30'
+              }`}>
                 {activated.length} de {suppliers.length} ativados
               </span>
             </h2>
@@ -543,12 +563,35 @@ export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
                   <span>Ativar Todos ({suppliers.length})</span>
                 </button>
               ) : (
-                <span className="text-[11px] text-emerald-400 font-bold flex items-center gap-1">
-                  <CheckCircle2 size={13} /> Todos os fornecedores conectados
-                </span>
+                <button
+                  type="button"
+                  onClick={handleDeactivateAll}
+                  className="text-xs font-bold text-slate-400 hover:text-red-400 bg-white/5 border border-white/10 px-3 py-1 rounded-xl transition-all hover:bg-white/10 cursor-pointer flex items-center gap-1.5"
+                >
+                  <span>Desconectar Todos</span>
+                </button>
               )}
             </div>
           </div>
+
+          {filter === 'Meus Ativos' && filteredSuppliers.length === 0 && (
+            <div className="bg-[#0d121f] rounded-3xl p-8 border border-white/10 text-center max-w-lg mx-auto space-y-4">
+              <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
+                <Truck size={28} />
+              </div>
+              <h3 className="text-base font-black text-white">Nenhum fornecedor ativado ainda</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Você ainda não ativou nenhum fornecedor. Cada distribuidora possui mais de 400 produtos com estoque nacional prontos para despacho.
+              </p>
+              <button
+                type="button"
+                onClick={() => setFilter('Todos (8)')}
+                className="py-2.5 px-5 rounded-xl bg-[#22c55e] text-black font-black text-xs hover:bg-[#16a34a] transition-all cursor-pointer shadow-lg shadow-[#22c55e]/20"
+              >
+                Ver Lista de Fornecedores e Ativar
+              </button>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {filteredSuppliers.map((sup) => {
@@ -556,20 +599,35 @@ export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
               return (
                 <div
                   key={sup.id}
-                  className="bg-[#0d121f] rounded-3xl p-5 border border-white/10 hover:border-[#22c55e]/50 transition-all duration-300 shadow-xl flex flex-col justify-between group"
+                  className={`bg-[#0d121f] rounded-3xl p-5 border transition-all duration-300 shadow-xl flex flex-col justify-between group ${
+                    isAct 
+                      ? 'border-[#22c55e]/50 shadow-[0_0_20px_rgba(34,197,94,0.1)]' 
+                      : 'border-white/10 hover:border-white/20'
+                  }`}
                 >
                   <div>
                     <div className="flex items-center gap-4 mb-4">
-                      <div className="w-16 h-16 rounded-2xl overflow-hidden bg-black flex-shrink-0 border border-white/10">
+                      <div className="w-16 h-16 rounded-2xl overflow-hidden bg-black flex-shrink-0 border border-white/10 relative">
                         <SafeImage src={sup.mainImage} alt={sup.name} className="w-full h-full object-cover" />
+                        {isAct && (
+                          <div className="absolute top-1 right-1 bg-[#22c55e] text-black p-0.5 rounded-full shadow-sm">
+                            <Check size={10} className="stroke-[3]" />
+                          </div>
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="px-2 py-0.5 rounded-md bg-[#22c55e]/15 text-[#4ade80] text-[9px] font-black uppercase tracking-wider border border-[#22c55e]/30">
-                            Verificado
-                          </span>
-                          <span className="text-[9px] font-bold text-slate-400">
-                            {sup.productsCount}
+                        <div className="flex items-center flex-wrap gap-1.5 mb-1">
+                          {isAct ? (
+                            <span className="px-2 py-0.5 rounded-md bg-[#22c55e]/15 text-[#4ade80] text-[9px] font-black uppercase tracking-wider border border-[#22c55e]/30 flex items-center gap-1">
+                              <CheckCircle2 size={10} /> Conectado & Ativo
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-400 text-[9px] font-black uppercase tracking-wider border border-amber-500/30">
+                              Não Ativado
+                            </span>
+                          )}
+                          <span className="text-[9px] font-bold text-[#4ade80] bg-[#22c55e]/10 px-1.5 py-0.5 rounded border border-[#22c55e]/20">
+                            📦 {sup.productsCount} (+400 itens)
                           </span>
                         </div>
 
@@ -586,9 +644,10 @@ export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
 
                     {/* Highlights Carousel Strip */}
                     <div className="space-y-1.5 mb-6">
-                      <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
-                        DESTAQUES EM ALTA ROTAÇÃO:
-                      </span>
+                      <div className="flex items-center justify-between text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                        <span>DESTAQUES DO CATÁLOGO:</span>
+                        <span className="text-[#22c55e] font-bold">+400 produtos disponíveis</span>
+                      </div>
                       <div className="grid grid-cols-3 gap-2">
                         {sup.highlights.map((h, i) => (
                           <div key={i} className="flex items-center gap-2 p-1.5 pr-2.5 rounded-xl bg-black/40 border border-white/5 min-w-0">
@@ -605,11 +664,11 @@ export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
                   {/* Bottom Actions */}
                   <div className="grid grid-cols-2 gap-3 pt-4 border-t border-white/10">
                     <button
-                      onClick={() => toggleActivate(sup.id, sup.name)}
+                      onClick={() => toggleActivate(sup.id, sup.name, sup.productsCount)}
                       className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1.5 cursor-pointer ${
                         isAct
-                          ? 'bg-[#22c55e]/20 text-[#4ade80] border-[#22c55e]/50 font-black shadow-[0_0_10px_rgba(34,197,94,0.15)]'
-                          : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10 hover:text-white'
+                          ? 'bg-[#22c55e]/20 text-[#4ade80] border-[#22c55e]/50 font-black shadow-[0_0_10px_rgba(34,197,94,0.15)] hover:bg-[#22c55e]/30'
+                          : 'bg-[#22c55e] text-black border-[#22c55e] font-black hover:bg-[#16a34a] shadow-lg shadow-[#22c55e]/25 hover:shadow-xl hover:shadow-[#22c55e]/35'
                       }`}
                     >
                       {isAct ? (
@@ -618,15 +677,23 @@ export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
                           <span>FORNECEDOR ATIVADO</span>
                         </>
                       ) : (
-                        <span>+ ATIVAR FORNECEDOR</span>
+                        <>
+                          <Plus size={14} className="stroke-[3]" />
+                          <span>ATIVAR FORNECEDOR</span>
+                        </>
                       )}
                     </button>
 
                     <button
-                      onClick={() => onNavigate && onNavigate('catalogo')}
-                      className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-black font-black text-xs flex items-center justify-center gap-1 transition-all shadow-lg shadow-[#22c55e]/20 active:scale-95 cursor-pointer"
+                      onClick={() => {
+                        if (!isAct) {
+                          toggleActivate(sup.id, sup.name, sup.productsCount);
+                        }
+                        if (onNavigate) onNavigate('catalogo');
+                      }}
+                      className="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/10 font-bold text-xs flex items-center justify-center gap-1 transition-all active:scale-95 cursor-pointer"
                     >
-                      <span>Acessar Catálogo</span>
+                      <span>{isAct ? 'Ver Catálogo' : 'Ativar e Ver Catálogo'}</span>
                       <ArrowRight size={13} />
                     </button>
                   </div>
