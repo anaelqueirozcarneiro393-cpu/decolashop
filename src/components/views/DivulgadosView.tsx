@@ -30,7 +30,8 @@ import {
   Navigation,
   MapPin,
   PackageCheck,
-  Calendar
+  Calendar,
+  RotateCcw
 } from 'lucide-react';
 import SafeImage from '@/components/SafeImage';
 import FindGroupsButton from '@/components/FindGroupsButton';
@@ -40,6 +41,7 @@ import {
   DivulgadoCampaign, 
   getDivulgados, 
   saveDivulgados, 
+  hydrateDivulgados,
   toggleDivulgadoStatus, 
   removeDivulgado, 
   getDivulgadosStats,
@@ -56,7 +58,10 @@ interface DivulgadosViewProps {
 
 export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
   const { data: session } = useSession();
-  const userEmail = session?.user?.email?.toLowerCase().trim();
+  const rawEmail = 
+    session?.user?.email || 
+    (typeof window !== 'undefined' ? (localStorage.getItem('decolashop_user_email') || localStorage.getItem('decolashop_active_user_email')) : '');
+  const userEmail = (rawEmail || 'usuario@decolashop.com').toLowerCase().trim();
   const isGerente = isGerenteOrAdminEmail(userEmail);
 
   const [campaigns, setCampaigns] = useState<DivulgadoCampaign[]>([]);
@@ -69,9 +74,25 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
   const [trackingCopied, setTrackingCopied] = useState(false);
 
   useEffect(() => {
-    // Load from storage
+    // 1. Carrega do localStorage local imediato
     const loaded = getDivulgados(userEmail);
-    setCampaigns(loaded);
+    if (loaded && loaded.length > 0) {
+      setCampaigns(loaded);
+    } else {
+      setCampaigns(loaded);
+      // Se local estiver vazio, busca da nuvem (Supabase)
+      if (userEmail) {
+        fetch(`/api/user/sync-state?email=${encodeURIComponent(userEmail)}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data?.success && Array.isArray(data?.data?.divulgados) && data.data.divulgados.length > 0) {
+              hydrateDivulgados(data.data.divulgados, userEmail);
+              setCampaigns(data.data.divulgados);
+            }
+          })
+          .catch(() => {});
+      }
+    }
 
     const handleUpdate = () => {
       setCampaigns(getDivulgados(userEmail));

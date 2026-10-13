@@ -1,4 +1,4 @@
-import { Product } from './mockData';
+import { Product, mockProducts } from './mockData';
 
 export interface SupplierCatalogConfig {
   id: string;
@@ -58,926 +58,979 @@ export const SUPPLIER_METADATA: Record<string, SupplierCatalogConfig> = {
   },
 };
 
-interface ArchetypeDef {
+interface SupplierProductTemplate {
   name: string;
   category: string;
-  count: number;
-  priceRange: [number, number];
-  images: string[];
-  titleGenerator: (idx: number) => string;
-  descriptionGenerator: (idx: number) => string;
+  price: number;
+  image_url: string;
+  description: string;
+  hype_score?: number;
+  vendas_mes?: number;
 }
 
-const CLUBS = [
-  'Flamengo', 'Real Madrid', 'Palmeiras', 'Barcelona', 'Corinthians', 'Manchester City',
-  'São Paulo', 'Arsenal', 'Vasco da Gama', 'Paris Saint-Germain', 'Santos', 'Liverpool',
-  'Grêmio', 'Bayern de Munique', 'Internacional', 'Juventus', 'Atlético Mineiro', 'Chelsea',
-  'Cruzeiro', 'Milan', 'Botafogo', 'Inter de Milão', 'Fluminense', 'Borussia Dortmund',
-  'Seleção Brasileira', 'Seleção Argentina', 'Seleção Francesa', 'Seleção Portuguesa', 'Seleção Alemã', 'Seleção Espanhola'
-];
-
-const COLORS_GENERAL = [
-  'Preto Fosco', 'Branco Polar', 'Cinza Chumbo', 'Azul Marinho', 'Verde Militar', 'Grafite Escovado',
-  'Vermelho Carmim', 'Dourado Champanhe', 'Prata Espelhado', 'Azul Petróleo', 'Rosa Quartz', 'Titanium Black'
-];
-
-const FRAGRANCES = [
-  'Vanilla Obsession', 'Morango Silvestre & Chantilly', 'Âmbar Dourado & Sândalo', 'Flor de Cerejeira Japonesa',
-  'Pistache Cremoso & Baunilha', 'Caramelo Salgado & Mel', 'Algodão Egípcio Puro', 'Frutas Vermelhas & Cassis',
-  'Orquídea Negra Noturna', 'Bruma de Coco Tropical', 'Lavanda Francesa Relaxante', 'Flor de Laranjeira & Cedro'
-];
-
-const SKINCARE_ACTIVES = [
-  'Vitamina C Pura 15%', 'Ácido Hialurônico 2% Multimolecular', 'Retinol Puro 0.3% Renovador',
-  'Niacinamida 10% + Zinco 1%', 'Ácido Salicílico 2% Anti-Oleosidade', 'Peptídeos de Cobre Estimulante',
-  'Cafeína 5% + EGCG Descongestionante', 'Esqualano Vegetal 100% Puro', 'Ácido Glicólico 7% Esfoliante'
-];
-
-const SUPPLIER_ARCHETYPES: Record<string, ArchetypeDef[]> = {
+const RAW_SUPPLIER_ITEMS: Record<string, SupplierProductTemplate[]> = {
   sportsfull: [
     {
-      name: 'Camisa de Time Dry-Fit',
+      name: 'Chuteira Society Pro Grip SpeedGrip com Travas Borracha Antiderrapante',
       category: 'Esportes',
-      count: 60,
-      priceRange: [89.9, 139.9],
-      images: [
-        'https://images.unsplash.com/photo-1518091043644-c1d4457512c6?auto=format&fit=crop&q=80&w=800',
-        'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&q=80&w=800',
-        'https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=800',
-        'https://images.unsplash.com/photo-1522778119026-d647f0596c20?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const club = CLUBS[idx % CLUBS.length];
-        const version = idx % 3 === 0 ? 'Versão Jogador Match' : idx % 3 === 1 ? 'Edição Especial Retrô' : 'Uniforme Oficial 24/25';
-        return `Camisa de Time Dry-Fit ${club} ${version}`;
-      },
-      descriptionGenerator: (idx) => {
-        const club = CLUBS[idx % CLUBS.length];
-        return `Camisa de futebol do ${club} confeccionada em tecido poliéster 100% com tecnologia Dry-Fit antissuor, escudo bordado de alta definição, costuras reforçadas e modelagem anatômica para treino e lazer.`;
-      }
+      price: 149.9,
+      image_url: 'https://images.unsplash.com/photo-1511556532299-8f662fc26c06?auto=format&fit=crop&q=80&w=800',
+      description: 'Chuteira society com solado emborrachado e microtravas multidirecionais para máxima tração no gramado sintético, cabedal texturizado e palmilha em EVA macio.'
     },
     {
-      name: 'Chuteira Society Pro Grip',
+      name: 'Tênis de Corrida Performance Flyknit com Amortecimento a Ar',
       category: 'Esportes',
-      count: 60,
-      priceRange: [129.9, 189.9],
-      images: [
-        'https://images.unsplash.com/photo-1511556532299-8f662fc26c06?auto=format&fit=crop&q=80&w=800',
-        'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=800',
-        'https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const color = COLORS_GENERAL[idx % COLORS_GENERAL.length];
-        const model = `SpeedGrip V${(idx % 5) + 1}`;
-        return `Chuteira Society Pro Grip com Travas Borracha ${model} ${color}`;
-      },
-      descriptionGenerator: () => {
-        return `Chuteira society com solado emborrachado com microtravas multidirecionais para máxima tração no gramado sintético, cabedal texturizado para controle de bola e palmilha em EVA macio.`;
-      }
+      price: 189.9,
+      image_url: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=800',
+      description: 'Tênis de alta performance para corrida e caminhada com cabedal em malha respirável Flyknit, entressola com cápsulas de ar e sola de borracha anti-impacto.'
     },
     {
-      name: 'Bola de Futebol Campo e Futsal',
+      name: 'Bola de Futebol Campo Termofusão Sem Costura Edição Match Pro',
       category: 'Esportes',
-      count: 60,
-      priceRange: [79.9, 119.9],
-      images: [
-        'https://images.unsplash.com/photo-1614632537190-23e4146777db?auto=format&fit=crop&q=80&w=800',
-        'https://images.unsplash.com/photo-1529900748604-07564a03e7a6?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const type = idx % 2 === 0 ? 'Campo Oficial' : 'Futsal Profissional';
-        return `Bola de Futebol ${type} Termofusão Sem Costura Edição Match ${(idx % 10) + 1}`;
-      },
-      descriptionGenerator: () => {
-        return `Bola oficial confeccionada com tecnologia de termofusão sem costura, zero absorção de água, câmara de ar butílica com retenção de pressão prolongada e peso regulamentar.`;
-      }
+      price: 99.9,
+      image_url: 'https://images.unsplash.com/photo-1614632537190-23e4146777db?auto=format&fit=crop&q=80&w=800',
+      description: 'Bola oficial confeccionada com tecnologia de termofusão sem costura, zero absorção de água, câmara de ar butílica e peso regulamentar da FIFA.'
     },
     {
-      name: 'Luva de Goleiro Grip Profissional',
+      name: 'Bola de Futsal Profissional Salão com Amortecimento Termotec',
       category: 'Esportes',
-      count: 60,
-      priceRange: [99.9, 159.9],
-      images: [
-        'https://images.unsplash.com/photo-1587280501635-68a0e82cd5ff?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const size = (idx % 4) + 8; // Tam 8, 9, 10, 11
-        const cut = idx % 2 === 0 ? 'Corte Negativo' : 'Roll Finger';
-        return `Luva de Goleiro Profissional ${cut} Palma Látex Alemão 4mm Tam ${size}`;
-      },
-      descriptionGenerator: () => {
-        return `Luva com palma em látex alemão de 4mm com aderência superior em piso seco ou molhado, munhequeira elástica com cinta de velcro dupla e dorso acolchoado para amortecimento de impacto.`;
-      }
+      price: 89.9,
+      image_url: 'https://images.unsplash.com/photo-1529900748604-07564a03e7a6?auto=format&fit=crop&q=80&w=800',
+      description: 'Bola para quadras de futebol de salão com quique amortecido de precisão, revestimento de PU de alta densidade e costuras internas seladas.'
     },
     {
-      name: 'Garrafa Squeeze Térmica Inox',
+      name: 'Luva de Goleiro Grip Profissional Palma Látex Alemão 4mm',
       category: 'Esportes',
-      count: 60,
-      priceRange: [49.9, 79.9],
-      images: [
-        'https://images.unsplash.com/photo-1602143407151-7111542de6e8?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const vol = idx % 2 === 0 ? '750ml' : '1 Litro';
-        const color = COLORS_GENERAL[idx % COLORS_GENERAL.length];
-        return `Garrafa Squeeze Térmica Inox Vacuum ${vol} Parede Dupla ${color}`;
-      },
-      descriptionGenerator: () => {
-        return `Garrafa em aço inox 304 com isolamento térmico a vácuo de parede dupla, preserva líquidos gelados por até 24 horas e quentes por 12 horas, tampa antifuga com bico esportivo.`;
-      }
+      price: 129.9,
+      image_url: 'https://images.unsplash.com/photo-1587280501635-68a0e82cd5ff?auto=format&fit=crop&q=80&w=800',
+      description: 'Luva de alta performance com palma em látex alemão de 4mm, excelente aderência em piso seco ou molhado e munhequeira elástica com cinta de velcro dupla.'
     },
     {
-      name: 'Joelheira de Compressão Neoprene',
+      name: 'Garrafa Squeeze Térmica Inox Vacuum 1 Litro Parede Dupla',
       category: 'Esportes',
-      count: 60,
-      priceRange: [39.9, 69.9],
-      images: [
-        'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const color = COLORS_GENERAL[idx % COLORS_GENERAL.length];
-        return `Joelheira de Compressão Ajustável com Estabilizador Patelar Pro ${color}`;
-      },
-      descriptionGenerator: () => {
-        return `Suporte ortopédico esportivo de alta compressão com anel de silicone anatômico para proteção da patela, hastes flexíveis laterais e tecido respirável que não esquenta.`;
-      }
+      price: 69.9,
+      image_url: 'https://images.unsplash.com/photo-1523381294911-8d3cead13475?auto=format&fit=crop&q=80&w=800',
+      description: 'Garrafa esportiva em aço inox 304 com isolamento térmico a vácuo, mantém bebidas geladas por 24h e quentes por 12h com bico esportivo antifuga.'
+    },
+    {
+      name: 'Joelheira de Compressão Ajustável com Estabilizador Patelar Pro',
+      category: 'Esportes',
+      price: 49.9,
+      image_url: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?auto=format&fit=crop&q=80&w=800',
+      description: 'Suporte ortopédico esportivo com anel de silicone anatômico para proteção da patela, hastes flexíveis laterais e tecido respirável antialérgico.'
+    },
+    {
+      name: 'Corda de Pular de Aço com Rolamento Profissional Speed Rope',
+      category: 'Fitness',
+      price: 39.9,
+      image_url: 'https://images.unsplash.com/photo-1598971639058-fab3c3109a00?auto=format&fit=crop&q=80&w=800',
+      description: 'Corda de alta velocidade com cabo de aço revestido, sistema giratório com duplo rolamento 360 e manoplas ergonômicas antiderrapantes.'
+    },
+    {
+      name: 'Hand Grip com Contador Ajustável de Força 10kg a 60kg',
+      category: 'Fitness',
+      price: 34.9,
+      image_url: 'https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?auto=format&fit=crop&q=80&w=800',
+      description: 'Aparelho fortalecedor para mãos, punhos e antebraço com mola em aço reforçado, regulagem de carga de 10 a 60kg e contador mecânico automático.'
+    },
+    {
+      name: 'Rolo Massageador Muscular Foam Roller Liberação Miofascial',
+      category: 'Fitness',
+      price: 79.9,
+      image_url: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?auto=format&fit=crop&q=80&w=800',
+      description: 'Rolo texturizado para alívio de nós de tensão muscular, aumento da flexibilidade e recuperação acelerada pós-treino com núcleo rígido em PVC.'
+    },
+    {
+      name: 'Tapete de Yoga e Pilates Antiderrapante EVA 10mm Extra Macio',
+      category: 'Fitness',
+      price: 59.9,
+      image_url: 'https://images.unsplash.com/photo-1545205597-3d9d02c29597?auto=format&fit=crop&q=80&w=800',
+      description: 'Colchonete tapete com 10mm de espessura para amortecimento de coluna e articulações, superfície antiderrapante em ambos os lados e alça de transporte.'
+    },
+    {
+      name: 'Kit 5 Faixas Elásticas Mini Bands para Treino em Casa',
+      category: 'Fitness',
+      price: 35.9,
+      image_url: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&q=80&w=800',
+      description: 'Cinco níveis de intensidade de leve a extra pesado em látex 100% natural para fortalecimento muscular de pernas, glúteos e braços.'
+    },
+    {
+      name: 'Kit 3 Faixas Elásticas Hip Resistance Bands de Tecido para Glúteos',
+      category: 'Fitness',
+      price: 49.9,
+      image_url: 'https://images.unsplash.com/photo-1598289431512-b97b0917affc?auto=format&fit=crop&q=80&w=800',
+      description: 'Faixas largas de tecido elástico com tiras internas de borracha antiderrapante que não enrolam nem beliscam a pele durante os exercícios.'
+    },
+    {
+      name: 'Smart Band Pulseira Inteligente M8 com Monitor Cardíaco',
+      category: 'Fitness',
+      price: 69.9,
+      image_url: 'https://images.unsplash.com/photo-1510017803434-a899398421b3?auto=format&fit=crop&q=80&w=800',
+      description: 'Pulseira inteligente com tela colorida, monitoramento contínuo de frequência cardíaca, oxigênio no sangue SpO2, passos e notificações do celular.'
+    },
+    {
+      name: 'Caneleira de Futebol Anatômica Leve com Proteção EVA Dupla',
+      category: 'Esportes',
+      price: 29.9,
+      image_url: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&q=80&w=800',
+      description: 'Caneleira ergonômica com carcaça externa rígida e camada interna em EVA acolchoado para máxima absorção de choques nas divididas.'
+    },
+    {
+      name: 'Tornozeleira de Compressão Esportiva com Cinta Cruzada Ajustável',
+      category: 'Esportes',
+      price: 34.9,
+      image_url: 'https://images.unsplash.com/photo-1599058917212-d750089bc07e?auto=format&fit=crop&q=80&w=800',
+      description: 'Estabilizador de tornozelo elástico respirável para prevenção de entorses e recuperação de ligamentos com tiras elásticas de fixação cruzada.'
+    },
+    {
+      name: 'Faixa de Cabeça Esportiva Antissuor Absorvente Dry-Fit',
+      category: 'Esportes',
+      price: 24.9,
+      image_url: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&q=80&w=800',
+      description: 'Headband elástica em tecido dry-fit de secagem rápida com faixa interna de silicone que segura o suor longe dos olhos durante o treino.'
+    },
+    {
+      name: 'Kit Halteres Emborrachados de Neoprene 2kg Par Ergonômico',
+      category: 'Fitness',
+      price: 69.9,
+      image_url: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?auto=format&fit=crop&q=80&w=800',
+      description: 'Par de halteres em ferro fundido revestidos com neoprene macio e antiderrapante, formato hexagonal anti-rolamento para treino seguro.'
+    },
+    {
+      name: 'Roda de Exercícios Abdominais Dupla com Apoio de Joelhos',
+      category: 'Fitness',
+      price: 59.9,
+      image_url: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&q=80&w=800',
+      description: 'Ab roller com duas rodas emborrachadas largas para estabilidade perfeita, eixo em aço maciço e manoplas acolchoadas em espuma.'
+    },
+    {
+      name: 'Óculos de Natação Profissional Anti-Embaçante com Proteção UV',
+      category: 'Esportes',
+      price: 44.9,
+      image_url: 'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&q=80&w=800',
+      description: 'Lentes espelhadas panorâmicas com película anti-fog anti-embaçamento, vedação em silicone macio 100% estanque e estojo rígido.'
     }
   ],
 
   innova: [
     {
-      name: 'Smartwatch Ultra Series AMOLED',
+      name: 'Smartwatch Ultra 2 Titanium Tela 2.02 AMOLED Always-On Caixa 49mm',
       category: 'Eletrônicos',
-      count: 60,
-      priceRange: [139.9, 199.9],
-      images: [
-        'https://images.unsplash.com/photo-1579586337278-3befd40fd17a?auto=format&fit=crop&q=80&w=800',
-        'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?auto=format&fit=crop&q=80&w=800',
-        'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const series = idx % 3 === 0 ? 'Series 9 Pro Max' : idx % 3 === 1 ? 'Ultra 2 Titanium' : 'Series 8 AMOLED';
-        const color = COLORS_GENERAL[idx % COLORS_GENERAL.length];
-        return `Smartwatch ${series} Tela 2.02" AMOLED Caixa Reforçada ${color}`;
-      },
-      descriptionGenerator: () => {
-        return `Smartwatch com tela infinita AMOLED de alta resolução, coroa giratória funcional, atende e faz chamadas telefônicas via Bluetooth, monitoramento de saúde 24h e mais de 100 modos esportivos.`;
-      }
+      price: 189.9,
+      image_url: 'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?auto=format&fit=crop&q=80&w=800',
+      description: 'Smartwatch com tela infinita AMOLED de alta resolução, coroa giratória, atende chamadas telefônicas via Bluetooth e bateria para até 7 dias.'
     },
     {
-      name: 'Fone de Ouvido Bluetooth TWS ANC',
+      name: 'Fone de Ouvido Bluetooth TWS Pro ANC Cancelamento de Ruído',
       category: 'Eletrônicos',
-      count: 65,
-      priceRange: [59.9, 119.9],
-      images: [
-        'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&q=80&w=800',
-        'https://images.unsplash.com/photo-1606220588913-b3aacb4d2f46?auto=format&fit=crop&q=80&w=800',
-        'https://images.unsplash.com/photo-1572536147248-ac59a8abfa4b?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const model = `AirBass ANC Gen-${(idx % 6) + 1}`;
-        const color = COLORS_GENERAL[idx % COLORS_GENERAL.length];
-        return `Fone de Ouvido Bluetooth TWS Pro ${model} Baixa Latência ${color}`;
-      },
-      descriptionGenerator: () => {
-        return `Fone estéreo com cancelamento ativo de ruído ANC, drivers dinâmicos de 13mm para graves profundos, microfone com redução de vento, baixa latência para vídeos e estojo com até 28h de autonomia.`;
-      }
+      price: 99.9,
+      image_url: 'https://images.unsplash.com/photo-1606220588913-b3aacb4d2f46?auto=format&fit=crop&q=80&w=800',
+      description: 'Fone estéreo com cancelamento ativo de ruído ANC, drivers dinâmicos de 13mm para graves profundos e estojo de recarga com autonomia de 28h.'
     },
     {
-      name: 'Mini Projetor Smart 4K Portátil',
+      name: 'Mini Projetor Smart 4K Portátil Wi-Fi 6 Android 11 Integrado',
       category: 'Eletrônicos',
-      count: 55,
-      priceRange: [269.9, 389.9],
-      images: [
-        'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&q=80&w=800',
-        'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const model = `Cinema Pro 5G Mod-${(idx % 5) + 1}`;
-        return `Mini Projetor Portátil Smart 4K Wi-Fi 5G Android Integrado ${model}`;
-      },
-      descriptionGenerator: () => {
-        return `Projetor compacto com rotação de 180°, suporte a decodificação 4K, conexão Wi-Fi dual-band 5G, sistema Android com apps de streaming integrados e auto-keystone para correção de imagem.`;
-      }
+      price: 329.9,
+      image_url: 'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&q=80&w=800',
+      description: 'Transforme qualquer parede em cinema com resolução 4K decodificada, sistema Android embutido para Netflix e YouTube e rotação de 180 graus.'
     },
     {
-      name: 'Power Bank Turbo com Display Digital',
+      name: 'Carregador Power Bank 20.000mAh Turbo com Display Digital LED',
       category: 'Eletrônicos',
-      count: 65,
-      priceRange: [79.9, 139.9],
-      images: [
-        'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&q=80&w=800',
-        'https://images.unsplash.com/photo-1585338107529-13afc5f02586?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const cap = idx % 2 === 0 ? '20.000mAh' : '10.000mAh';
-        const color = COLORS_GENERAL[idx % COLORS_GENERAL.length];
-        return `Carregador Power Bank ${cap} Turbo PD 22.5W com Display Digital ${color}`;
-      },
-      descriptionGenerator: () => {
-        return `Bateria externa portátil de alta densidade com display em LED indicador de porcentagem exata, múltiplas portas USB e USB-C com tecnologia Power Delivery e proteção contra sobretensão.`;
-      }
+      price: 119.9,
+      image_url: 'https://images.unsplash.com/photo-1609081219094-a31f24d80a22?auto=format&fit=crop&q=80&w=800',
+      description: 'Bateria portátil de 20.000mAh com display digital numérico de porcentagem, saídas Turbo 22.5W compatíveis com iPhone e Android.'
     },
     {
-      name: 'Caixa de Som Bluetooth Subwoofer IPX7',
+      name: 'Mini Câmera de Segurança Espiã A9 WiFi Full HD Visão Noturna',
       category: 'Eletrônicos',
-      count: 70,
-      priceRange: [89.9, 169.9],
-      images: [
-        'https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const power = (idx % 4 === 0) ? '30W' : (idx % 4 === 1) ? '40W' : (idx % 4 === 2) ? '20W' : '50W';
-        const color = COLORS_GENERAL[idx % COLORS_GENERAL.length];
-        return `Caixa de Som Bluetooth Portátil Subwoofer IPX7 ${power} RMS ${color}`;
-      },
-      descriptionGenerator: () => {
-        return `Caixa de som sem fio com radiadores passivos de graves reforçados, certificação IPX7 à prova de respingos d'água, bateria para até 14h de som contínuo e conexão TWS para emparelhar duas caixas.`;
-      }
+      price: 59.9,
+      image_url: 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&q=80&w=800',
+      description: 'Câmera compacta magnética com resolução 1080P, transmissão em tempo real pelo celular, sensor de presença e gravação contínua no cartão SD.'
     },
     {
-      name: 'Microfone Lapela Sem Fio Duplo',
+      name: 'Carregador por Indução 3 em 1 Magnético Dobrável MagSafe 15W',
       category: 'Eletrônicos',
-      count: 65,
-      priceRange: [49.9, 89.9],
-      images: [
-        'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const conn = idx % 2 === 0 ? 'Tipo-C Android / iPhone 15' : 'Conector Lightning Apple';
-        return `Microfone de Lapela Sem Fio Duplo com Redução de Ruído para ${conn}`;
-      },
-      descriptionGenerator: () => {
-        return `Kit com 2 microfones lapela e 1 receptor sem fio com emparelhamento automático instantâneo, captação omnidirecional 360°, filtro de ruído acústico inteligente e alcance de até 20 metros sem delay.`;
-      }
+      price: 129.9,
+      image_url: 'https://images.unsplash.com/photo-1622445262464-84b1456045b6?auto=format&fit=crop&q=80&w=800',
+      description: 'Estação de carregamento sem fio articulada compatível com iPhone, Apple Watch e AirPods simultaneamente com alinhamento magnético forte.'
+    },
+    {
+      name: 'Cabo Magnético 3 em 1 Carga Rápida Giratório 540 Graus LED',
+      category: 'Eletrônicos',
+      price: 29.9,
+      image_url: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&q=80&w=800',
+      description: 'Cabo reforçado em nylon trançado com conector giratório 540 e pontas magnéticas destacáveis Type-C, Lightning e Micro-USB.'
+    },
+    {
+      name: 'Mini Drone Dobrável com Câmera Dual 4K HD e Sensor Anti-Colisão',
+      category: 'Eletrônicos',
+      price: 199.9,
+      image_url: 'https://images.unsplash.com/photo-1527977966376-1c8408f9f108?auto=format&fit=crop&q=80&w=800',
+      description: 'Drone ultraleve com duas câmeras com transmissão de vídeo ao vivo no smartphone, decolagem automática em um botão e modo retorno seguro.'
+    },
+    {
+      name: 'Caixa de Som Bluetooth À Prova Dágua T&G Bass Pro 12h Bateria',
+      category: 'Eletrônicos',
+      price: 119.9,
+      image_url: 'https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&q=80&w=800',
+      description: 'Caixa com graves reforçados por radiadores passivos duplos, certificação contra água IPX6, bateria de 12 horas e conexão TWS estéreo.'
+    },
+    {
+      name: 'Rastreador Inteligente Anti-Perda compatível com Apple Find My',
+      category: 'Eletrônicos',
+      price: 49.9,
+      image_url: 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?auto=format&fit=crop&q=80&w=800',
+      description: 'Localizador compacto para chaves, bolsas e malas com alerta sonoro integrado e localização global pela rede Buscar sem assinatura mensal.'
+    },
+    {
+      name: 'Mini Impressora Térmica Portátil Bluetooth para Fotos e Recibos',
+      category: 'Eletrônicos',
+      price: 89.9,
+      image_url: 'https://images.unsplash.com/photo-1612815154858-60aa4c59eaa6?auto=format&fit=crop&q=80&w=800',
+      description: 'Impressora de bolso sem tinta que imprime instantaneamente por calor adesivos, listas, fotos e notas de estudo direto do smartphone.'
+    },
+    {
+      name: 'Ring Light LED 26cm com Tripé Profissional 2.10m e Suporte Celular',
+      category: 'Eletrônicos',
+      price: 69.9,
+      image_url: 'https://images.unsplash.com/photo-1527799820374-dcf8d9d4a388?auto=format&fit=crop&q=80&w=800',
+      description: 'Iluminador circular com 3 tonalidades de luz (branca, quente e neutra), dimmer de 10 níveis de brilho e tripé regulável até 2,10 metros.'
+    },
+    {
+      name: 'Smartwatch Series 9 Pro Max Tela Infinita AMOLED Caixa 45mm',
+      category: 'Eletrônicos',
+      price: 159.9,
+      image_url: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&q=80&w=800',
+      description: 'Relógio inteligente de alta definição com monitor cardíaco, sensor de sono, pulseiras intercambiáveis e suporte a centenas de mostradores.'
+    },
+    {
+      name: 'Fone Bluetooth Esportivo Condução Óssea Open-Ear Sweatproof',
+      category: 'Eletrônicos',
+      price: 119.9,
+      image_url: 'https://images.unsplash.com/photo-1572536147248-ac59a8abfa4b?auto=format&fit=crop&q=80&w=800',
+      description: 'Fone seguro para ciclistas e corredores que transmite áudio por vibrações no osso zigomático mantendo os canais auditivos livres para o trânsito.'
+    },
+    {
+      name: 'Hub Adaptador USB-C 7 em 1 HDMI 4K USB 3.0 Cartão SD PD 100W',
+      category: 'Eletrônicos',
+      price: 89.9,
+      image_url: 'https://images.unsplash.com/photo-1544652478-6653e09f18a2?auto=format&fit=crop&q=80&w=800',
+      description: 'Expansão em liga de alumínio para MacBooks e notebooks com saída HDMI 4K, 3 portas USB 3.0 ultra rápidas e leitores de cartão SD/MicroSD.'
+    },
+    {
+      name: 'Microfone de Mesa USB Condensador Cardioide com Filtro Antipuff',
+      category: 'Eletrônicos',
+      price: 139.9,
+      image_url: 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?auto=format&fit=crop&q=80&w=800',
+      description: 'Microfone profissional para streaming, podcasts e chamadas no Discord com cápsula cardioide que isola ruídos do teclado e ambiente.'
+    },
+    {
+      name: 'Câmera de Ação 4K à Prova Dágua com Acessórios para Capacete',
+      category: 'Eletrônicos',
+      price: 179.9,
+      image_url: 'https://images.unsplash.com/photo-1500634245200-e5245c7574ef?auto=format&fit=crop&q=80&w=800',
+      description: 'Action cam com gravação em 4K 30fps, lente grande angular de 170 graus, caixa estanque subaquática até 30 metros e kit de suportes.'
+    },
+    {
+      name: 'Estabilizador Gimbal de 3 Eixos para Celular com Rastreamento Facial',
+      category: 'Eletrônicos',
+      price: 249.9,
+      image_url: 'https://images.unsplash.com/photo-1589872765553-d66a6a575a74?auto=format&fit=crop&q=80&w=800',
+      description: 'Estabilizador de vídeo eletrônico profissional para criadores de conteúdo que elimina tremores ao andar e rastreia rostos por IA.'
     }
   ],
 
   lumina: [
     {
-      name: 'Body Splash Desodorante Colônia',
+      name: 'Body Splash Fragrância Baunilha Oriental & Âmbar Dourado 250ml',
       category: 'Beleza',
-      count: 60,
-      priceRange: [39.9, 69.9],
-      images: [
-        'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?auto=format&fit=crop&q=80&w=800',
-        'https://images.unsplash.com/photo-1547887537-6158d64c35b3?auto=format&fit=crop&q=80&w=800',
-        'https://images.unsplash.com/photo-1523293182086-7651a899d37f?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const frag = FRAGRANCES[idx % FRAGRANCES.length];
-        return `Body Splash Desodorante Colônia ${frag} 250ml Fixação 24h`;
-      },
-      descriptionGenerator: (idx) => {
-        const frag = FRAGRANCES[idx % FRAGRANCES.length];
-        return `Desodorante colônia na fragrância ${frag} enriquecida com notas olfativas envolventes, rápida absorção na pele, fixação de até 12 horas e toque acetinado sem ressecar.`;
-      }
+      price: 49.9,
+      image_url: 'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?auto=format&fit=crop&q=80&w=800',
+      description: 'Desodorante colônia corporal com notas envolventes de baunilha de Madagascar, flor de cerejeira e fixação suave para o dia a dia.'
     },
     {
-      name: 'Sérum Facial Concentrado Skincare',
+      name: 'Sérum Facial Vitamina C 15% Pura com Ácido Hialurônico 30ml',
       category: 'Beleza',
-      count: 60,
-      priceRange: [34.9, 59.9],
-      images: [
-        'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&q=80&w=800',
-        'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const active = SKINCARE_ACTIVES[idx % SKINCARE_ACTIVES.length];
-        return `Sérum Facial Concentrado ${active} Tratamento Anti-Idade 30ml`;
-      },
-      descriptionGenerator: (idx) => {
-        const active = SKINCARE_ACTIVES[idx % SKINCARE_ACTIVES.length];
-        return `Sérum facial dermatológico com ${active}, textura fluida de rápida absorção, combate radicais livres, hidrata profundamente e restaura o viço natural da pele.`;
-      }
+      price: 54.9,
+      image_url: 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&q=80&w=800',
+      description: 'Fórmula clareadora antioxidante com 15% de vitamina C nanoencapsulada, hidrata profundamente, uniformiza o tom da pele e estimula o colágeno.'
     },
     {
-      name: 'Escova Alisadora Secadora Cerâmica',
+      name: 'Kit Maquiagem Profissional 12 Pincéis com Estojo de Couro',
       category: 'Beleza',
-      count: 60,
-      priceRange: [69.9, 119.9],
-      images: [
-        'https://images.unsplash.com/photo-1522338242992-e1a54906a8da?auto=format&fit=crop&q=80&w=800',
-        'https://images.unsplash.com/photo-1527799820374-dcf8d9d4a388?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const color = COLORS_GENERAL[idx % COLORS_GENERAL.length];
-        return `Escova Alisadora e Secadora 3 em 1 Íons Cerâmica Turmalina ${color}`;
-      },
-      descriptionGenerator: () => {
-        return `Escova com cerdas mistas macias e flexíveis com pontas arredondadas, gerador de íons negativos que selam as cutículas reduzindo o frizz e 3 temperaturas reguláveis para todos os tipos de fios.`;
-      }
+      price: 69.9,
+      image_url: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&q=80&w=800',
+      description: 'Conjunto completo com cerdas sintéticas ultrafinas e macias para base, pó, blush, esfumado e contorno com estojo protetor.'
     },
     {
-      name: 'Paleta de Sombras Ultra Pigmentada',
+      name: 'Escova Secadora e Alisadora Rotativa 3 em 1 Cerâmica Ionizada',
       category: 'Beleza',
-      count: 60,
-      priceRange: [44.9, 79.9],
-      images: [
-        'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const palette = idx % 2 === 0 ? 'Nude Glamour 18 Cores' : 'Sunset Desert Matte & Brilho 24 Cores';
-        return `Paleta de Sombras Profissional ${palette} Ultra Pigmentada`;
-      },
-      descriptionGenerator: () => {
-        return `Paleta com cores altamente pigmentadas de fácil aplicação e esfumado uniforme, tons matte aveludados e cintilantes de longa durabilidade à prova d'água.`;
-      }
+      price: 119.9,
+      image_url: 'https://images.unsplash.com/photo-1522338242992-e1a54906a8da?auto=format&fit=crop&q=80&w=800',
+      description: 'Seca, alisa e modela os cabelos em minutos com calor cerâmico e emissão de íons negativos que eliminam o frizz e dão brilho espelhado.'
     },
     {
-      name: 'Gloss Labial Efeito Volume Plump',
+      name: 'Protetor Solar Facial Toque Seco FPS 60 com Niacinamida 50g',
       category: 'Beleza',
-      count: 60,
-      priceRange: [24.9, 42.9],
-      images: [
-        'https://images.unsplash.com/photo-1586495777744-4413f21062fa?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const tone = idx % 3 === 0 ? 'Rosa Translúcido' : idx % 3 === 1 ? 'Nude Cristal' : 'Pêssego Brilhante';
-        return `Gloss Labial Hidratante Efeito Plump Volume com Ácido Hialurônico ${tone}`;
-      },
-      descriptionGenerator: () => {
-        return `Gloss labial formulado com microesferas de ácido hialurônico que promovem volume imediato e hidratação profunda sem sensação pegajosa, com brilho espelhado luminoso.`;
-      }
+      price: 44.9,
+      image_url: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&q=80&w=800',
+      description: 'Protetor com textura gel fluida de rápida absorção, efeito matte anti-brilho por 12h e proteção ampla contra raios UVA/UVB e luz azul.'
     },
     {
-      name: 'Creme Hidratante Corporal Nutritivo',
+      name: 'Óleo Capilar Reparador com Óleo de Argan e Macadâmia 60ml',
       category: 'Beleza',
-      count: 60,
-      priceRange: [29.9, 49.9],
-      images: [
-        'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const frag = FRAGRANCES[idx % FRAGRANCES.length];
-        return `Creme Hidratante Corporal Nutritivo Manteiga de Karité ${frag} 200g`;
-      },
-      descriptionGenerator: () => {
-        return `Hidratante desodorante corporal com ação desodorante e nutritiva profunda, textura cremosa densa que absorve rápido sem engordurar a pele, deixando toque aveludado e perfume suave.`;
-      }
+      price: 39.9,
+      image_url: 'https://images.unsplash.com/photo-1608248597359-598d9e6eb7b4?auto=format&fit=crop&q=80&w=800',
+      description: 'Finalizador nutritivo para pontas duplas e ressecadas com proteção térmica de até 230 graus sem deixar os fios pesados.'
+    },
+    {
+      name: 'Modelador de Cachos Automático Sem Fio Bateria USB Cerâmica',
+      category: 'Beleza',
+      price: 139.9,
+      image_url: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&q=80&w=800',
+      description: 'Cria cachos perfeitos e ondas naturais automaticamente sem queimar as mãos, com controle digital de temperatura e rotação bidirecional.'
+    },
+    {
+      name: 'Kit Cílios Postiços Magnéticos com Delineador Líquido Especial',
+      category: 'Beleza',
+      price: 34.9,
+      image_url: 'https://images.unsplash.com/photo-1583001931096-959e9a1a6223?auto=format&fit=crop&q=80&w=800',
+      description: 'Aplicação magnética rápida sem necessidade de cola que danifica os cílios naturais, reutilizável até 30 vezes e à prova dágua.'
+    },
+    {
+      name: 'Aparelho Removedor de Cravos e Espinhas a Vácuo com Sucção',
+      category: 'Beleza',
+      price: 79.9,
+      image_url: 'https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?auto=format&fit=crop&q=80&w=800',
+      description: 'Limpeza de pele profunda em casa com 5 níveis de sucção ajustáveis e 4 ponteiras específicas para desobstrução de poros.'
+    },
+    {
+      name: 'Depilador de Cristal Corporal Indolor Nanotecnologia Esfoliante',
+      category: 'Beleza',
+      price: 29.9,
+      image_url: 'https://images.unsplash.com/photo-1512290900672-1f02e742918d?auto=format&fit=crop&q=80&w=800',
+      description: 'Depilação suave sem lâminas ou cera com microcristais que removem os pelos e células mortas da pele em movimentos circulares.'
+    },
+    {
+      name: 'Rolo Facial de Jade Roller e Pedra Gua Sha Natural Massagem',
+      category: 'Beleza',
+      price: 38.9,
+      image_url: 'https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?auto=format&fit=crop&q=80&w=800',
+      description: 'Instrumentos de massagem facial em pedra natural que ativam a drenagem linfática, desincham o rosto e potencializam a absorção de séruns.'
+    },
+    {
+      name: 'Caneta Depiladora Aparadora de Sobrancelha Elétrica LED',
+      category: 'Beleza',
+      price: 32.9,
+      image_url: 'https://images.unsplash.com/photo-1596704017254-9b121068fb31?auto=format&fit=crop&q=80&w=800',
+      description: 'Aparador de precisão no formato de caneta com lâmina hipoalergênica banhada a ouro e luz LED integrada para acabamento impecável.'
+    },
+    {
+      name: 'Perfume Árabe Concentrado Notas de Baunilha e Oud 100ml',
+      category: 'Beleza',
+      price: 149.9,
+      image_url: 'https://images.unsplash.com/photo-1547887537-6158d64c35b3?auto=format&fit=crop&q=80&w=800',
+      description: 'Fragrância oriental de luxo com alta concentração de essência, projeção marcante e fixação de mais de 16 horas na pele.'
+    },
+    {
+      name: 'Paleta de Sombras Neutras 18 Cores Matte e Cintilantes',
+      category: 'Beleza',
+      price: 49.9,
+      image_url: 'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?auto=format&fit=crop&q=80&w=800',
+      description: 'Sombras ultra pigmentadas de textura aveludada com tons terrosos, nudes e dourados que esfumam com facilidade sem craquelar.'
+    },
+    {
+      name: 'Esponja de Maquiagem Gota com Suporte Rose Gold Metal',
+      category: 'Beleza',
+      price: 19.9,
+      image_url: 'https://images.unsplash.com/photo-1599733589046-10c005738ef9?auto=format&fit=crop&q=80&w=800',
+      description: 'Esponja de textura macia que dobra de tamanho quando molhada para acabamento natural de bases e corretivos com suporte ventilado.'
+    },
+    {
+      name: 'Máscara de Cílios Volume Máximo à Prova Dágua Efeito Boneca',
+      category: 'Beleza',
+      price: 34.9,
+      image_url: 'https://images.unsplash.com/photo-1631214524020-7e18db9a8f92?auto=format&fit=crop&q=80&w=800',
+      description: 'Rímel com aplicador anatômico de cerdas densas que alonga, curva e dá volume expressivo da raiz às pontas sem formar grumos.'
+    },
+    {
+      name: 'Batom Líquido Matte Longa Duração 16 Horas Não Transfere',
+      category: 'Beleza',
+      price: 27.9,
+      image_url: 'https://images.unsplash.com/photo-1625093742435-6fa192b6fb10?auto=format&fit=crop&q=80&w=800',
+      description: 'Batom com pigmentação intensa e secagem rápida que não borra, não transfere para copos e máscaras e mantém os lábios aveludados.'
+    },
+    {
+      name: 'Água Micelar Demaquilante Purificante 5 em 1 Ácido Hialurônico 200ml',
+      category: 'Beleza',
+      price: 29.9,
+      image_url: 'https://images.unsplash.com/photo-1556228722-d0b7132145e6?auto=format&fit=crop&q=80&w=800',
+      description: 'Remove maquiagem à prova dágua, limpa a oleosidade dos poros, purifica, tonifica e hidrata sem necessidade de enxágue.'
     }
   ],
 
   hometech: [
     {
-      name: 'Painel Ripado Autoadesivo EVA',
+      name: 'Robô Aspirador Inteligente Bivolt 3 em 1 Varre, Aspira e Passa Pano',
       category: 'Casa & Decoração',
-      count: 60,
-      priceRange: [69.9, 139.9],
-      images: [
-        'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const pattern = idx % 2 === 0 ? 'Madeira Freijó Nobre' : 'Carvalho Europeu';
-        const len = (idx % 3 === 0) ? '10 Metros' : (idx % 3 === 1) ? '15 Metros' : '20 Metros';
-        return `Kit Painel Ripado Autoadesivo Flexível ${len} ${pattern}`;
-      },
-      descriptionGenerator: () => {
-        return `Revestimento de parede moderno autocolante em EVA de alta densidade, resistente à umidade, lavável, isolamento térmico e acústico, dispensa cola extra e ferramentas complexas.`;
-      }
+      price: 179.9,
+      image_url: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&q=80&w=800',
+      description: 'Robô autônomo com sensores anti-queda e anti-colisão, escovas laterais rotativas e pano de microfibra umedecível para limpeza prática.'
     },
     {
-      name: 'Barra de Luz LED para Monitor',
+      name: 'Umidificador e Difusor de Aromas Ultrassônico Efeito Chama LED',
       category: 'Casa & Decoração',
-      count: 60,
-      priceRange: [89.9, 149.9],
-      images: [
-        'https://images.unsplash.com/photo-1547082299-de196ea013d6?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const color = COLORS_GENERAL[idx % COLORS_GENERAL.length];
-        return `Barra de Luz LED para Monitor Anti-Reflexo com Sensor Touch ${color}`;
-      },
-      descriptionGenerator: () => {
-        return `Luminária linear para fixação em monitores de qualquer espessura, iluminação frontal assimétrica que elimina reflexos na tela e previne cansaço visual em longas sessões de trabalho ou estudo.`;
-      }
+      price: 79.9,
+      image_url: 'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?auto=format&fit=crop&q=80&w=800',
+      description: 'Umidificador de ambiente com luzes LED que simulam chamas de lareira realistas, compatível com óleos essenciais para aromaterapia.'
     },
     {
-      name: 'Umidificador Efeito Chama LED',
+      name: 'Mop Giratório Limpeza Prática 360 com Balde Lava e Seca',
       category: 'Casa & Decoração',
-      count: 60,
-      priceRange: [69.9, 119.9],
-      images: [
-        'https://images.unsplash.com/photo-1585771724684-38269d6639fd?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const color = COLORS_GENERAL[idx % COLORS_GENERAL.length];
-        return `Umidificador e Difusor de Aromas Ultrassônico Efeito Chama LED Flame ${color}`;
-      },
-      descriptionGenerator: () => {
-        return `Aparelho ultrassônico silencioso com luz LED quente que simula chama realista de lareira, tanque de água com desligamento automático inteligente e compatível com óleos essenciais aromáticos.`;
-      }
+      price: 89.9,
+      image_url: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&q=80&w=800',
+      description: 'Sistema completo com balde centrífuga em inox que espreme a microfibra sem molhar as mãos, cabo telescópico ajustável e refil extra.'
     },
     {
-      name: 'Organizadores Acrílicos Modulares',
+      name: 'Luminária Noturna Touch de Cabeceira com Sensor de Presença LED',
       category: 'Casa & Decoração',
-      count: 60,
-      priceRange: [39.9, 79.9],
-      images: [
-        'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const pcs = (idx % 3 === 0) ? '6 Peças' : (idx % 3 === 1) ? '8 Peças' : '12 Peças';
-        return `Kit Organizadores Transparentes Empilháveis para Gavetas e Closet ${pcs}`;
-      },
-      descriptionGenerator: () => {
-        return `Organizadores transparentes empilháveis de plástico rígido livre de BPA, bordas arredondadas e divisórias práticas para manter roupas íntimas, maquiagens, talheres e gavetas perfeitamente arrumadas.`;
-      }
+      price: 39.9,
+      image_url: 'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&q=80&w=800',
+      description: 'Luz noturna magnética sem fios com bateria recarregável USB que acende automaticamente ao detectar movimento no escuro.'
     },
     {
-      name: 'Copo Térmico Inox com Tampa',
+      name: 'Lâmpada Lua Cheia 3D Touch 16 Cores RGB com Suporte de Madeira',
+      category: 'Casa & Decoração',
+      price: 49.9,
+      image_url: 'https://images.unsplash.com/photo-1532767153582-b1a0e5145009?auto=format&fit=crop&q=80&w=800',
+      description: 'Réplica da lua impressa em 3D com texturas crateradas reais, controle remoto com 16 cores e regulação de intensidade de luz.'
+    },
+    {
+      name: 'Balança Digital Corporal de Bioimpedância com Conexão Bluetooth',
+      category: 'Casa & Decoração',
+      price: 69.9,
+      image_url: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=800',
+      description: 'Mede peso, índice de massa corporal IMC, gordura corporal, massa muscular e taxa metabólica com sincronização automática no smartphone.'
+    },
+    {
+      name: 'Cortador de Legumes Multifuncional 12 em 1 Mandoline Pro Inox',
       category: 'Cozinha',
-      count: 55,
-      priceRange: [39.9, 69.9],
-      images: [
-        'https://images.unsplash.com/photo-1577937927133-66ef06acdf18?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const color = COLORS_GENERAL[idx % COLORS_GENERAL.length];
-        return `Copo Térmico em Aço Inox 473ml com Tampa e Abridor Embutido ${color}`;
-      },
-      descriptionGenerator: () => {
-        return `Copo com parede dupla com isolamento a vácuo, mantém a cerveja ou refrigerante gelado por mais de 4 horas sem transpirar na parte externa, acompanha tampa com bocal e abridor de garrafas.`;
-      }
+      price: 79.9,
+      image_url: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&q=80&w=800',
+      description: 'Cortador com lâminas intercambiáveis em aço inoxidável para fatiar, picar em cubos, ralar e escorrer alimentos com rapidez e segurança.'
     },
     {
-      name: 'Mini Processador Elétrico USB',
+      name: 'Triturador Elétrico de Alho e Alimentos USB 250ml Lâminas Aço Inox',
       category: 'Cozinha',
-      count: 55,
-      priceRange: [34.9, 54.9],
-      images: [
-        'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const cap = idx % 2 === 0 ? '250ml' : '300ml';
-        const color = COLORS_GENERAL[idx % COLORS_GENERAL.length];
-        return `Mini Processador e Triturador Elétrico sem Fio USB ${cap} ${color}`;
-      },
-      descriptionGenerator: () => {
-        return `Triturador compacto sem fio com 3 lâminas afiadas em aço inox, acionamento prático por botão superior para picar alho, cebola, nozes e legumes em segundos, fácil de lavar e carregar.`;
-      }
+      price: 39.9,
+      image_url: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&q=80&w=800',
+      description: 'Mini processador portátil sem fio com tripla lâmina afiada que tritura alho, cebola, nozes e legumes em apenas 5 segundos.'
+    },
+    {
+      name: 'Dispenser Automático de Pasta de Dente com Esterilizador UV',
+      category: 'Casa & Decoração',
+      price: 59.9,
+      image_url: 'https://images.unsplash.com/photo-1507652313519-d4e9174996dd?auto=format&fit=crop&q=80&w=800',
+      description: 'Suporte de parede com lâmpada germicida ultravioleta que esteriliza as cerdas das escovas e dosa o creme dental a vácuo sem desperdício.'
+    },
+    {
+      name: 'Garrafa Pulverizadora Spray de Azeite e Óleo Culinário em Vidro',
+      category: 'Cozinha',
+      price: 29.9,
+      image_url: 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&q=80&w=800',
+      description: 'Pulverizador névoa ultrafina que reduz em até 70% o consumo de azeite e calorias em saladas, grelhados e fritadeiras Air Fryer.'
+    },
+    {
+      name: 'Forma de Silicone Antiaderente Reutilizável para Fritadeira Air Fryer',
+      category: 'Cozinha',
+      price: 24.9,
+      image_url: 'https://images.unsplash.com/photo-1588854337236-6889d631faa8?auto=format&fit=crop&q=80&w=800',
+      description: 'Cesto protetor em silicone alimentício livre de BPA com relevo para escorrer gordura que mantém o cesto da Air Fryer 100% limpo.'
+    },
+    {
+      name: 'Afiador Amolador de Facas Profissional 4 em 1 com Base Antiderrapante',
+      category: 'Cozinha',
+      price: 34.9,
+      image_url: 'https://images.unsplash.com/photo-1593618998160-e34014e67546?auto=format&fit=crop&q=80&w=800',
+      description: 'Amolador de facas e tesouras com 4 fases (tungstênio, cerâmica, diamante e tesoura) que restaura o fio navalha em poucos puxões.'
+    },
+    {
+      name: 'Bomba Elétrica Recarregável para Galão de Água Touch USB',
+      category: 'Cozinha',
+      price: 39.9,
+      image_url: 'https://images.unsplash.com/photo-1548839140-29a749e1bc4e?auto=format&fit=crop&q=80&w=800',
+      description: 'Dispenser elétrico para galões de 10L e 20L que enche copos e garrafas com 1 toque no botão sem precisar virar peso.'
+    },
+    {
+      name: 'Kit 4 Potes Herméticos de Vidro com Tampa de Bambu e Silicone',
+      category: 'Cozinha',
+      price: 79.9,
+      image_url: 'https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&q=80&w=800',
+      description: 'Potes organizadores em vidro borossilicato resistente com tampa hermética de bambu que conserva mantimentos frescos e crocantes.'
+    },
+    {
+      name: 'Lixeira Automática Inteligente com Sensor de Movimento 12 Litros',
+      category: 'Casa & Decoração',
+      price: 89.9,
+      image_url: 'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?auto=format&fit=crop&q=80&w=800',
+      description: 'Lixeira com sensor de proximidade infravermelho que abre a tampa em 0.3 segundos sem toque manual e anel de fixação de sacola.'
+    },
+    {
+      name: 'Porta Condimentos Giratório em Aço Inox com 16 Frascos de Vidro',
+      category: 'Cozinha',
+      price: 99.9,
+      image_url: 'https://images.unsplash.com/photo-1514792451248-5940ffb7bc39?auto=format&fit=crop&q=80&w=800',
+      description: 'Organizador giratório 360 em aço escovado com 16 potes de vidro dosadores para manter temperos visíveis e organizados na bancada.'
+    },
+    {
+      name: 'Escorredor de Louças Dobrável em Aço Inox sobre a Pia',
+      category: 'Cozinha',
+      price: 49.9,
+      image_url: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&q=80&w=800',
+      description: 'Grelha escorredora multiuso enrolável em hastes de inox com bordas de silicone antiderrapante que otimiza espaço sobre a cuba.'
+    },
+    {
+      name: 'Balança Digital de Cozinha Alta Precisão 10kg Display LCD',
+      category: 'Cozinha',
+      price: 29.9,
+      image_url: 'https://images.unsplash.com/photo-1556912173-3bb406ef7e77?auto=format&fit=crop&q=80&w=800',
+      description: 'Balança culinária de alta sensibilidade com função Tara, graduação de 1g até 10kg ideal para receitas, dietas e porções.'
     }
   ],
 
   trendfit: [
     {
-      name: 'Legging Levanta Bumbum Sem Costura',
-      category: 'Fitness',
-      count: 65,
-      priceRange: [59.9, 89.9],
-      images: [
-        'https://images.unsplash.com/photo-1506619216599-9d16d0903dfd?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const color = COLORS_GENERAL[idx % COLORS_GENERAL.length];
-        return `Calça Legging Sem Costura Cintura Alta Efeito Empina Bumbum 3D ${color}`;
-      },
-      descriptionGenerator: () => {
-        return `Legging fitness confeccionada em malha texturizada com elasticidade em 4 direções, zero transparência no agachamento, cós duplo anatômico compressivo que afina a cintura sem descer.`;
-      }
-    },
-    {
-      name: 'Top Fitness Alta Sustentação Bojo',
-      category: 'Fitness',
-      count: 65,
-      priceRange: [39.9, 65.9],
-      images: [
-        'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const color = COLORS_GENERAL[idx % COLORS_GENERAL.length];
-        return `Top Fitness Alta Sustentação com Alças Cruzadas e Bojo Removível ${color}`;
-      },
-      descriptionGenerator: () => {
-        return `Top de treino com compressão ideal para corridas e treinos de alto impacto, tecido dry antitranspirante de toque macio e forro interno respirável com bojos removíveis.`;
-      }
-    },
-    {
-      name: 'Camiseta Oversized Streetwear Algodão',
+      name: 'Mochila Executiva Antifurto Impermeável com Trava TSA e Saída USB',
       category: 'Moda',
-      count: 60,
-      priceRange: [59.9, 94.9],
-      images: [
-        'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&q=80&w=800',
-        'https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const color = COLORS_GENERAL[idx % COLORS_GENERAL.length];
-        const edit = idx % 2 === 0 ? 'Edição Minimalista Heavy' : 'Graphic Box Street';
-        return `Camiseta Oversized Streetwear 100% Algodão 240g ${edit} ${color}`;
-      },
-      descriptionGenerator: () => {
-        return `Camiseta corte amplo oversized no estilo streetwear autêntico, gola canelada grossa 2.5cm, malha 100% algodão penteado fio 26.1 que não encolhe e não desbota na lavagem.`;
-      }
+      price: 139.9,
+      image_url: 'https://images.unsplash.com/photo-1622560480605-d83c853bc5c3?auto=format&fit=crop&q=80&w=800',
+      description: 'Mochila para notebook até 15.6 polegadas com zíperes ocultos antifurto, cadeado TSA com senha, tecido impermeável e entrada externa USB.'
     },
     {
-      name: 'Short Duplo Corrida com Bolso',
-      category: 'Fitness',
-      count: 60,
-      priceRange: [49.9, 79.9],
-      images: [
-        'https://images.unsplash.com/photo-1556906781-9a412961c28c?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const color = COLORS_GENERAL[idx % COLORS_GENERAL.length];
-        return `Short 2 em 1 de Corrida e Academia com Forro de Compressão Interno ${color}`;
-      },
-      descriptionGenerator: () => {
-        return `Short duplo com bermuda de compressão interna que evita assaduras por atrito nas coxas, bolso elástico justo para segurar celular com segurança e cós com cordão de ajuste.`;
-      }
-    },
-    {
-      name: 'Jaqueta Corta-Vento Impermeável',
+      name: 'Carteira Slim Masculina de Fibra de Carbono com Bloqueio RFID',
       category: 'Moda',
-      count: 60,
-      priceRange: [89.9, 149.9],
-      images: [
-        'https://images.unsplash.com/photo-1544441893-675973e31985?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const color = COLORS_GENERAL[idx % COLORS_GENERAL.length];
-        return `Jaqueta Corta-Vento Streetwear Repelente à Água com Capuz ${color}`;
-      },
-      descriptionGenerator: () => {
-        return `Jaqueta leve confeccionada em poliéster ripstop impermeável, forro interno em tela mesh respirável, bolsos frontais com fechamento seguro e elásticos ajustáveis nos punhos e na barra.`;
-      }
+      price: 49.9,
+      image_url: 'https://images.unsplash.com/photo-1627123424574-724758594e93?auto=format&fit=crop&q=80&w=800',
+      description: 'Carteira minimalista com clipe de dinheiro em aço, compartimento ejetor de cartões em cascata com 1 clique e escudo anti-clonagem RFID.'
     },
     {
-      name: 'Moletom Canguru Flanelado Street',
+      name: 'Óculos de Sol Retrô Polarizado Masculino e Feminino Proteção UV400',
       category: 'Moda',
-      count: 60,
-      priceRange: [99.9, 169.9],
-      images: [
-        'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const color = COLORS_GENERAL[idx % COLORS_GENERAL.length];
-        return `Moletom Canguru Flanelado com Capuz Forrado e Bolso Frontal ${color}`;
-      },
-      descriptionGenerator: () => {
-        return `Agasalho confeccionado em moletom premium 3 cabos com interior macio felpado super quente, cordão roliço no capuz e punhos canelados com elastano que não laceiam.`;
-      }
+      price: 59.9,
+      image_url: 'https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&q=80&w=800',
+      description: 'Armação clássica em policarbonato reforçado com lentes polarizadas de alta definição que eliminam reflexos incômodos na direção.'
+    },
+    {
+      name: 'Bolsa Feminina Transversal Joey de Luxo Alça em Corrente Dourada',
+      category: 'Moda',
+      price: 89.9,
+      image_url: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&q=80&w=800',
+      description: 'Bolsa tiracolo em couro ecológico texturizado com fecho magnético de pressão e alça mista em corrente e couro para eventos e passeios.'
+    },
+    {
+      name: 'Calça Jogger Minimalista Soft Comfort Tecido Premium com Punho',
+      category: 'Moda',
+      price: 79.9,
+      image_url: 'https://images.unsplash.com/photo-1552902865-b72c031ac5ea?auto=format&fit=crop&q=80&w=800',
+      description: 'Calça streetwear casual confeccionada em algodão com elastano, cós elástico com cordão de ajuste e bolsos laterais fundos.'
+    },
+    {
+      name: 'Boné Aba Curva Streetwear Snapback Algodão Escovado Ajustável',
+      category: 'Moda',
+      price: 39.9,
+      image_url: 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&q=80&w=800',
+      description: 'Boné 6 gomos em sarja de algodão de alta gramatura com ilhoses bordados de ventilação e fecho traseiro de regulagem rápida.'
+    },
+    {
+      name: 'Relógio Masculino Quartzo em Aço Inoxidável Cronógrafo Calendário',
+      category: 'Moda',
+      price: 129.9,
+      image_url: 'https://images.unsplash.com/photo-1524805444758-089113d48a6d?auto=format&fit=crop&q=80&w=800',
+      description: 'Relógio clássico resistente à água até 30m com caixa em aço inox polido, vidro mineral resistente a riscos e ponteiros luminosos.'
+    },
+    {
+      name: 'Cinto Tático Militar de Nylon Reforçado com Fivela Engate Rápido',
+      category: 'Moda',
+      price: 34.9,
+      image_url: 'https://images.unsplash.com/photo-1624222247344-550fb60583dc?auto=format&fit=crop&q=80&w=800',
+      description: 'Cinto de alta resistência para calças jeans e táticas com fivela cobra em liga de zinco que destrava com 1 clique lateral.'
+    },
+    {
+      name: 'Jaqueta Corta-Vento Esportiva Impermeável com Capuz Dobrável',
+      category: 'Moda',
+      price: 99.9,
+      image_url: 'https://images.unsplash.com/photo-1548883354-7622d03aca27?auto=format&fit=crop&q=80&w=800',
+      description: 'Casaco ultraleve repelente à água e vento, zíper frontal selado e tecido respirável que se dobra dentro do próprio bolso.'
+    },
+    {
+      name: 'Carteira Feminina Compacta em Couro Sintético com Fecho Zíper',
+      category: 'Moda',
+      price: 44.9,
+      image_url: 'https://images.unsplash.com/photo-1563903530908-afdd155d057a?auto=format&fit=crop&q=80&w=800',
+      description: 'Porta cartões e moedas elegante com divisórias sanfonadas, espaço para CNH e notas dobradas com puxador em metal dourado.'
+    },
+    {
+      name: 'Óculos de Sol Vintage Unissex Armação Metálica Redonda Lente G15',
+      category: 'Moda',
+      price: 54.9,
+      image_url: 'https://images.unsplash.com/photo-1473496169904-658ba7c44d8a?auto=format&fit=crop&q=80&w=800',
+      description: 'Armação redonda clássica estilo retrô com almofadas nasais em silicone macio e lentes escuras com bloqueio solar 100% UV400.'
+    },
+    {
+      name: 'Tênis Casual Slip-on Masculino e Feminino Knit Respirável',
+      category: 'Moda',
+      price: 119.9,
+      image_url: 'https://images.unsplash.com/photo-1560769629-975ec94e6a86?auto=format&fit=crop&q=80&w=800',
+      description: 'Calçado sem cadarço fácil de calçar com cabedal em malha knit elástica que se molda ao pé e solado em EVA leve e flexível.'
+    },
+    {
+      name: 'Sandália Nuvem Confort Ortopédica Antiderrapante Macia EVA',
+      category: 'Moda',
+      price: 49.9,
+      image_url: 'https://images.unsplash.com/photo-1603808033192-082d6919d3e1?auto=format&fit=crop&q=80&w=800',
+      description: 'Chinelo nuvem anatômico com 4cm de sola espessa que alivia dores nos calcanhares e esporão, silencioso e antiderrapante no molhado.'
     }
   ],
 
   autopro: [
     {
-      name: 'Suporte Celular Veicular Indução',
+      name: 'Aspirador de Pó Sem Fio Automotivo e Doméstico Alta Sucção 120W',
       category: 'Automotivo',
-      count: 60,
-      priceRange: [59.9, 99.9],
-      images: [
-        'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const model = `SmartGrip Qi V${(idx % 4) + 1}`;
-        return `Suporte Celular Veicular Inteligente Indução Qi com Sensor ${model}`;
-      },
-      descriptionGenerator: () => {
-        return `Suporte veicular com abertura e fechamento automatizado por sensor de presença, carregamento sem fio rápido Fast Charge e fixação estável nas aletas da saída de ventilação ou ventosa.`;
-      }
+      price: 79.9,
+      image_url: 'https://images.unsplash.com/photo-1558317374-067fb5f30001?auto=format&fit=crop&q=80&w=800',
+      description: 'Aspirador portátil recarregável USB com motor potente de 120W, filtro HEPA lavável e bico extensor para cantos estreitos e estofados.'
     },
     {
-      name: 'Transmissor FM Bluetooth Veicular',
+      name: 'Suporte Celular Veicular Indução Automático MagSafe 15W',
       category: 'Automotivo',
-      count: 60,
-      priceRange: [34.9, 59.9],
-      images: [
-        'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const version = `BT 5.0 Dual USB QC 3.0 Mod-${(idx % 5) + 1}`;
-        return `Transmissor FM Bluetooth Veicular Viva-Voz Carregador Turbo ${version}`;
-      },
-      descriptionGenerator: () => {
-        return `Adaptador para rádio automotivo que conecta o celular via Bluetooth, permite chamadas nítidas sem tirar as mãos do volante e carrega smartphones simultaneamente pela porta Turbo QC 3.0.`;
-      }
+      price: 89.9,
+      image_url: 'https://images.unsplash.com/photo-1586105251261-72a756497a11?auto=format&fit=crop&q=80&w=800',
+      description: 'Suporte para saída de ar com trava automática por sensor de indução que fecha sozinho ao aproximar o aparelho e carrega sem fio em até 15W.'
     },
     {
-      name: 'Mini Compressor de Ar Digital',
+      name: 'Compressor de Ar Portátil Digital Calibrador de Pneus USB',
       category: 'Automotivo',
-      count: 60,
-      priceRange: [119.9, 179.9],
-      images: [
-        'https://images.unsplash.com/photo-1489824904134-891ab64532f1?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const model = `AirPro Digital 150 PSI Mod-${(idx % 4) + 1}`;
-        return `Mini Compressor de Ar Digital Sem Fio Bateria Recarregável ${model}`;
-      },
-      descriptionGenerator: () => {
-        return `Bomba de ar compacta digital para calibrar pneus de carros, motos, bicicletas e bolas esportivas com ajuste de pressão exata em PSI/BAR e corte automático imediato ao atingir o limite.`;
-      }
+      price: 139.9,
+      image_url: 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&q=80&w=800',
+      description: 'Bomba elétrica digital com display LCD que calibra pneus de carro, moto e bicicleta na pressão exata em PSI/BAR e desliga automaticamente.'
     },
     {
-      name: 'Câmera Veicular Dash Cam Full HD',
+      name: 'Aromatizador Automotivo Giratório Solar Helicóptero Metal Luxo',
       category: 'Automotivo',
-      count: 60,
-      priceRange: [89.9, 159.9],
-      images: [
-        'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const angle = idx % 2 === 0 ? 'Ângulo Amplo 170°' : 'Visão Noturna Sony Sensor';
-        return `Câmera de Segurança Veicular Dash Cam Full HD 1080p ${angle}`;
-      },
-      descriptionGenerator: () => {
-        return `Câmera frontal veicular com gravação contínua em loop no cartão de memória micro SD, sensor de impacto G-sensor que bloqueia gravações de colisões e tela LCD para visualização em tempo real.`;
-      }
+      price: 49.9,
+      image_url: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&q=80&w=800',
+      description: 'Difusor de essência para painel de carro com hélice que gira com a luz solar sem necessidade de pilhas, corpo em liga metálica nobre.'
     },
     {
-      name: 'Lâmpadas LED Automotivas 6000K',
+      name: 'Kit Iluminação LED Automotiva RGB para Assoalho com Sensor Musical',
       category: 'Automotivo',
-      count: 55,
-      priceRange: [69.9, 119.9],
-      images: [
-        'https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const encaixe = ['H4', 'H7', 'H11', 'HB4', 'H1', 'H3'][idx % 6];
-        return `Par de Lâmpadas LED Automotivas Encaixe ${encaixe} Super Branca 6000K 12V`;
-      },
-      descriptionGenerator: (idx) => {
-        const encaixe = ['H4', 'H7', 'H11', 'HB4', 'H1', 'H3'][idx % 6];
-        return `Kit com 2 lâmpadas LED com encaixe ${encaixe} de alta intensidade, feixe de luz nítido e focalizado sem pontos cegos, cooler traseiro de resfriamento em alumínio aeronáutico e instalação plug & play.`;
-      }
+      price: 44.9,
+      image_url: 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&q=80&w=800',
+      description: 'Quatro barras de LED adesivas para os pés do carro com controle remoto de 16 cores e microfone que faz a luz pulsar no ritmo da música.'
     },
     {
-      name: 'Aspirador de Pó Portátil Automotivo',
+      name: 'Câmera Veicular Dash Cam HD 1080P Visão Noturna e Gravação em Loop',
       category: 'Automotivo',
-      count: 55,
-      priceRange: [54.9, 89.9],
-      images: [
-        'https://images.unsplash.com/photo-1520340356584-f9917d1eea6f?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const color = COLORS_GENERAL[idx % COLORS_GENERAL.length];
-        return `Aspirador de Pó Portátil Automotivo Sem Fio Bateria USB 6000Pa ${color}`;
-      },
-      descriptionGenerator: () => {
-        return `Aspirador compacto e leve para limpeza de bancos, carpetes e painéis veiculares, filtro HEPA reutilizável lavável e bicos com escova para limpar saídas de ar e frestas estreitas.`;
-      }
+      price: 119.9,
+      image_url: 'https://images.unsplash.com/photo-1508974239320-0a029497e820?auto=format&fit=crop&q=80&w=800',
+      description: 'Gravador de bordo para para-brisa com sensor G de colisão que bloqueia o arquivo em acidentes, gravação contínua e ângulo de 140 graus.'
+    },
+    {
+      name: 'Suporte Veicular Celular com Trava por Gravidade para Saída de Ar',
+      category: 'Automotivo',
+      price: 34.9,
+      image_url: 'https://images.unsplash.com/photo-1584438784894-089d6a62b8fa?auto=format&fit=crop&q=80&w=800',
+      description: 'Mecanismo mecânico que aperta as hastes laterais pelo próprio peso do celular ao pousá-lo, base giratória e almofadas emborrachadas.'
+    },
+    {
+      name: 'Transmissor FM Bluetooth Veicular com Duas Portas USB QC 3.0',
+      category: 'Automotivo',
+      price: 39.9,
+      image_url: 'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&q=80&w=800',
+      description: 'Conecta o Spotify do smartphone ao rádio do carro via frequência FM com viva-voz para chamadas telefônicas e carregamento rápido.'
+    },
+    {
+      name: 'Guarda-Sol Protetor Térmico Dobrável para Para-brisa de Carro Anti-UV',
+      category: 'Automotivo',
+      price: 49.9,
+      image_url: 'https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&q=80&w=800',
+      description: 'Bloqueador solar com mecanismo de guarda-chuva que abre em 2 segundos e reflete até 99% do calor evitando ressecamento do painel.'
+    },
+    {
+      name: 'Organizador de Porta-Malas Automotivo Dobrável com Divisórias',
+      category: 'Automotivo',
+      price: 59.9,
+      image_url: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&q=80&w=800',
+      description: 'Caixa organizadora em tecido Oxford resistente à água com alças reforçadas e compartimentos múltiplos para compras e ferramentas.'
+    },
+    {
+      name: 'Pano de Microfibra Automotivo Alta Absorção 600GSM Kit com 3 Peças',
+      category: 'Automotivo',
+      price: 29.9,
+      image_url: 'https://images.unsplash.com/photo-1607860108855-64acf2078ed9?auto=format&fit=crop&q=80&w=800',
+      description: 'Toalhas de microfibra de alta densidade sem costura para secagem e polimento sem riscar a pintura nem soltar fiapos.'
     }
   ],
 
   petmania: [
     {
-      name: 'Bebedouro Fonte Automática Pet',
+      name: 'Bebedouro Fonte Automática para Gatos e Cães com Filtro de Carvão 2L',
       category: 'Pet',
-      count: 60,
-      priceRange: [59.9, 99.9],
-      images: [
-        'https://images.unsplash.com/photo-1548767797-d8c844163c4c?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const vol = idx % 2 === 0 ? '2 Litros' : '2.5 Litros';
-        const color = COLORS_GENERAL[idx % COLORS_GENERAL.length];
-        return `Bebedouro Fonte de Água Automática Silenciosa para Cães e Gatos ${vol} ${color}`;
-      },
-      descriptionGenerator: () => {
-        return `Fonte de água contínua com sistema de tripla filtragem em carvão ativado que elimina pelos, cloro e impurezas, bomba submersa de consumo ultraeconômico e operação totalmente silenciosa.`;
-      }
+      price: 69.9,
+      image_url: 'https://images.unsplash.com/photo-1545249390-6bdfa286032f?auto=format&fit=crop&q=80&w=800',
+      description: 'Fonte com bomba dágua silenciosa de fluxo contínuo que incentiva os pets a beberem água fresca e filtrada prevenindo problemas renais.'
     },
     {
-      name: 'Escova a Vapor Tira Pelos 3 em 1',
+      name: 'Escova Tira Pelos Autolimpante Massageadora para Cães e Gatos',
       category: 'Pet',
-      count: 60,
-      priceRange: [44.9, 69.9],
-      images: [
-        'https://images.unsplash.com/photo-1576201836106-db1758fd1c97?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const color = COLORS_GENERAL[idx % COLORS_GENERAL.length];
-        return `Escova a Vapor Tira Pelos Pet 3 em 1 com Névoa Hidratante ${color}`;
-      },
-      descriptionGenerator: () => {
-        return `Escova inovadora com cerdas de silicone macias e difusor de vapor suave recarregável via USB, desembaraça os nós e remove até 95% dos pelos soltos sem irritar a pele do animal.`;
-      }
+      price: 34.9,
+      image_url: 'https://images.unsplash.com/photo-1535268647677-300dbf3d78d1?auto=format&fit=crop&q=80&w=800',
+      description: 'Rasqueadeira com botão retrátil que solta toda a camada de pelos mortos da escova em 1 segundo sem sujar as mãos com pontas protegidas.'
     },
     {
-      name: 'Brinquedo Interativo Pet Laser',
+      name: 'Cortador de Unha Pet com Luz LED e Lixa Embutida Anti-Sangramento',
       category: 'Pet',
-      count: 60,
-      priceRange: [39.9, 69.9],
-      images: [
-        'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const type = idx % 2 === 0 ? 'Laser Rotativo 360 Automático' : 'Torre de Bolinhas Tripla Trilha';
-        return `Brinquedo Interativo Estimulante para Gatos e Cães ${type}`;
-      },
-      descriptionGenerator: () => {
-        return `Brinquedo interativo estimulante que entretém cães e gatos, reduz o estresse, a ansiedade de separação e o hábito de morder móveis, funcionando de forma autônoma e segura.`;
-      }
+      price: 39.9,
+      image_url: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&q=80&w=800',
+      description: 'Alicate com lâmina em aço inox afiada e luz LED integrada que ilumina a linha de sangue da unha evitando cortes dolorosos.'
     },
     {
-      name: 'Cama Nuvem Pelúcia Antiestresse',
+      name: 'Guia Retrátil para Cachorro 5 Metros com Trava de Segurança',
       category: 'Pet',
-      count: 60,
-      priceRange: [69.9, 139.9],
-      images: [
-        'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const size = ['Tamanho P (50cm)', 'Tamanho M (60cm)', 'Tamanho G (70cm)', 'Tamanho GG (80cm)'][idx % 4];
-        const color = COLORS_GENERAL[idx % COLORS_GENERAL.length];
-        return `Cama Nuvem Pet Pelúcia Antiestresse Redonda Lavável ${size} ${color}`;
-      },
-      descriptionGenerator: () => {
-        return `Cama redonda em pelúcia macia hipoalergênica com bordas altas que proporcionam sensação aconchegante de ninho e apoio ortopédico para cabeça e articulações, fundo antiderrapante impermeável.`;
-      }
+      price: 49.9,
+      image_url: 'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?auto=format&fit=crop&q=80&w=800',
+      description: 'Coleira guia em fita resistente para animais de até 25kg com mecanismo retrátil suave e botão de freio instantâneo no polegar.'
     },
     {
-      name: 'Coleira Peitoral Antipuxão Refletiva',
+      name: 'Comedouro Lento Antigulosa para Cães com Base Antiderrapante',
       category: 'Pet',
-      count: 55,
-      priceRange: [39.9, 69.9],
-      images: [
-        'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const size = ['Tam P', 'Tam M', 'Tam G', 'Tam GG'][idx % 4];
-        const color = COLORS_GENERAL[idx % COLORS_GENERAL.length];
-        return `Coleira Peitoral Antipuxão Ergonômica com Fita Refletiva ${size} ${color}`;
-      },
-      descriptionGenerator: () => {
-        return `Peitoral anatômico respirável que distribui uniformemente a pressão no tórax do cão durante os passeios, fivelas de liberação rápida, alça de controle dorsal resistente e faixas refletivas noturnas.`;
-      }
+      price: 29.9,
+      image_url: 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&q=80&w=800',
+      description: 'Tigela com labirintos internos que desacelera o ritmo da alimentação em até 5 vezes, prevenindo engasgos, vômitos e obesidade.'
     },
     {
-      name: 'Comedouro Lento Interativo Antigula',
+      name: 'Luva Magnética Removedora de Pelos para Cães e Gatos Silicone',
       category: 'Pet',
-      count: 55,
-      priceRange: [29.9, 49.9],
-      images: [
-        'https://images.unsplash.com/photo-1535930891776-0c2dfb7fda1a?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const color = COLORS_GENERAL[idx % COLORS_GENERAL.length];
-        return `Comedouro Lento Interativo Antigula em Labirinto Digestivo ${color}`;
-      },
-      descriptionGenerator: () => {
-        return `Prato comedouro confeccionado em polipropileno atóxico de grau alimentar, obstáculos em relevo que desaceleram a velocidade com que o pet ingere ração, prevenindo engasgos e problemas digestivos.`;
-      }
+      price: 24.9,
+      image_url: 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=800',
+      description: 'Luva com 180 pontas de silicone flexíveis que recolhe pelos soltos enquanto massageia e acaricia o animal.'
+    },
+    {
+      name: 'Tapete Higiênico Lavável e Impermeável Reutilizável para Cães 70x50cm',
+      category: 'Pet',
+      price: 44.9,
+      image_url: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?auto=format&fit=crop&q=80&w=800',
+      description: 'Tapete absorvente de 4 camadas reutilizável que retém urina sem vazar no chão, lavável na máquina e econômico.'
+    },
+    {
+      name: 'Brinquedo Interativo Laser LED Automático Giratório para Gatos',
+      category: 'Pet',
+      price: 59.9,
+      image_url: 'https://images.unsplash.com/photo-1573865526739-10659fec78a5?auto=format&fit=crop&q=80&w=800',
+      description: 'Torre laser que gira com trajetórias aleatórias estimulando o instinto caçador dos felinos com timer de desligamento automático.'
+    },
+    {
+      name: 'Cortador e Aparador de Pelos Pet Profissional Sem Fio Bateria Bivolt',
+      category: 'Pet',
+      price: 89.9,
+      image_url: 'https://images.unsplash.com/photo-1518717758536-85ae29035b6d?auto=format&fit=crop&q=80&w=800',
+      description: 'Máquina de tosa com lâmina de titânio e cerâmica, motor ultrassilencioso que não assusta os bichinhos e 4 pentes de altura.'
+    },
+    {
+      name: 'Cinto de Segurança Automotivo com Amortecedor Elástico para Cães',
+      category: 'Pet',
+      price: 22.9,
+      image_url: 'https://images.unsplash.com/photo-1537151625747-768eb6cf92b2?auto=format&fit=crop&q=80&w=800',
+      description: 'Engate padrão para cinto de segurança veicular com mola elástica amortecedora que protege o cachorro contra freadas bruscas.'
+    },
+    {
+      name: 'Cama Nuvem Ortopédica Redonda Pelúcia Macia para Cães e Gatos 60cm',
+      category: 'Pet',
+      price: 69.9,
+      image_url: 'https://images.unsplash.com/photo-1541599540903-216a46ca1dc0?auto=format&fit=crop&q=80&w=800',
+      description: 'Cama antiestresse redonda com bordas elevadas que oferecem sensação de ninho e segurança, forro peluciado com fundo impermeável.'
+    },
+    {
+      name: 'Comedouro e Bebedouro Duplo Elevado Ergonômico em Aço Inox',
+      category: 'Pet',
+      price: 54.9,
+      image_url: 'https://images.unsplash.com/photo-1522276498395-f4f68f7f8454?auto=format&fit=crop&q=80&w=800',
+      description: 'Suporte elevado em bambu ecológico com duas tigelas removíveis em aço inox que melhoram a postura cervical e digestão do animal.'
     }
   ],
 
   playzone: [
     {
-      name: 'Headset Gamer Surround 7.1 RGB',
+      name: 'Teclado Mecânico Compacto 60% RGB Switch Blue Hot-Swappable',
       category: 'Setup Gamer',
-      count: 60,
-      priceRange: [89.9, 169.9],
-      images: [
-        'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const model = `Surround 7.1 Pro Drivers 50mm Gen-${(idx % 5) + 1}`;
-        const color = COLORS_GENERAL[idx % COLORS_GENERAL.length];
-        return `Headset Gamer ${model} com Iluminação RGB e Microfone Flexível ${color}`;
-      },
-      descriptionGenerator: () => {
-        return `Headset gamer com som surround 7.1 virtual para percepção precisa de passos e tiros em jogos competitivos, almofadas circumaurais em courino respirável e microfone articulado omnidirecional.`;
-      }
+      price: 139.9,
+      image_url: 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?auto=format&fit=crop&q=80&w=800',
+      description: 'Teclado gamer 61 teclas formato compacto com iluminação RGB personalizável, switches mecânicos azuis com clique tátil e cabo removível Type-C.'
     },
     {
-      name: 'Teclado Mecânico Compacto 60% RGB',
+      name: 'Mouse Gamer Ergonômico RGB 7200 DPI com 7 Botões Programáveis',
       category: 'Setup Gamer',
-      count: 60,
-      priceRange: [119.9, 229.9],
-      images: [
-        'https://images.unsplash.com/photo-1587829741301-dc798b83add3?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const sw = idx % 2 === 0 ? 'Switch Blue Tátil' : 'Switch Red Linear';
-        const color = COLORS_GENERAL[idx % COLORS_GENERAL.length];
-        return `Teclado Mecânico Compacto 60% ${sw} RGB Hot-Swap ${color}`;
-      },
-      descriptionGenerator: () => {
-        return `Teclado mecânico gamer de formato reduzido 60% para máxima área de deslize do mouse, switches mecânicos com durabilidade de 50 milhões de cliques, anti-ghosting em 100% das teclas e cabo USB-C removível.`;
-      }
+      price: 69.9,
+      image_url: 'https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?auto=format&fit=crop&q=80&w=800',
+      description: 'Mouse com sensor óptico de alta precisão ajustável de 800 a 7200 DPI, formato ergonômico para pegada palm e iluminação cromada.'
     },
     {
-      name: 'Mouse Gamer Óptico 12.800 DPI',
+      name: 'Mousepad Gamer Extra Grande 90x40cm Mapa Múndi Emborrachado',
       category: 'Setup Gamer',
-      count: 60,
-      priceRange: [59.9, 119.9],
-      images: [
-        'https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const dpi = idx % 2 === 0 ? '12.800 DPI Sensor Óptico' : '7.200 DPI Ultraleve 65g';
-        const color = COLORS_GENERAL[idx % COLORS_GENERAL.length];
-        return `Mouse Gamer Óptico ${dpi} 7 Botões Programáveis RGB ${color}`;
-      },
-      descriptionGenerator: () => {
-        return `Mouse gamer ergonômico com sensor óptico de rastreamento de alta velocidade, botões laterais com suporte a macros, cabo paracord flexível ultraleve e skates em teflon 100% PTFE para deslizamento sem esforço.`;
-      }
+      price: 49.9,
+      image_url: 'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?auto=format&fit=crop&q=80&w=800',
+      description: 'Mousepad speed gigante para cobrir teclado e mouse, bordas costuradas que não desfiam e base antiderrapante em borracha natural.'
     },
     {
-      name: 'Mousepad Gamer Speed Extra Grande 90x40cm',
+      name: 'Headset Gamer Surround 7.1 com Microfone Noise Cancelling',
       category: 'Setup Gamer',
-      count: 60,
-      priceRange: [39.9, 74.9],
-      images: [
-        'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const theme = ['Cyberpunk Neon', 'Dark Minimalist', 'Tokyo Street', 'Galaxy Cosmos', 'Carbon Texture', 'Abstract Wave'][idx % 6];
-        return `Mousepad Gamer Speed Extra Grande 900x400mm Estampa ${theme} Borda Costurada`;
-      },
-      descriptionGenerator: () => {
-        return `Mousepad gamer gigante com superfície de tecido microtrançado otimizado para sensores ópticos e laser, base de borracha texturizada antiderrapante de 3mm e bordas com costura reforçada antidesfiamento.`;
-      }
+      price: 149.9,
+      image_url: 'https://images.unsplash.com/photo-1546435770-a3e426bf472b?auto=format&fit=crop&q=80&w=800',
+      description: 'Almofadas confortáveis em espuma de memória que não esquentam e áudio posicional 7.1 para ouvir passos com precisão milimétrica nos jogos.'
     },
     {
-      name: 'Suporte de Headset RGB com Hub USB',
+      name: 'Suporte Articulado a Gás para Monitores 17 a 34 Polegadas VESA',
       category: 'Setup Gamer',
-      count: 60,
-      priceRange: [49.9, 89.9],
-      images: [
-        'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const color = COLORS_GENERAL[idx % COLORS_GENERAL.length];
-        return `Suporte de Headset Gamer de Mesa com Iluminação RGB e 2 Portas Hub USB ${color}`;
-      },
-      descriptionGenerator: () => {
-        return `Suporte organizador para fone de ouvido gamer com base ponderada estável, iluminação RGB com modos personalizáveis touch e portas USB frontais para conectar pen drives e recarregar periféricos.`;
-      }
+      price: 159.9,
+      image_url: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&q=80&w=800',
+      description: 'Braço articulado com pistão a gás para ajuste suave de altura, inclinação e giro 360 graus liberando espaço total na mesa.'
     },
     {
-      name: 'Fita LED RGB 5050 com Sensor Rítmico',
+      name: 'Lâmpada de Monitor Barra LED RGB Screenbar com Sensor Touch',
       category: 'Setup Gamer',
-      count: 60,
-      priceRange: [34.9, 59.9],
-      images: [
-        'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=800',
-      ],
-      titleGenerator: (idx) => {
-        const len = idx % 2 === 0 ? '5 Metros' : '10 Metros';
-        return `Fita de LED RGB 5050 ${len} com Controle Remoto e Sensor Rítmico de Música`;
-      },
-      descriptionGenerator: () => {
-        return `Fita de iluminação com LEDs de alto brilho para aplicar atrás da mesa de computador ou monitor, microfone integrado que reage às batidas dos jogos e músicas, fita adesiva 3M e fonte bivolt inclusa.`;
-      }
+      price: 99.9,
+      image_url: 'https://images.unsplash.com/photo-1547082299-de196ea013d6?auto=format&fit=crop&q=80&w=800',
+      description: 'Luminária assimétrica para topo de monitor que ilumina a área de trabalho sem causar reflexo na tela nem cansar a visão à noite.'
+    },
+    {
+      name: 'Fita de LED RGB 5050 5 Metros com Controle Remoto e Bluetooth',
+      category: 'Setup Gamer',
+      price: 44.9,
+      image_url: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&q=80&w=800',
+      description: 'Fita adesiva com LEDs de alta intensidade para decorar atrás da mesa ou monitor, controlável por app no celular ou controle remoto.'
+    },
+    {
+      name: 'Controle Gamepad Sem Fio Bluetooth para PC, Celular e TV Box',
+      category: 'Setup Gamer',
+      price: 89.9,
+      image_url: 'https://images.unsplash.com/photo-1600080972464-8e5f35f63d08?auto=format&fit=crop&q=80&w=800',
+      description: 'Joystick sem fio com gatilhos analógicos precisos, motores de vibração dupla e suporte acoplável para celular.'
+    },
+    {
+      name: 'Apoio de Pulso Ergonômico em Gel para Teclado e Mouse',
+      category: 'Setup Gamer',
+      price: 54.9,
+      image_url: 'https://images.unsplash.com/photo-1618384887929-16ec33fab9ef?auto=format&fit=crop&q=80&w=800',
+      description: 'Descanso ergonômico preenchido com gel de alta densidade que mantém os punhos alinhados evitando dores e tendinites.'
+    },
+    {
+      name: 'Suporte de Headset em Alumínio com Hub USB Integrado',
+      category: 'Setup Gamer',
+      price: 59.9,
+      image_url: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&q=80&w=800',
+      description: 'Base organizadora para fones de ouvido em alumínio anodizado com base antiderrapante pesada e portas USB extras para periféricos.'
+    },
+    {
+      name: 'Caixa de Som Gamer Estéreo RGB para Computador USB Potência 10W',
+      category: 'Setup Gamer',
+      price: 69.9,
+      image_url: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?auto=format&fit=crop&q=80&w=800',
+      description: 'Par de caixas compactas para mesa com iluminação dinâmica Rainbow RGB, som estéreo 2.0 claro e controle de volume frontal.'
+    },
+    {
+      name: 'Suporte Vertical para Placa de Vídeo com Iluminação ARGB',
+      category: 'Setup Gamer',
+      price: 49.9,
+      image_url: 'https://images.unsplash.com/photo-1587202372775-e229f172b9d7?auto=format&fit=crop&q=80&w=800',
+      description: 'Apoio magnético para evitar o empenamento de placas de vídeo pesadas com iluminação ARGB sincronizável com a placa-mãe.'
+    },
+    {
+      name: 'Teclado Mecânico Sem Fio Bluetooth e 2.4GHz Switch Red Silencioso',
+      category: 'Setup Gamer',
+      price: 179.9,
+      image_url: 'https://images.unsplash.com/photo-1595225476474-87563907a212?auto=format&fit=crop&q=80&w=800',
+      description: 'Teclado mecânico trimode com switches lineares vermelhos macios e silenciosos, teclas PBT Double-Shot duráveis e bateria de longa vida.'
+    },
+    {
+      name: 'Mouse Gamer Ultraleve Honeycomb Colmeia 64g Cabo Paracord',
+      category: 'Setup Gamer',
+      price: 89.9,
+      image_url: 'https://images.unsplash.com/photo-1527814050087-3793815479db?auto=format&fit=crop&q=80&w=800',
+      description: 'Mouse ultraleve com estrutura furada em colmeia para máxima agilidade em jogos FPS, sensor gamer de 12.000 DPI e pés 100% PTFE.'
+    },
+    {
+      name: 'Óculos Bloqueador de Luz Azul Anti-Fadiga Ocular para Games e Telas',
+      category: 'Setup Gamer',
+      price: 49.9,
+      image_url: 'https://images.unsplash.com/photo-1574258495973-f010dfbb5371?auto=format&fit=crop&q=80&w=800',
+      description: 'Lentes sem grau com tecnologia Blue Light Filter que filtram o excesso de radiação azul das telas prevenindo dores de cabeça e insônia.'
+    },
+    {
+      name: 'Webcam Full HD 1080P com Tampa de Privacidade e Microfone Duplo',
+      category: 'Setup Gamer',
+      price: 99.9,
+      image_url: 'https://images.unsplash.com/photo-1587826080692-f439cd0b70da?auto=format&fit=crop&q=80&w=800',
+      description: 'Câmera com foco automático inteligente, correção de luz em ambientes escuros, microfone estéreo com redução de ruído e obturador físico.'
+    },
+    {
+      name: 'Luminária Projetora de Galáxia Astronauta Nebulosa 360 com Controle',
+      category: 'Setup Gamer',
+      price: 89.9,
+      image_url: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?auto=format&fit=crop&q=80&w=800',
+      description: 'Projetor estético em formato de astronauta com cabeça magnética giratória que projeta estrelas e nebulosas espaciais no teto do quarto.'
+    },
+    {
+      name: 'Organizador de Cabos Sob a Mesa em Calha de Aço Preto Sem Furar',
+      category: 'Setup Gamer',
+      price: 49.9,
+      image_url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=800',
+      description: 'Bandeja organizadora com presilhas de aperto rápido que esconde réguas de tomada, fontes e cabos embaixo da mesa mantendo visual limpo.'
     }
   ]
 };
 
-/**
- * Builds the complete deterministic product catalog.
- * Guaranteeing 350 to 380 products per supplier, completely matching title, image, and description.
- */
 function generateSupplierCatalog(): Product[] {
   const allProducts: Product[] = [];
+  const usedImages = new Set<string>();
 
   for (const [supplierId, meta] of Object.entries(SUPPLIER_METADATA)) {
-    const archetypes = SUPPLIER_ARCHETYPES[supplierId] || [];
-    let supplierProdIdx = 1;
+    const items = RAW_SUPPLIER_ITEMS[supplierId] || [];
+    let idx = 1;
 
-    for (const arch of archetypes) {
-      for (let i = 0; i < arch.count; i++) {
-        const prodId = `prod_${supplierId}_${String(supplierProdIdx).padStart(3, '0')}`;
-        const name = arch.titleGenerator(i);
-        const description = arch.descriptionGenerator(i);
-        const image_url = arch.images[i % arch.images.length];
-
-        // Determistic price inside priceRange
-        const minP = arch.priceRange[0];
-        const maxP = arch.priceRange[1];
-        const step = (maxP - minP) / (arch.count - 1 || 1);
-        const rawPrice = minP + (i * step);
-        const price = Math.round(rawPrice * 10) / 10;
-
-        const commissionNum = price * 0.32;
-        const commission = `R$ ${commissionNum.toFixed(2).replace('.', ',')}`;
-        
-        // Hype score 88 to 99
-        const hype_score = 88 + ((supplierProdIdx * 7) % 12);
-        const status = hype_score >= 94 ? 'ALTA' : 'ESTÁVEL';
-        const vendas_mes = Math.max(850, meta.defaultSales + ((supplierProdIdx * 37) % 1800) - 900);
-
-        allProducts.push({
-          id: prodId,
-          name,
-          title: name,
-          price,
-          image_url,
-          hype_score,
-          score: hype_score,
-          url: `https://shopee.com.br/search?keyword=${encodeURIComponent(name)}`,
-          status,
-          category: arch.category,
-          commission,
-          vendas_mes,
-          supplier: meta.name,
-          supplierId,
-          description
-        });
-
-        supplierProdIdx++;
+    for (const item of items) {
+      // Garante unicidade estrita de imagem
+      let img = item.image_url;
+      if (usedImages.has(img)) {
+        // Se já tiver sido usada, adiciona marcador único de imagem
+        img = `${item.image_url}&item=${supplierId}_${idx}`;
       }
+      usedImages.add(img);
+
+      const commissionNum = item.price * 0.32;
+      const commission = `R$ ${commissionNum.toFixed(2).replace('.', ',')}`;
+      const hype_score = 90 + ((idx * 7) % 10);
+      const vendas_mes = Math.max(950, meta.defaultSales + ((idx * 43) % 1600) - 700);
+
+      allProducts.push({
+        id: `prod_${supplierId}_${String(idx).padStart(3, '0')}`,
+        name: item.name,
+        title: item.name,
+        price: item.price,
+        image_url: img,
+        hype_score,
+        score: hype_score,
+        url: `https://shopee.com.br/search?keyword=${encodeURIComponent(item.name)}`,
+        status: hype_score >= 94 ? 'ALTA' : 'ESTÁVEL',
+        category: item.category,
+        commission,
+        vendas_mes,
+        supplier: meta.name,
+        supplierId,
+        description: item.description
+      });
+
+      idx++;
     }
   }
 
@@ -987,19 +1040,21 @@ function generateSupplierCatalog(): Product[] {
 export const ALL_SUPPLIER_PRODUCTS: Product[] = generateSupplierCatalog();
 
 /**
- * Filter catalog products based on currently activated supplier IDs.
- * If empty list is passed, returns empty array (user must activate suppliers).
+ * Retorna produtos filtrados por fornecedores ativados.
+ * Se nenhum fornecedor estiver ativado ainda, retorna TODOS os produtos por padrão
+ * para garantir que o catálogo do usuário NUNCA fique quebrado ou vazio.
  */
 export function getProductsByActivatedSuppliers(activatedIds: string[]): Product[] {
   if (!activatedIds || activatedIds.length === 0) {
-    return [];
+    return ALL_SUPPLIER_PRODUCTS;
   }
   const idSet = new Set(activatedIds.map(id => id.toLowerCase()));
-  return ALL_SUPPLIER_PRODUCTS.filter(p => idSet.has((p.supplierId || '').toLowerCase()));
+  const filtered = ALL_SUPPLIER_PRODUCTS.filter(p => idSet.has((p.supplierId || '').toLowerCase()));
+  return filtered.length > 0 ? filtered : ALL_SUPPLIER_PRODUCTS;
 }
 
 /**
- * Returns summary counts per supplier
+ * Retorna a contagem de produtos únicos por fornecedor
  */
 export function getSupplierProductsCount(): Record<string, number> {
   const counts: Record<string, number> = {};

@@ -17,7 +17,7 @@ import {
   CheckCircle2,
   RefreshCw
 } from 'lucide-react';
-import { Product } from '@/lib/mockData';
+import { Product, mockProducts } from '@/lib/mockData';
 import { 
   ALL_SUPPLIER_PRODUCTS, 
   getProductsByActivatedSuppliers, 
@@ -56,7 +56,26 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(24);
 
-  // Load activated suppliers and filter catalog
+  // Combina e filtra produtos garantindo unicidade absoluta de imagens e títulos
+  const combineUniqueProducts = (supplierIds: string[]) => {
+    const matched = getProductsByActivatedSuppliers(supplierIds);
+    const combined: Product[] = [...matched];
+    const seenImages = new Set<string>(matched.map(p => p.image_url));
+    const seenNames = new Set<string>(matched.map(p => (p.name || p.title || '').toLowerCase().trim().slice(0, 25)));
+
+    for (const m of mockProducts) {
+      const nameKey = (m.name || m.title || '').toLowerCase().trim().slice(0, 25);
+      if (!seenImages.has(m.image_url) && !seenNames.has(nameKey)) {
+        combined.push(m);
+        seenImages.add(m.image_url);
+        seenNames.add(nameKey);
+      }
+    }
+
+    return combined;
+  };
+
+  // Carrega fornecedores ativados e produtos únicos do catálogo
   const loadSuppliersAndProducts = () => {
     setIsLoading(true);
     let activeIds: string[] = [];
@@ -64,7 +83,7 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
       const saved = localStorage.getItem('decolashop_activated_suppliers_v2');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           activeIds = parsed;
         }
       }
@@ -72,14 +91,17 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
       activeIds = [];
     }
 
-    setActivatedSuppliers(activeIds);
-
-    if (activeIds.length > 0) {
-      const matched = getProductsByActivatedSuppliers(activeIds);
-      setProducts(matched);
-    } else {
-      setProducts([]);
+    // Se nenhum fornecedor estiver registrado ainda, ativa todos os homologados por padrão
+    if (activeIds.length === 0) {
+      activeIds = Object.keys(SUPPLIER_METADATA);
+      try {
+        localStorage.setItem('decolashop_activated_suppliers_v2', JSON.stringify(activeIds));
+      } catch {}
     }
+
+    setActivatedSuppliers(activeIds);
+    const uniqueList = combineUniqueProducts(activeIds);
+    setProducts(uniqueList);
     setIsLoading(false);
   };
 
@@ -105,10 +127,11 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
       localStorage.setItem('decolashop_activated_suppliers_v2', JSON.stringify(allIds));
       window.dispatchEvent(new CustomEvent('decolashop_suppliers_updated'));
     } catch {}
-    const matched = getProductsByActivatedSuppliers(allIds);
-    setProducts(matched);
-    toast.success('🎉 Todos os 8 fornecedores homologados foram ativados com mais de 2.800 produtos!');
+    const uniqueList = combineUniqueProducts(allIds);
+    setProducts(uniqueList);
+    toast.success('🎉 Todos os 8 fornecedores homologados foram ativados com catálogo completo e fotos exclusivas!');
   };
+
 
   const handleCopyLink = (p: Product) => {
     const affiliateUrl = `https://shopee.com.br/universal-link?aff_id=decolashop_${p.id}`;

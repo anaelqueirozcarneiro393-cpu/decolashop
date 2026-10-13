@@ -310,7 +310,7 @@ export async function POST(req: Request) {
 
           await dbRecordSale({
             affiliateCode,
-            plan: userPlan,
+            plan: userPlan as 'lifetime' | 'monthly',
             planPrice: planBase,
             bumps: finalBumps,
             bumpPrices: Math.max(0, Number((totalAmount - planBase).toFixed(2))),
