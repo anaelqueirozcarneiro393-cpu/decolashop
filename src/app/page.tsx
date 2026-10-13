@@ -26,7 +26,7 @@ import AdminQuickActions from '@/components/AdminQuickActions';
 import { Product } from '@/lib/mockData';
 import { Toaster, toast } from 'react-hot-toast';
 
-import LoginView from '@/components/views/LoginView';
+import LandingPageView from '@/components/views/LandingPageView';
 import OrderBumpUpsellModal from '@/components/checkout/OrderBumpUpsellModal';
 import LiveSocialProofNotification from '@/components/LiveSocialProofNotification';
 import MobileBottomNav from '@/components/MobileBottomNav';
@@ -216,11 +216,11 @@ export default function AppContainer({ initialView = 'dashboard' }: { initialVie
     );
   }
 
-  // Se não estiver autenticado nem tiver credenciais válidas salvas, exibe LoginView preservando a rota
+  // Se não estiver autenticado nem tiver credenciais válidas salvas, exibe LandingPageView persuasiva
   const isUserAuthenticated = status === "authenticated" || Boolean(cachedUser?.email && (isPaidPlan || isMasterAccount));
 
   if (!isUserAuthenticated || (status === "authenticated" && !isPaidPlan)) {
-    return <LoginView />;
+    return <LandingPageView />;
   }
 
   return (
