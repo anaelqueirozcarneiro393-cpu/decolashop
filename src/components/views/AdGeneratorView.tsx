@@ -10,7 +10,8 @@ import {
   Loader2, 
   ShoppingBag,
   Zap,
-  Megaphone
+  Megaphone,
+  ArrowRight
 } from 'lucide-react';
 import SafeImage from '@/components/SafeImage';
 import { toast } from 'react-hot-toast';
@@ -34,8 +35,16 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
   const [searchQuery, setSearchQuery] = useState('');
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishProgress, setPublishProgress] = useState(0);
-  const [publishedNetwork, setPublishedNetwork] = useState('');
+  const [remainingSeconds, setRemainingSeconds] = useState(60);
+  const [isPublishFinished, setIsPublishFinished] = useState(false);
+  const publishIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
   const { addSale, triggerDelayedCampaignSales } = useSales();
+
+  useEffect(() => {
+    return () => {
+      if (publishIntervalRef.current) clearInterval(publishIntervalRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -58,6 +67,49 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
     return matchCat && matchSearch;
   });
 
+  const getPublishStage = (pct: number) => {
+    if (pct < 18) {
+      return {
+        channel: 'Redes Sociais',
+        subtitle: 'Otimizando mensagem para Redes Sociais...',
+        activeChannels: ['Kwai']
+      };
+    }
+    if (pct < 38) {
+      return {
+        channel: 'Instagram & Facebook Ads',
+        subtitle: 'Segmentando compradores de alta intenção com IA...',
+        activeChannels: ['Kwai', 'Instagram']
+      };
+    }
+    if (pct < 58) {
+      return {
+        channel: 'TikTok Shop & Kwai Ads',
+        subtitle: 'Gerando criativos virais e copies de alta conversão...',
+        activeChannels: ['Kwai', 'Instagram', 'TikTok']
+      };
+    }
+    if (pct < 78) {
+      return {
+        channel: 'WhatsApp Grupos VIP',
+        subtitle: 'Conectando link de afiliado DecolaShop com disparo automático...',
+        activeChannels: ['Kwai', 'Instagram', 'TikTok', 'WhatsApp']
+      };
+    }
+    if (pct < 94) {
+      return {
+        channel: 'Google Shopping & Shopee',
+        subtitle: 'Indexando produto nos motores de busca e feeds em alta...',
+        activeChannels: ['Kwai', 'Instagram', 'TikTok', 'WhatsApp', 'Facebook']
+      };
+    }
+    return {
+      channel: 'Rede Global de Tráfego',
+      subtitle: 'Finalizando disparo e ativando robô de vendas...',
+      activeChannels: ['Kwai', 'Instagram', 'TikTok', 'WhatsApp', 'Facebook', 'Twitter']
+    };
+  };
+
   const handleStartPublishing = () => {
     const currentCampaigns = getDivulgados(userEmail);
     const activeCount = currentCampaigns.filter(c => c.status === 'active').length;
@@ -69,64 +121,85 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
       return;
     }
 
+    if (publishIntervalRef.current) clearInterval(publishIntervalRef.current);
+
+    // Duração entre 50 e 70 segundos (exatamente 60 segundos)
+    const totalDurationSec = 60;
+    const totalDurationMs = totalDurationSec * 1000;
+    const startTime = Date.now();
+
     setIsPublishing(true);
-    setPublishProgress(10);
-    setPublishedNetwork('Otimizando criativos com IA...');
+    setPublishProgress(0);
+    setRemainingSeconds(totalDurationSec);
+    setIsPublishFinished(false);
 
-    setTimeout(() => {
-      setPublishProgress(35);
-      setPublishedNetwork('Publicando no Kwai e TikTok Ads...');
-    }, 700);
+    publishIntervalRef.current = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(100, Math.floor((elapsed / totalDurationMs) * 100));
+      const leftSec = Math.max(0, Math.ceil((totalDurationMs - elapsed) / 1000));
 
-    setTimeout(() => {
-      setPublishProgress(70);
-      setPublishedNetwork('Propagando no Facebook, Instagram e WhatsApp...');
-    }, 1500);
+      setPublishProgress(progress);
+      setRemainingSeconds(leftSec);
 
-    setTimeout(() => {
-      setPublishProgress(100);
-      setPublishedNetwork('Finalizado! 6 redes conectadas e gerando tráfego.');
-      setIsPublishing(false);
-      toast.success('🚀 Anúncio publicado nas 6 redes! Tráfego ativo. 1ª venda prevista em ~10 minutos.', {
-        duration: 4000
-      });
-      
-      const rawPrice = typeof selectedProduct.price === 'string'
-        ? parseFloat(selectedProduct.price.replace('R$', '').replace('.', '').replace(',', '.').trim()) || 99.90
-        : (selectedProduct.price || 99.90);
+      if (elapsed >= totalDurationMs) {
+        if (publishIntervalRef.current) clearInterval(publishIntervalRef.current);
+        setPublishProgress(100);
+        setRemainingSeconds(0);
+        setIsPublishFinished(true);
 
-      // Não vende instantaneamente: cadência natural de 10 minutos
-      triggerDelayedCampaignSales(selectedProduct, rawPrice);
+        const rawPrice = typeof selectedProduct.price === 'string'
+          ? parseFloat(selectedProduct.price.replace('R$', '').replace('.', '').replace(',', '.').trim()) || 99.90
+          : (selectedProduct.price || 99.90);
 
-      addDivulgado({
-        productId: selectedProduct.id,
-        name: selectedProduct.name || selectedProduct.title || 'Produto Viral DecolaShop',
-        image_url: selectedProduct.image_url,
-        category: selectedProduct.category || 'Geral',
-        price: rawPrice,
-        commission: selectedProduct.commission || `R$ ${(rawPrice * 0.32).toFixed(2).replace('.', ',')}`,
-        status: 'active',
-        networks: ['Meta Ads (Instagram & Facebook)', 'TikTok Shop Ads', 'Google Shopping', 'Kwai Ads', 'WhatsApp Grupos VIP'],
-        impressions: Math.floor(Math.random() * 1500) + 950,
-        clicks: Math.floor(Math.random() * 90) + 50,
-        salesCount: 0,
-        revenue: 0,
-        roas: 4.6,
-        conversionRate: 3.8,
-        targeting: {
-          audience: `Compradores engajados na categoria ${selectedProduct.category || 'Geral'}`,
-          ageRange: '18 - 50 anos',
-          location: 'Brasil (Entrega Rápida)',
-          interests: [selectedProduct.category || 'Compras Online', 'Ofertas Shopee', 'Tendências']
-        },
-        sampleCopy: {
-          headline: `🔥 OFERTA IMPERDÍVEL: ${selectedProduct.name || selectedProduct.title}`,
-          body: selectedProduct.description || 'Produto validado com alta taxa de satisfação e pronta entrega para todo o Brasil.',
-          cta: '👉 CLIQUE AQUI PARA GARANTIR O SEU'
-        }
-      }, userEmail);
-    }, 2400);
+        // Ativa vendas com cadência natural
+        triggerDelayedCampaignSales(selectedProduct, rawPrice);
+
+        addDivulgado({
+          productId: selectedProduct.id,
+          name: selectedProduct.name || selectedProduct.title || 'Produto Viral DecolaShop',
+          image_url: selectedProduct.image_url,
+          category: selectedProduct.category || 'Geral',
+          price: rawPrice,
+          commission: selectedProduct.commission || `R$ ${(rawPrice * 0.32).toFixed(2).replace('.', ',')}`,
+          status: 'active',
+          networks: ['Meta Ads (Instagram & Facebook)', 'TikTok Shop Ads', 'Google Shopping', 'Kwai Ads', 'WhatsApp Grupos VIP', 'Twitter/X Feed'],
+          impressions: Math.floor(Math.random() * 1500) + 950,
+          clicks: Math.floor(Math.random() * 90) + 50,
+          salesCount: 0,
+          revenue: 0,
+          roas: 4.6,
+          conversionRate: 3.8,
+          targeting: {
+            audience: `Compradores engajados na categoria ${selectedProduct.category || 'Geral'}`,
+            ageRange: '18 - 50 anos',
+            location: 'Brasil (Entrega Rápida)',
+            interests: [selectedProduct.category || 'Compras Online', 'Ofertas Shopee', 'Tendências']
+          },
+          sampleCopy: {
+            headline: `🔥 OFERTA IMPERDÍVEL: ${selectedProduct.name || selectedProduct.title}`,
+            body: selectedProduct.description || 'Produto validado com alta taxa de satisfação e pronta entrega para todo o Brasil.',
+            cta: '👉 CLIQUE AQUI PARA GARANTIR O SEU'
+          }
+        }, userEmail);
+
+        window.dispatchEvent(new Event('decolashop_divulgados_updated'));
+
+        toast.success('🚀 Anúncio publicado nas 6 redes! Tráfego ativo iniciado.', {
+          duration: 4000
+        });
+      }
+    }, 150);
   };
+
+  const handleCancelPublishing = () => {
+    if (publishIntervalRef.current) clearInterval(publishIntervalRef.current);
+    setIsPublishing(false);
+    setPublishProgress(0);
+    setIsPublishFinished(false);
+    toast('Disparo cancelado pelo usuário.');
+  };
+
+  const currentStage = getPublishStage(publishProgress);
 
   const currentPriceFormatted = typeof selectedProduct.price === 'string'
     ? selectedProduct.price
@@ -355,12 +428,12 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
           <button
             onClick={handleStartPublishing}
             disabled={isPublishing}
-            className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#22c55e] via-[#4ade80] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-black font-black text-xs md:text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-[#22c55e]/25 transition-all active:scale-[0.99] disabled:opacity-75"
+            className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#22c55e] via-[#4ade80] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-black font-black text-xs md:text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-[#22c55e]/25 transition-all active:scale-[0.99] disabled:opacity-75 cursor-pointer"
           >
             {isPublishing ? (
               <>
                 <Loader2 size={16} className="animate-spin" />
-                <span>{publishedNetwork} ({publishProgress}%)</span>
+                <span>DIVULGANDO NO CANAL {currentStage.channel.toUpperCase()} ({publishProgress}%)</span>
               </>
             ) : (
               <>
@@ -395,6 +468,152 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
           ))}
         </div>
       </div>
+
+      {/* ================= MODAL DE LOAD DE DISPARO AUTOMÁTICO (50-70 SEGUNDOS) ================= */}
+      {isPublishing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-[#0d121f] border border-[#22c55e]/40 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl shadow-[#22c55e]/15 relative overflow-hidden text-center">
+            
+            {/* Background Glow */}
+            <div className="absolute top-0 right-1/4 w-48 h-48 bg-[#22c55e]/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-10 left-10 w-48 h-48 bg-[#10b981]/10 rounded-full blur-3xl pointer-events-none" />
+
+            {!isPublishFinished ? (
+              <>
+                {/* Top Center Icon (Matching reference image in DecolaShop green) */}
+                <div className="w-16 h-16 rounded-full bg-[#22c55e]/15 border border-[#22c55e]/30 flex items-center justify-center mx-auto mb-4 text-[#22c55e] shadow-[0_0_20px_rgba(34,197,94,0.25)]">
+                  <Sparkles size={28} className="text-[#22c55e] animate-pulse" />
+                </div>
+
+                {/* Dynamic Title (Matching screenshot wording: "Divulgando no canal Redes Sociais...") */}
+                <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight mb-1.5">
+                  Divulgando no canal {currentStage.channel}...
+                </h3>
+
+                {/* Dynamic Subtitle (Matching screenshot wording: "Otimizando mensagem para Redes Sociais...") */}
+                <p className="text-xs sm:text-sm text-slate-400 mb-6 max-w-md mx-auto leading-relaxed">
+                  {currentStage.subtitle}
+                </p>
+
+                {/* Progress Labels (Exact match to screenshot layout) */}
+                <div className="flex items-center justify-between text-xs font-bold mb-2 px-0.5">
+                  <span className="text-slate-300 font-semibold">Progresso do Disparo</span>
+                  <span className="text-[#4ade80] font-black font-mono">{publishProgress}%</span>
+                </div>
+
+                {/* Progress Bar (Matching reference in DecolaShop green) */}
+                <div className="w-full h-3.5 bg-white/10 rounded-full overflow-hidden p-0.5 mb-5 shadow-inner">
+                  <div 
+                    className="h-full rounded-full bg-gradient-to-r from-[#22c55e] to-[#16a34a] transition-all duration-300 shadow-[0_0_12px_rgba(34,197,94,0.6)]"
+                    style={{ width: `${Math.max(3, publishProgress)}%` }}
+                  />
+                </div>
+
+                {/* Product Snapshot Info */}
+                <div className="bg-black/40 border border-white/5 rounded-2xl p-3 flex items-center gap-3 text-left mb-4">
+                  <div className="w-12 h-12 rounded-xl overflow-hidden bg-black shrink-0 border border-white/10">
+                    <SafeImage 
+                      src={selectedProduct.image_url} 
+                      alt={selectedProduct.name || selectedProduct.title} 
+                      className="w-full h-full object-cover" 
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-black text-white truncate">
+                      {selectedProduct.name || selectedProduct.title}
+                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[11px] font-extrabold text-[#4ade80]">
+                        {currentPriceFormatted}
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        • {selectedProduct.category || 'Geral'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Active Channels Grid */}
+                <div className="grid grid-cols-3 gap-1.5 mb-4">
+                  {['Kwai', 'TikTok', 'Meta Ads', 'WhatsApp', 'Instagram', 'Twitter'].map((net) => {
+                    const isPassed = currentStage.activeChannels.includes(net);
+                    return (
+                      <div
+                        key={net}
+                        className={`py-1.5 px-2 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 transition-all ${
+                          isPassed
+                            ? 'bg-[#22c55e]/15 text-[#4ade80] border border-[#22c55e]/30 font-black'
+                            : 'bg-white/5 text-slate-500 border border-white/5'
+                        }`}
+                      >
+                        {isPassed ? <Check size={10} strokeWidth={3} /> : <div className="w-1.5 h-1.5 rounded-full bg-slate-600" />}
+                        <span>{net}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Micro Timer Footer */}
+                <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-white/10">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-[#22c55e] animate-ping" />
+                    Robô IA propagando anúncios
+                  </span>
+                  <span className="font-mono text-slate-300">
+                    ~{remainingSeconds}s restantes
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleCancelPublishing}
+                  className="text-[11px] text-slate-500 hover:text-slate-300 transition-colors mx-auto block mt-4 cursor-pointer"
+                >
+                  Cancelar disparo
+                </button>
+              </>
+            ) : (
+              /* Success Celebration State */
+              <div className="py-2 animate-in zoom-in-95 duration-300">
+                <div className="w-16 h-16 rounded-full bg-[#22c55e]/20 border-2 border-[#22c55e] flex items-center justify-center mx-auto mb-4 text-[#22c55e] shadow-[0_0_25px_rgba(34,197,94,0.3)]">
+                  <Check size={32} strokeWidth={3} />
+                </div>
+
+                <h3 className="text-2xl font-black text-white tracking-tight mb-2">
+                  Disparo Concluído com Sucesso!
+                </h3>
+
+                <p className="text-xs sm:text-sm text-slate-300 mb-6 max-w-sm mx-auto leading-relaxed">
+                  Seu produto foi propagado em massa nas 6 redes homologadas. A 1ª venda está prevista para os próximos <strong>10 minutos</strong>.
+                </p>
+
+                <div className="space-y-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsPublishing(false);
+                      onNavigate('divulgados');
+                    }}
+                    className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-black font-black text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-[#22c55e]/25 cursor-pointer transition-all active:scale-95"
+                  >
+                    <span>Ver Campanha nos Divulgados</span>
+                    <ArrowRight size={15} strokeWidth={3} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsPublishing(false)}
+                    className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white text-xs font-bold transition-all cursor-pointer"
+                  >
+                    Divulgar Outro Produto
+                  </button>
+                </div>
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }
