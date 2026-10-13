@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { signIn } from "next-auth/react";
 import { Mail, Lock, ExternalLink, ShieldCheck, Sparkles, Crown, Rocket, X, Check, ArrowRight } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -11,6 +11,24 @@ export default function LoginView() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedPlanModal, setSelectedPlanModal] = useState<'lifetime' | 'monthly' | null>(null);
+
+  // Auto-abre o checkout diretamente quando o lead vem de um link de indicação ou anúncio
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const af = params.get('af') || params.get('ref');
+      const plan = params.get('plano') || params.get('plan');
+      const checkout = params.get('checkout') || params.get('cadastro');
+
+      if (af || plan || checkout) {
+        if (plan === 'vitalicio' || plan === 'lifetime') {
+          setSelectedPlanModal('lifetime');
+        } else {
+          setSelectedPlanModal('monthly');
+        }
+      }
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,11 +116,30 @@ export default function LoginView() {
           </p>
         </div>
 
+        {/* Banner de Cadastro Imediato / Novo Acesso */}
+        <div 
+          onClick={() => setSelectedPlanModal('monthly')}
+          className="mb-5 p-3.5 rounded-2xl bg-gradient-to-r from-[#22c55e]/20 via-[#22c55e]/10 to-transparent border border-[#22c55e]/40 flex items-center justify-between cursor-pointer hover:border-[#22c55e] hover:shadow-lg hover:shadow-[#22c55e]/15 transition-all group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#22c55e]/25 flex items-center justify-center text-[#4ade80] shadow-sm">
+              <Sparkles size={18} />
+            </div>
+            <div>
+              <p className="text-xs font-black text-white uppercase tracking-wider">Primeiro acesso?</p>
+              <p className="text-[11px] text-slate-300">Ative seu Acesso VIP a partir de <strong className="text-[#4ade80]">R$ 89,90</strong></p>
+            </div>
+          </div>
+          <span className="text-xs font-black text-[#22c55e] group-hover:translate-x-1 transition-transform flex items-center gap-1">
+            Cadastrar <ArrowRight size={13} className="stroke-[2.5]" />
+          </span>
+        </div>
+
         {/* Heading & Cadastre-se */}
-        <div className="flex items-start justify-between mb-5">
+        <div className="flex items-start justify-between mb-4">
           <div>
-            <h2 className="text-2xl font-black text-white leading-none mb-1">
-              Entrar
+            <h2 className="text-xl font-black text-white leading-none mb-1">
+              Já é cadastrado? Entrar
             </h2>
             <p className="text-xs text-slate-400 font-medium">
               Acesse sua conta DecolaShop.
@@ -110,7 +147,7 @@ export default function LoginView() {
           </div>
           <button 
             type="button"
-            onClick={() => setSelectedPlanModal('lifetime')}
+            onClick={() => setSelectedPlanModal('monthly')}
             className="flex items-center gap-1 text-[11px] font-black uppercase text-[#22c55e] hover:text-[#4ade80] tracking-wider transition-colors pt-0.5 cursor-pointer"
             title="Cadastre-se e ative seu acesso"
           >
