@@ -234,7 +234,8 @@ export async function POST(req: Request) {
         pwd: cleanPassword || 'decola123',
         bumps: finalBumps,
         phone: cleanPhone || null,
-        cpf: cleanCpf || null
+        cpf: cleanCpf || null,
+        createdAt: Date.now()
       });
 
       await supabase

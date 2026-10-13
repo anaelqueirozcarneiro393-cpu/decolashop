@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getAccountCreationTimestamp } from '@/lib/accountCreation';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,19 +29,39 @@ export async function GET(req: Request) {
     stored = memorySyncStore.get('gerente@decolashop.com') || memorySyncStore.get('admin@decolashop.com');
   }
 
+  let accountCreatedAt = stored?.accountCreatedAt;
+  if (!accountCreatedAt) {
+    accountCreatedAt = await getAccountCreationTimestamp(email);
+    if (accountCreatedAt) {
+      if (!stored) stored = {};
+      stored.accountCreatedAt = accountCreatedAt;
+      memorySyncStore.set(email, stored);
+    }
+  }
+
   if (stored) {
     if (email === 'usuario@decolashop.com' && stored.isAnticipated) {
       stored = { ...stored, isAnticipated: false };
       memorySyncStore.set(email, stored);
     }
-    const res = NextResponse.json({ success: true, data: stored, source: 'cloud' });
+    const res = NextResponse.json({ 
+      success: true, 
+      data: stored, 
+      accountCreatedAt: stored?.accountCreatedAt || accountCreatedAt || null,
+      source: 'cloud' 
+    });
     if (email === 'usuario@decolashop.com') {
       res.cookies.delete(`decola_sync_usuario_decolashop_com`);
     }
     return res;
   }
 
-  return NextResponse.json({ success: true, data: null, source: 'none' });
+  return NextResponse.json({ 
+    success: true, 
+    data: null, 
+    accountCreatedAt: accountCreatedAt || null,
+    source: 'none' 
+  });
 }
 
 export async function POST(req: Request) {
@@ -70,6 +91,7 @@ export async function POST(req: Request) {
     const payload = {
       ...existing,
       ...state,
+      accountCreatedAt: existing.accountCreatedAt || state.accountCreatedAt || undefined,
       syncedAt: Date.now(),
     };
 

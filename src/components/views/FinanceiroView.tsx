@@ -47,6 +47,14 @@ export default function FinanceiroView() {
   const [isAnticipated, setIsAnticipated] = useState(false);
   const [countdown, setCountdown] = useState(899);
 
+  // Estados de cálculo dinâmico da Carência de 30 dias baseado na data de criação da conta
+  const [accountCreatedAt, setAccountCreatedAt] = useState<number | null>(null);
+  const [elapsedDays, setElapsedDays] = useState<number>(0);
+  const [elapsedDaysDisplay, setElapsedDaysDisplay] = useState<number>(1);
+  const [daysRemaining, setDaysRemaining] = useState<number>(30);
+  const [carenciaPercent, setCarenciaPercent] = useState<number>(3.3);
+  const [isCarenciaCompleted, setIsCarenciaCompleted] = useState<boolean>(false);
+
   useEffect(() => {
     if (!showFirstWithdrawalModal) return;
     const interval = setInterval(() => {
@@ -218,6 +226,114 @@ export default function FinanceiroView() {
     }
   }, [userEmail, cleanEmailKey, session]);
 
+  // Carrega e sincroniza a data de criação da conta para cálculo em tempo real da carência
+  useEffect(() => {
+    if (!userEmail) return;
+
+    let isMounted = true;
+
+    const applyCreationTimestamp = (ts: number) => {
+      if (!isMounted || !ts || isNaN(ts) || ts <= 0) return;
+      setAccountCreatedAt(ts);
+      try {
+        localStorage.setItem(`decolashop_account_created_${cleanEmailKey}`, String(ts));
+      } catch {}
+
+      const now = Date.now();
+      const elapsedMs = Math.max(0, now - ts);
+      const days = Math.floor(elapsedMs / (1000 * 60 * 60 * 24));
+      const remaining = Math.max(0, 30 - days);
+      const displayDay = Math.min(30, Math.max(1, days + 1));
+      const percent = remaining === 0 ? 100 : Math.min(99, Math.max(3.3, Math.round(((30 - remaining) / 30) * 100)));
+      const completed = remaining === 0;
+
+      setElapsedDays(days);
+      setElapsedDaysDisplay(displayDay);
+      setDaysRemaining(remaining);
+      setCarenciaPercent(percent);
+      setIsCarenciaCompleted(completed);
+    };
+
+    // 1. Tenta recuperar do localStorage local deste cliente
+    let savedLocalTs: number | null = null;
+    try {
+      const stored = localStorage.getItem(`decolashop_account_created_${cleanEmailKey}`) ||
+                     localStorage.getItem(`decolashop_user_created_at_${cleanEmailKey}`);
+      if (stored) {
+        const num = Number(stored);
+        if (!isNaN(num) && num > 0) {
+          savedLocalTs = num;
+          applyCreationTimestamp(num);
+        }
+      }
+    } catch {}
+
+    // 2. Consulta data oficial no servidor / banco Supabase
+    fetch(`/api/user/account-created?email=${encodeURIComponent(userEmail)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (!isMounted) return;
+        if (data?.success && typeof data.accountCreatedAt === 'number' && data.accountCreatedAt > 0) {
+          // Se o servidor tiver a data original ou anterior à local, adota a mais antiga (mais fiel à criação)
+          const chosenTs = savedLocalTs ? Math.min(savedLocalTs, data.accountCreatedAt) : data.accountCreatedAt;
+          applyCreationTimestamp(chosenTs);
+          return;
+        }
+
+        // 3. Fallback: Se não encontrou no endpoint específico, consulta sync-state
+        fetch(`/api/user/sync-state?email=${encodeURIComponent(userEmail)}`)
+          .then(r => r.json())
+          .then(syncData => {
+            if (!isMounted) return;
+            const syncTs = syncData?.accountCreatedAt || syncData?.data?.accountCreatedAt;
+            if (typeof syncTs === 'number' && syncTs > 0) {
+              const chosenTs = savedLocalTs ? Math.min(savedLocalTs, syncTs) : syncTs;
+              applyCreationTimestamp(chosenTs);
+              return;
+            }
+
+            // 4. Fallback: Menor timestamp entre as vendas recentes registradas
+            if (recentSales && recentSales.length > 0) {
+              const saleTimes = recentSales
+                .map(s => s.timestamp)
+                .filter((t): t is number => typeof t === 'number' && t > 0);
+              if (saleTimes.length > 0) {
+                const earliestSale = Math.min(...saleTimes);
+                const chosenTs = savedLocalTs ? Math.min(savedLocalTs, earliestSale) : earliestSale;
+                applyCreationTimestamp(chosenTs);
+                return;
+              }
+            }
+
+            if (savedLocalTs) return;
+
+            // 5. Fallback final: Usuário novo criado agora
+            const freshNow = Date.now();
+            applyCreationTimestamp(freshNow);
+            fetch('/api/user/sync-state', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email: userEmail,
+                state: { accountCreatedAt: freshNow }
+              })
+            }).catch(() => {});
+          })
+          .catch(() => {});
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        if (!savedLocalTs) {
+          const freshNow = Date.now();
+          applyCreationTimestamp(freshNow);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [userEmail, cleanEmailKey, recentSales]);
+
   const averageCommission = pedidos > 0 ? (saldoDisponivel / pedidos).toFixed(2).replace('.', ',') : '0,00';
 
   const handleAntecipacao = async (customFee?: number) => {
@@ -376,14 +492,23 @@ export default function FinanceiroView() {
                 <CheckCircle2 size={11} />
                 <span>LIBERADO PARA SAQUE IMEDIATO</span>
               </div>
+            ) : isCarenciaCompleted ? (
+              <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-[#22c55e]/30 bg-[#22c55e]/15 text-[10px] font-bold text-[#4ade80] mb-2">
+                <CheckCircle2 size={11} />
+                <span>CARÊNCIA DE 30 DIAS CONCLUÍDA • LIBERADO</span>
+              </div>
             ) : (
-              <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-[#22c55e]/30 bg-[#22c55e]/10 text-[10px] font-bold text-[#4ade80] mb-2">
+              <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-amber-500/30 bg-amber-500/10 text-[10px] font-bold text-amber-300 mb-2">
                 <Clock size={11} />
-                <span>FALTAM 30 DIAS PARA SACAR</span>
+                <span>{daysRemaining === 1 ? 'FALTA 1 DIA PARA SACAR' : `FALTAM ${daysRemaining} DIAS PARA SACAR`}</span>
               </div>
             )}
             <p className="text-[10px] text-slate-400">
-              {isAnticipated ? 'Carência eliminada com sucesso via antecipação' : 'Liberação automática: 30 dias após cada venda'}
+              {isAnticipated 
+                ? 'Carência eliminada com sucesso via antecipação' 
+                : isCarenciaCompleted
+                ? 'Prazo regulamentar de 30 dias cumprido: saldo liberado para saque'
+                : `Liberação automática em ${daysRemaining} ${daysRemaining === 1 ? 'dia' : 'dias'} (Dia ${elapsedDaysDisplay} de 30)`}
             </p>
           </div>
           <p className="text-[10px] text-slate-500 mt-4 pt-3 border-t border-white/10">
@@ -542,19 +667,25 @@ export default function FinanceiroView() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <Clock size={16} className="text-[#22c55e]" />
+              <Clock size={16} className={isAnticipated || isCarenciaCompleted ? "text-[#22c55e]" : "text-amber-400"} />
               <h3 className="text-sm font-extrabold text-white">
-                {isAnticipated ? 'Carência Eliminada • Saldo Liberado' : 'Carência de Pagamento • 30 Dias Obrigatórios'}
+                {isAnticipated 
+                  ? 'Carência Eliminada • Saldo Liberado' 
+                  : isCarenciaCompleted
+                  ? 'Carência Concluída • Saldo Liberado para Saque'
+                  : `Carência de Pagamento • ${daysRemaining} ${daysRemaining === 1 ? 'Dia Restante' : 'Dias Restantes'}`}
               </h3>
             </div>
             <p className="text-xs text-slate-400">
               {isAnticipated 
                 ? 'Sua antecipação foi confirmada com sucesso! Você pode solicitar saques diretamente via PIX sem aguardar prazos.'
-                : 'Conforme as diretrizes das plataformas e marketplaces, as comissões possuem período de garantia de 30 dias. Utilize a antecipação para liberação imediata via Pix.'}
+                : isCarenciaCompleted
+                ? 'Parabéns! O período legal de 30 dias da sua conta foi integralmente concluído. Suas comissões estão liberadas para solicitação de saque.'
+                : `Sua conta está ativa há ${elapsedDays} ${elapsedDays === 1 ? 'dia' : 'dias'}. Conforme as diretrizes das plataformas e marketplaces, as comissões possuem período de garantia de 30 dias. Utilize a antecipação para liberação imediata via Pix.`}
             </p>
           </div>
 
-          {!isAnticipated && (
+          {!isAnticipated && !isCarenciaCompleted && (
             <div className="flex flex-col items-end">
               <button
                 onClick={() => {
@@ -592,19 +723,33 @@ export default function FinanceiroView() {
               )}
             </div>
           )}
+
+          {!isAnticipated && isCarenciaCompleted && (
+            <div className="flex-shrink-0 flex items-center gap-2 py-3 px-5 rounded-2xl bg-[#22c55e]/15 border border-[#22c55e]/40 text-[#4ade80] font-black text-xs uppercase tracking-wider">
+              <CheckCircle2 size={16} className="text-[#22c55e]" />
+              <span>CARÊNCIA DE 30 DIAS CUMPRIDA</span>
+            </div>
+          )}
         </div>
 
         {/* Progress Bar */}
         <div className="space-y-1 pt-2">
           <div className="flex justify-between text-[11px] text-slate-400 font-medium">
-            <span>{isAnticipated ? 'Progresso da Carência: Liberado Imediatamente' : 'Progresso da Carência: Dia 1 de 30'}</span>
-            <span className="text-[#4ade80] font-bold">{isAnticipated ? '100% Liberado' : '3.3% Concluído'}</span>
+            <span>
+              {isAnticipated 
+                ? 'Progresso da Carência: Liberado Imediatamente' 
+                : isCarenciaCompleted
+                ? 'Progresso da Carência: 30 de 30 Dias (Concluído)'
+                : `Progresso da Carência: Dia ${elapsedDaysDisplay} de 30`}
+            </span>
+            <span className="text-[#4ade80] font-bold">
+              {isAnticipated || isCarenciaCompleted ? '100% Liberado' : `${carenciaPercent}% Concluído`}
+            </span>
           </div>
           <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
             <div 
-              className={`h-full bg-gradient-to-r from-[#22c55e] to-[#4ade80] rounded-full shadow-[0_0_10px_#22c55e] transition-all duration-500 ${
-                isAnticipated ? 'w-full' : 'w-[3.3%]'
-              }`} 
+              className="h-full bg-gradient-to-r from-[#22c55e] to-[#4ade80] rounded-full shadow-[0_0_10px_#22c55e] transition-all duration-500" 
+              style={{ width: `${isAnticipated || isCarenciaCompleted ? 100 : Math.max(3.3, carenciaPercent)}%` }}
             />
           </div>
         </div>
@@ -757,7 +902,7 @@ export default function FinanceiroView() {
                       + R$ {sale.commission.toFixed(2).replace('.', ',')}
                     </td>
                     <td className="py-3.5 text-right pr-2">
-                      {isAnticipated ? (
+                      {isAnticipated || isCarenciaCompleted ? (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-[#22c55e]/15 text-[#4ade80] border border-[#22c55e]/30">
                           <CheckCircle2 size={10} />
                           <span>Liberado</span>
@@ -765,7 +910,7 @@ export default function FinanceiroView() {
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
                           <Clock size={10} />
-                          <span>Em Carência (30D)</span>
+                          <span>Em Carência ({daysRemaining}D)</span>
                         </span>
                       )}
                     </td>
@@ -1000,7 +1145,7 @@ export default function FinanceiroView() {
                 Taxa de Antecipação Pix
               </h2>
               <p className="text-xs text-slate-400 mt-1">
-                Pague a taxa calculada para liberar seu saldo acumulado sem aguardar os 30 dias de carência.
+                Pague a taxa calculada para liberar seu saldo acumulado sem aguardar os {daysRemaining} dias de carência restantes.
               </p>
             </div>
 
