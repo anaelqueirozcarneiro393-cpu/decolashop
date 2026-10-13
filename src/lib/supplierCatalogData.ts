@@ -102,7 +102,7 @@ const SUPPLIER_ARCHETYPES: Record<string, ArchetypeDef[]> = {
       priceRange: [89.9, 139.9],
       images: [
         'https://images.unsplash.com/photo-1518091043644-c1d4457512c6?auto=format&fit=crop&q=80&w=800',
-        'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&q=80&w=800',
+        'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&q=80&w=800',
         'https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=800',
         'https://images.unsplash.com/photo-1522778119026-d647f0596c20?auto=format&fit=crop&q=80&w=800',
       ],
@@ -249,7 +249,7 @@ const SUPPLIER_ARCHETYPES: Record<string, ArchetypeDef[]> = {
       count: 55,
       priceRange: [269.9, 389.9],
       images: [
-        'https://images.unsplash.com/photo-1535016120720-40c646bebbdc?auto=format&fit=crop&q=80&w=800',
+        'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&q=80&w=800',
         'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&q=80&w=800',
       ],
       titleGenerator: (idx) => {
@@ -266,7 +266,8 @@ const SUPPLIER_ARCHETYPES: Record<string, ArchetypeDef[]> = {
       count: 65,
       priceRange: [79.9, 139.9],
       images: [
-        'https://images.unsplash.com/photo-1609592426867-a0684f4ebfa4?auto=format&fit=crop&q=80&w=800',
+        'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&q=80&w=800',
+        'https://images.unsplash.com/photo-1585338107529-13afc5f02586?auto=format&fit=crop&q=80&w=800',
       ],
       titleGenerator: (idx) => {
         const cap = idx % 2 === 0 ? '20.000mAh' : '10.000mAh';
@@ -339,7 +340,7 @@ const SUPPLIER_ARCHETYPES: Record<string, ArchetypeDef[]> = {
       priceRange: [34.9, 59.9],
       images: [
         'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&q=80&w=800',
-        'https://images.unsplash.com/photo-1608248597359-281b37996c9c?auto=format&fit=crop&q=80&w=800',
+        'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&q=80&w=800',
       ],
       titleGenerator: (idx) => {
         const active = SKINCARE_ACTIVES[idx % SKINCARE_ACTIVES.length];
