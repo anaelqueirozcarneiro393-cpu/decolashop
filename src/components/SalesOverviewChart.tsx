@@ -21,6 +21,8 @@ interface SalesOverviewChartProps {
   pedidos: number;
   hourlyData: ChartHour[];
   onNavigate?: (view: any) => void;
+  currency?: 'BRL' | 'USD';
+  usdRate?: number;
 }
 
 export type PeriodType = 'hoje' | '7d' | '30d' | 'tudo';
@@ -39,8 +41,18 @@ export default function SalesOverviewChart({
   saldoDisponivel,
   pedidos,
   hourlyData,
-  onNavigate
+  onNavigate,
+  currency = 'BRL',
+  usdRate = 5.60
 }: SalesOverviewChartProps) {
+  const isUsd = currency === 'USD';
+  const currSym = isUsd ? 'US$' : 'R$';
+  const rate = usdRate && usdRate > 0 ? usdRate : 5.60;
+  const formatMoney = (val: number) => {
+    const converted = isUsd ? val / rate : val;
+    return `${currSym} ${converted.toLocaleString(isUsd ? 'en-US' : 'pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
   const [period, setPeriod] = useState<PeriodType>('hoje');
   const [chartType, setChartType] = useState<'line' | 'bar'>('line');
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -371,15 +383,16 @@ export default function SalesOverviewChart({
     return Array.from({ length: count + 1 }).map((_, i) => {
       const val = (maxVal * (count - i)) / count;
       const y = paddingTop + (i / count) * usableHeight;
-      let label = 'R$ 0';
-      if (val >= 1000) {
-        label = `R$ ${(val / 1000).toFixed(1).replace('.0', '')}k`;
-      } else if (val > 0) {
-        label = `R$ ${Math.round(val)}`;
+      const converted = isUsd ? val / rate : val;
+      let label = `${currSym} 0`;
+      if (converted >= 1000) {
+        label = `${currSym} ${(converted / 1000).toFixed(1).replace('.0', '')}k`;
+      } else if (converted > 0) {
+        label = `${currSym} ${Math.round(converted)}`;
       }
       return { val, y, label };
     });
-  }, [maxVal, usableHeight]);
+  }, [maxVal, usableHeight, isUsd, rate, currSym]);
 
   // Mouse / Touch interaction handlers
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -498,7 +511,7 @@ export default function SalesOverviewChart({
               Faturamento ({period === 'hoje' ? 'Hoje' : period.toUpperCase()})
             </span>
             <div className="text-sm sm:text-base font-black text-white truncate">
-              R$ {periodTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatMoney(periodTotal)}
             </div>
           </div>
 
@@ -519,7 +532,7 @@ export default function SalesOverviewChart({
               <Flame size={10} className="text-amber-400" /> Pico Registrado
             </span>
             <div className="text-xs sm:text-sm font-black text-white truncate">
-              R$ {peakPoint.current.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              {formatMoney(peakPoint.current)}
               <span className="text-[10px] text-slate-400 font-semibold ml-1">({peakPoint.label})</span>
             </div>
           </div>
@@ -530,7 +543,7 @@ export default function SalesOverviewChart({
               Comissão do Período
             </span>
             <div className="text-xs sm:text-sm font-black text-[#4ade80] truncate">
-              R$ {(periodTotal * 0.32).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatMoney(periodTotal * 0.32)}
             </div>
           </div>
         </div>
@@ -818,7 +831,7 @@ export default function SalesOverviewChart({
               <div>
                 <div className="text-[10px] text-slate-400 font-semibold">Faturamento:</div>
                 <div className="text-base font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-[#4ade80]">
-                  R$ {activePoint.data.current.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  {formatMoney(activePoint.data.current)}
                 </div>
               </div>
 
@@ -826,13 +839,13 @@ export default function SalesOverviewChart({
                 <div>
                   <span className="text-slate-400 text-[9px] block">Comissão:</span>
                   <span className="font-extrabold text-[#4ade80]">
-                    R$ {activePoint.data.commission.toFixed(2).replace('.', ',')}
+                    {formatMoney(activePoint.data.commission)}
                   </span>
                 </div>
                 <div>
                   <span className="text-slate-400 text-[9px] block">Anterior:</span>
                   <span className="font-semibold text-slate-400">
-                    R$ {activePoint.data.previous.toFixed(2).replace('.', ',')}
+                    {formatMoney(activePoint.data.previous)}
                   </span>
                 </div>
               </div>

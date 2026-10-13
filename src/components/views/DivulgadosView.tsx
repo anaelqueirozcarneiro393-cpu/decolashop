@@ -25,8 +25,12 @@ import {
   ShieldCheck, 
   Flame, 
   Layers,
-  RotateCcw,
-  Trash2
+  Trash2,
+  Truck,
+  Navigation,
+  MapPin,
+  PackageCheck,
+  Calendar
 } from 'lucide-react';
 import SafeImage from '@/components/SafeImage';
 import FindGroupsButton from '@/components/FindGroupsButton';
@@ -41,7 +45,9 @@ import {
   getDivulgadosStats,
   INITIAL_DIVULGADOS,
   MAX_ACTIVE_CAMPAIGNS,
-  isGerenteOrAdminEmail 
+  isGerenteOrAdminEmail,
+  getCampaignShippingInfo,
+  ShippingTrackingInfo
 } from '@/lib/divulgados';
 
 interface DivulgadosViewProps {
@@ -58,7 +64,9 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todas');
   const [selectedCampaign, setSelectedCampaign] = useState<DivulgadoCampaign | null>(null);
+  const [trackingCampaign, setTrackingCampaign] = useState<DivulgadoCampaign | null>(null);
   const [isCopied, setIsCopied] = useState(false);
+  const [trackingCopied, setTrackingCopied] = useState(false);
 
   useEffect(() => {
     // Load from storage
@@ -343,18 +351,21 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
               : `R$ ${camp.price?.toFixed(2) || '99,90'}`;
 
             const isActive = camp.status === 'active';
+            const shipping = getCampaignShippingInfo(camp);
 
             return (
               <div
                 key={camp.id}
-                className={`rounded-2xl sm:rounded-3xl p-4 sm:p-5 bg-[#0d121f]/90 border transition-all shadow-xl backdrop-blur-xl flex flex-col lg:flex-row lg:items-center justify-between gap-5 ${
+                className={`rounded-2xl sm:rounded-3xl p-4 sm:p-5 bg-[#0d121f]/90 border transition-all shadow-xl backdrop-blur-xl flex flex-col gap-3.5 ${
                   isActive
                     ? 'border-white/10 hover:border-[#22c55e]/40'
                     : 'border-white/5 opacity-75 hover:opacity-100 hover:border-amber-400/30'
                 }`}
               >
-                {/* Left: Product Info */}
-                <div className="flex items-start sm:items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
+                {/* Upper row: Product info, performance numbers and quick actions */}
+                <div className="w-full flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+                  {/* Left: Product Info */}
+                  <div className="flex items-start sm:items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
                   {/* Image with status badge */}
                   <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden bg-black/40 border border-white/10 flex-shrink-0">
                     <SafeImage
@@ -471,6 +482,20 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
                     <span>Detalhes</span>
                   </button>
 
+                  {/* Tracking / Rastreio Button */}
+                  <button
+                    onClick={() => setTrackingCampaign(camp)}
+                    className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      shipping.isDelivered
+                        ? 'bg-[#22c55e]/15 text-[#4ade80] border border-[#22c55e]/30 hover:bg-[#22c55e]/25'
+                        : 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 hover:bg-cyan-500/25'
+                    }`}
+                    title="Acompanhar transporte e entrega (prazo 7 dias)"
+                  >
+                    <Truck size={13} />
+                    <span>{shipping.isDelivered ? 'Entregue (7d)' : 'Rastreio'}</span>
+                  </button>
+
                   {/* Video IA Shortcut */}
                   <button
                     onClick={() => onNavigate('video-ia', { 
@@ -502,6 +527,61 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
                   </button>
                 </div>
               </div>
+
+              {/* Logística & Acompanhamento de Entrega (Prazo de 7 Dias) */}
+              <div className="w-full pt-3 border-t border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2.5 flex-wrap min-w-0">
+                  <div className={`p-1.5 rounded-lg shrink-0 ${
+                    shipping.isDelivered
+                      ? 'bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/40'
+                      : 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40'
+                  }`}>
+                    {shipping.isDelivered ? <CheckCircle2 size={15} /> : <Truck size={15} />}
+                  </div>
+
+                  <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
+                    shipping.isDelivered
+                      ? 'bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/40 shadow-sm'
+                      : 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30'
+                  }`}>
+                    {shipping.isDelivered ? '✅ ENTREGUE AO CLIENTE (7 DIAS)' : `🚚 ${shipping.statusLabel.toUpperCase()}`}
+                  </span>
+
+                  <span className="text-[11px] text-slate-400 font-mono">
+                    Rastreio: <strong className="text-white">{shipping.trackingCode}</strong>
+                  </span>
+
+                  <span className="text-[11px] text-slate-400">
+                    • Destino: <strong className="text-slate-300">{shipping.recipientCity}</strong>
+                  </span>
+
+                  <span className="text-[10px] text-slate-500">
+                    • {shipping.isDelivered 
+                        ? 'Recebido com sucesso pelo comprador' 
+                        : `Dia ${shipping.elapsedDays} de 7 • Previsão: ${shipping.estimatedDeliveryDate}`}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2.5 self-end md:self-auto shrink-0">
+                  <div className="w-24 sm:w-32 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                    <div 
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        shipping.isDelivered ? 'bg-[#22c55e]' : 'bg-gradient-to-r from-cyan-500 to-[#22c55e]'
+                      }`}
+                      style={{ width: `${shipping.progressPercentage}%` }}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setTrackingCampaign(camp)}
+                    className="text-[11px] font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer transition-colors"
+                  >
+                    <span>Linha do Tempo</span>
+                    <Navigation size={11} />
+                  </button>
+                </div>
+              </div>
+            </div>
             );
           })}
         </div>
@@ -658,6 +738,179 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
           </div>
         </div>
       )}
+
+      {/* Modal de Acompanhamento / Rastreamento de Pedido e Entrega (7 Dias) */}
+      {trackingCampaign && (() => {
+        const shipping = getCampaignShippingInfo(trackingCampaign);
+        return (
+          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+            <div className="relative w-full max-w-lg bg-[#0d121f] border border-cyan-500/30 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+              {/* Top Header */}
+              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                    shipping.isDelivered
+                      ? 'bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/40'
+                      : 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40'
+                  }`}>
+                    {shipping.isDelivered ? <PackageCheck size={20} /> : <Truck size={20} />}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-black text-white">
+                        Rastreamento de Pedido
+                      </h3>
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                        shipping.isDelivered
+                          ? 'bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/40'
+                          : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                      }`}>
+                        {shipping.statusLabel}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-400">
+                      Prazo padrão: 7 dias corridos após a divulgação na DecolaShop
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setTrackingCampaign(null)}
+                  className="p-1.5 text-slate-400 hover:text-white rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Produto Resumo */}
+              <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.02] border border-white/10">
+                <div className="w-12 h-12 rounded-xl overflow-hidden bg-black/40 border border-white/10 shrink-0">
+                  <SafeImage
+                    src={trackingCampaign.image_url}
+                    alt={trackingCampaign.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-xs font-bold text-white truncate">
+                    {trackingCampaign.name}
+                  </h4>
+                  <div className="flex items-center gap-2 mt-0.5 text-[11px]">
+                    <span className="text-[#4ade80] font-black">
+                      {typeof trackingCampaign.price === 'string' ? trackingCampaign.price : `R$ ${trackingCampaign.price.toFixed(2)}`}
+                    </span>
+                    <span className="text-slate-400">• Comprador: <strong className="text-slate-200">{shipping.recipientName}</strong></span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card do Código de Rastreio & Transportadora */}
+              <div className="grid grid-cols-2 gap-2.5 p-3 rounded-2xl bg-black/40 border border-white/10 text-xs">
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-bold">Código de Rastreio</span>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="font-mono font-bold text-white text-xs">{shipping.trackingCode}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(shipping.trackingCode);
+                        setTrackingCopied(true);
+                        toast.success('Código de rastreio copiado!');
+                        setTimeout(() => setTrackingCopied(false), 2000);
+                      }}
+                      className="text-slate-400 hover:text-white p-0.5 transition-colors cursor-pointer"
+                      title="Copiar código"
+                    >
+                      {trackingCopied ? <Check size={12} className="text-[#22c55e]" /> : <Copy size={12} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-bold">Destino da Entrega</span>
+                  <span className="font-bold text-slate-200 block truncate mt-0.5">{shipping.recipientCity}</span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-bold">Transportadora</span>
+                  <span className="font-bold text-cyan-400 block mt-0.5">{shipping.carrier}</span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-bold">Previsão / Status</span>
+                  <span className={`font-black block mt-0.5 ${shipping.isDelivered ? 'text-[#4ade80]' : 'text-amber-400'}`}>
+                    {shipping.isDelivered ? 'Entregue (7 dias)' : `Até ${shipping.estimatedDeliveryDate}`}
+                  </span>
+                </div>
+              </div>
+
+              {/* Linha do Tempo / Stepper das 5 Etapas */}
+              <div className="space-y-1 pt-1">
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                  <Navigation size={13} className="text-cyan-400" />
+                  <span>Etapas do Rastreamento em Tempo Real</span>
+                </span>
+
+                <div className="relative pl-6 space-y-4 pt-3 before:absolute before:left-[11px] before:top-4 before:bottom-3 before:w-0.5 before:bg-white/10">
+                  {shipping.steps.map((st) => (
+                    <div key={st.step} className="relative group">
+                      <div className={`absolute -left-6 top-0.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black transition-all ${
+                        st.isCompleted
+                          ? 'bg-[#22c55e] text-black shadow-[0_0_10px_rgba(34,197,94,0.4)]'
+                          : 'bg-white/10 text-slate-500 border border-white/20'
+                      }`}>
+                        {st.isCompleted ? <Check size={11} strokeWidth={3} /> : st.step}
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <h5 className={`text-xs font-bold ${st.isCompleted ? 'text-white' : 'text-slate-400'}`}>
+                            {st.title}
+                          </h5>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {st.dateStr}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">
+                          {st.description}
+                        </p>
+                        <span className="text-[10px] text-slate-500 flex items-center gap-1 mt-1">
+                          <MapPin size={10} className="text-slate-400" />
+                          <span>{st.location}</span>
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Mensagem de Garantia */}
+              <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5 text-center text-[11px] text-slate-400">
+                {shipping.isDelivered ? (
+                  <span className="text-[#4ade80] font-bold">
+                    🎉 Pedido concluído com sucesso! Entrega confirmada no destino pelo código {shipping.trackingCode}.
+                  </span>
+                ) : (
+                  <span>
+                    📦 Pedido em rota expressa. O prazo total de entrega é de <strong>7 dias</strong> a partir da divulgação.
+                  </span>
+                )}
+              </div>
+
+              {/* Botão Fechar */}
+              <div className="pt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setTrackingCampaign(null)}
+                  className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#22c55e] text-black font-black text-xs uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all cursor-pointer"
+                >
+                  Entendi / Fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

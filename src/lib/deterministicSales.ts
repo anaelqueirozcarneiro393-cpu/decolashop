@@ -424,29 +424,29 @@ export function getDeterministicBaseline(email: string, nowMs: number = Date.now
       }
     };
 
-    // Vendas de hoje (proporcional às horas decorridas)
-    const todaySalesCount = Math.max(0, Math.min(6, Math.floor(currentHour / 3)));
+    // Vendas de hoje (proporcional às horas decorridas - 1 a 2 vendas)
+    const todaySalesCount = currentHour >= 12 ? Math.min(2, Math.max(1, Math.floor(currentHour / 10))) : 1;
     if (todaySalesCount > 0) {
-      addSalesForDay(0, todaySalesCount, 6, Math.min(currentHour, 22));
+      addSalesForDay(0, todaySalesCount, 8, Math.min(currentHour, 22));
     }
 
-    // Ontem: 6 vendas (~R$ 840)
-    addSalesForDay(1, 6, 6, 21);
+    // Ontem: 2 vendas (~R$ 229)
+    addSalesForDay(1, 2, 9, 20);
 
-    // 2 dias atrás: 5 vendas (~R$ 780)
-    addSalesForDay(2, 5, 8, 21);
+    // 2 dias atrás: 1 venda (~R$ 149)
+    addSalesForDay(2, 1, 10, 19);
 
-    // 3 dias atrás: 6 vendas (~R$ 950)
-    addSalesForDay(3, 6, 7, 22);
+    // 3 dias atrás: 2 vendas (~R$ 239)
+    addSalesForDay(3, 2, 8, 21);
 
-    // 4 dias atrás: 5 vendas (~R$ 800)
-    addSalesForDay(4, 5, 8, 20);
+    // 4 dias atrás: 1 venda (~R$ 89)
+    addSalesForDay(4, 1, 11, 18);
 
-    // 5 dias atrás: 6 vendas (~R$ 890)
-    addSalesForDay(5, 6, 7, 22);
+    // 5 dias atrás: 1 venda (~R$ 119)
+    addSalesForDay(5, 1, 9, 20);
 
-    // 6 dias atrás: 5 vendas (~R$ 750)
-    addSalesForDay(6, 5, 9, 21);
+    // 6 dias atrás: 1 venda (~R$ 79)
+    addSalesForDay(6, 1, 10, 19);
 
     recentSales.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 

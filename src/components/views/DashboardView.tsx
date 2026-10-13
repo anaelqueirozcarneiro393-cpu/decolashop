@@ -17,8 +17,10 @@ import {
   Play,
   Pause,
   ShieldCheck,
-  Megaphone
+  Megaphone,
+  Globe
 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { ViewType } from '@/app/page';
 import { useSales } from '@/lib/salesContext';
 import { useSession } from 'next-auth/react';
@@ -59,9 +61,55 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
     availableProducts
   } = useSales();
 
+  // Opção de Vender para o Exterior / Moeda do Dashboard (Dólar vs Real)
+  const [currency, setCurrency] = useState<'BRL' | 'USD'>('BRL');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('decolashop_dashboard_currency') as 'BRL' | 'USD';
+      if (saved === 'BRL' || saved === 'USD') {
+        setCurrency(saved);
+      }
+    }
+  }, []);
+
+  const USD_RATE = 5.60;
+  const isUsd = currency === 'USD';
+  const currencySymbol = isUsd ? 'US$' : 'R$';
+  const displayVendasTotais = isUsd ? (vendasTotais / USD_RATE) : vendasTotais;
+  const displaySaldoDisponivel = isUsd ? (saldoDisponivel / USD_RATE) : saldoDisponivel;
+
+  const handleCurrencyChange = (newCurrency: 'BRL' | 'USD') => {
+    setCurrency(newCurrency);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('decolashop_dashboard_currency', newCurrency);
+    }
+    if (newCurrency === 'USD') {
+      toast.success('🇺🇸 Modo Vender para o Exterior ativado! Dashboard convertido para Dólar (US$).', {
+        icon: '🗽',
+        duration: 3500
+      });
+    } else {
+      toast.success('🇧🇷 Modo Mercado Nacional ativado! Dashboard em Reais (R$).', {
+        icon: '🇧🇷',
+        duration: 3000
+      });
+    }
+  };
+
   // Use real products for the Top 5
   const topList = availableProducts.slice(0, 5).map((p, index) => {
-    const rawPrice = typeof p.price === 'string' ? p.price : `R$ ${p.price?.toFixed(2).replace('.', ',') || '99,90'}`;
+    let numericPrice = 99.90;
+    if (typeof p.price === 'number') {
+      numericPrice = p.price;
+    } else if (typeof p.price === 'string') {
+      const clean = p.price.replace(/[^\d,.-]/g, '').replace(',', '.');
+      numericPrice = parseFloat(clean) || 99.90;
+    }
+    const formattedPrice = isUsd 
+      ? `US$ ${(numericPrice / USD_RATE).toFixed(2)}`
+      : `R$ ${numericPrice.toFixed(2).replace('.', ',')}`;
+
     const units = pedidos > 0 ? Math.max(1, Math.floor(pedidos * (0.35 - index * 0.06))) : 0;
     const marketSales = p.vendas_mes 
       ? `${p.vendas_mes.toLocaleString('pt-BR')} no radar` 
@@ -71,7 +119,7 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
       id: p.id,
       name: p.name || p.title || 'Produto do Catálogo',
       sales: pedidos > 0 ? `${units} vendas na sua loja` : marketSales,
-      price: rawPrice,
+      price: formattedPrice,
       image: p.image_url,
     };
   });
@@ -86,33 +134,96 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
 
       <div className="max-w-7xl mx-auto space-y-3 sm:space-y-5 md:space-y-6">
 
+        {/* Seletor de Vender para o Exterior: Brasil (R$) vs Exterior (US$) */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-[#0d121f]/90 border border-white/10 backdrop-blur-xl shadow-xl">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${
+              isUsd 
+                ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40 shadow-[0_0_15px_rgba(59,130,246,0.3)]' 
+                : 'bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/40 shadow-[0_0_15px_rgba(34,197,94,0.25)]'
+            }`}>
+              <Globe size={20} className={isUsd ? 'animate-spin' : ''} style={{ animationDuration: '16s' }} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs sm:text-sm font-black text-white">
+                  {isUsd ? 'Operação Global & Vendas no Exterior' : 'Operação Nacional & Vendas no Brasil'}
+                </span>
+                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                  isUsd 
+                    ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40' 
+                    : 'bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/40'
+                }`}>
+                  {isUsd ? 'EUA & Global • US$' : 'Brasil • R$'}
+                </span>
+              </div>
+              <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5">
+                {isUsd 
+                  ? 'Faturamento, produtos e comissões internacionais convertidos para Dólar Americano (câmbio R$ 5,60).' 
+                  : 'Comissões das lojas e campanhas nacionais em Reais (R$).'}
+              </p>
+            </div>
+          </div>
+
+          {/* Toggle Switch Pills */}
+          <div className="flex items-center p-1 rounded-xl bg-black/60 border border-white/10 shrink-0 self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={() => handleCurrencyChange('BRL')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+                !isUsd
+                  ? 'bg-[#22c55e] text-black shadow-md font-black'
+                  : 'text-slate-400 hover:text-white font-bold'
+              }`}
+            >
+              <span>🇧🇷</span>
+              <span>Brasil (R$)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleCurrencyChange('USD')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+                isUsd
+                  ? 'bg-blue-500 text-white shadow-md font-black shadow-blue-500/30'
+                  : 'text-slate-400 hover:text-white font-bold'
+              }`}
+            >
+              <span>🇺🇸</span>
+              <span>Vender no Exterior (US$)</span>
+            </button>
+          </div>
+        </div>
+
         {/* Card Vendas Totais (Topo Compacto no Mobile) */}
         <div className="relative rounded-2xl sm:rounded-3xl p-4 sm:p-7 md:p-9 bg-gradient-to-b from-[#111726]/95 via-[#0d121f]/95 to-[#0b101b] border border-[#22c55e]/30 shadow-2xl shadow-[#22c55e]/10 backdrop-blur-xl flex flex-col items-center text-center overflow-hidden group">
           <div className="absolute top-0 left-0 right-0 h-1 sm:h-1.5 bg-gradient-to-r from-transparent via-[#22c55e] to-transparent shadow-[0_0_15px_#22c55e]" />
 
           <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-[#22c55e] mb-1 sm:mb-2 flex items-center gap-1.5">
-            <Sparkles size={13} /> VENDAS TOTAIS
+            <Sparkles size={13} /> VENDAS TOTAIS {isUsd ? '(INTERNACIONAL)' : ''}
           </span>
 
           <div className="flex items-baseline justify-center mb-1 sm:mb-2">
             <span className="text-xl sm:text-2xl md:text-3xl font-black text-[#4ade80] mr-1.5 sm:mr-2">
-              R$
+              {currencySymbol}
             </span>
             <span className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-[#4ade80] tracking-tight drop-shadow-[0_0_20px_rgba(74,222,128,0.25)]">
-              {vendasTotais.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {displayVendasTotais.toLocaleString(isUsd ? 'en-US' : 'pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
 
           <p className="text-[9px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3 sm:mb-5">
-            VALOR ACUMULADO DE TODAS AS VENDAS COM DIVULGAÇÃO
+            {isUsd 
+              ? 'VALOR ACUMULADO CONVERTIDO EM DÓLAR AMERICANO (US$)' 
+              : 'VALOR ACUMULADO DE TODAS AS VENDAS COM DIVULGAÇÃO'}
           </p>
 
           <button
             onClick={() => onNavigate('financeiro')}
-            className="inline-flex items-center gap-2 border border-[#22c55e]/40 bg-[#22c55e]/10 hover:bg-[#22c55e]/20 rounded-full py-1.5 px-4 sm:py-2 sm:px-6 text-[11px] sm:text-xs font-extrabold text-[#4ade80] transition-all shadow-lg shadow-[#22c55e]/15 active:scale-95 group/btn"
+            className="inline-flex items-center gap-2 border border-[#22c55e]/40 bg-[#22c55e]/10 hover:bg-[#22c55e]/20 rounded-full py-1.5 px-4 sm:py-2 sm:px-6 text-[11px] sm:text-xs font-extrabold text-[#4ade80] transition-all shadow-lg shadow-[#22c55e]/15 active:scale-95 group/btn cursor-pointer"
           >
             <Wallet size={14} className="text-[#22c55e]" />
-            <span>Saldo Disponível: <strong className="font-black text-white ml-1">R$ {saldoDisponivel.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
+            <span>Saldo Disponível: <strong className="font-black text-white ml-1">{currencySymbol} {displaySaldoDisponivel.toLocaleString(isUsd ? 'en-US' : 'pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
             <ArrowRight size={12} className="group-hover/btn:translate-x-1 transition-transform text-[#22c55e]" />
           </button>
         </div>
@@ -193,6 +304,8 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
               pedidos={pedidos}
               hourlyData={hourlyData}
               onNavigate={onNavigate}
+              currency={currency}
+              usdRate={USD_RATE}
             />
           </div>
 

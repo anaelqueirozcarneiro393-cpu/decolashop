@@ -562,14 +562,12 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
           //    computa estritamente no ritmo de 1 venda a cada 10 minutos (com teto moderado).
           if (currRecentSales.length > 0 && currVendasTotais > 0 && elapsedMs >= 600_000 && hasUserProds) {
             const elapsedMinutes = Math.floor(elapsedMs / 60_000);
-            if (elapsedMinutes < 20) {
+            if (elapsedMinutes < 40) {
               count = 1;
-            } else if (elapsedMinutes < 60) {
-              count = Math.min(2, Math.floor(elapsedMinutes / 20));
-            } else if (elapsedMinutes < 240) {
-              count = Math.min(4, Math.floor(elapsedMinutes / 40));
+            } else if (elapsedMinutes < 120) {
+              count = Math.min(2, Math.floor(elapsedMinutes / 60));
             } else {
-              count = Math.min(6, Math.floor(4 + Math.random() * 2));
+              count = Math.min(2, Math.floor(1 + Math.random() * 2));
             }
           } else {
             count = 0;

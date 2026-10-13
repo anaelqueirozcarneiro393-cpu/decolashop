@@ -1129,7 +1129,7 @@ export default function FinanceiroView() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#22c55e] opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-[#22c55e]"></span>
               </span>
-              <span><strong>142 afiliados</strong> já sacaram hoje • Último saque: Mariana R. (R$ 1.840) há 3 min</span>
+              <span><strong>142 afiliados</strong> já sacaram hoje • Último saque: Mariana R. (R$ 420,00) há 3 min</span>
             </div>
 
             {/* Confirmação e Edição do E-mail de Notificação */}
