@@ -1,15 +1,36 @@
-import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { getSupabaseAdmin, loadVerificationToken, saveVerificationToken } from '@/lib/supabaseAdmin';
 
 /**
  * Busca a data exata de criação da conta de um usuário no Supabase.
- * Verifica tokens de pagamento PIX, vendas de afiliado registradas,
- * data de expiração do plano (plan_expires_at) e metadados.
+ * Verifica tokens dedicados de criação, sync_state na nuvem, tokens de pagamento PIX,
+ * vendas de afiliado registradas, data de expiração do plano (plan_expires_at) e metadados.
  */
 export async function getAccountCreationTimestamp(email: string): Promise<number | null> {
   const cleanEmail = email.toLowerCase().trim();
   if (!cleanEmail) return null;
 
   try {
+    // 0. Token imutável dedicado de criação de conta gravado no Supabase
+    const dedicatedToken = await loadVerificationToken(`account_created:${cleanEmail}`);
+    if (dedicatedToken) {
+      const num = Number(dedicatedToken);
+      if (!isNaN(num) && num > 0) {
+        return num;
+      }
+    }
+
+    // 0.1 Verifica no token persistente de sync_state na nuvem
+    const syncStateRaw = await loadVerificationToken(`sync_state:${cleanEmail}`);
+    if (syncStateRaw) {
+      try {
+        const syncObj = JSON.parse(syncStateRaw);
+        if (typeof syncObj.accountCreatedAt === 'number' && syncObj.accountCreatedAt > 0) {
+          await saveVerificationToken(`account_created:${cleanEmail}`, String(syncObj.accountCreatedAt));
+          return syncObj.accountCreatedAt;
+        }
+      } catch {}
+    }
+
     const supabase = getSupabaseAdmin('next_auth');
     if (!supabase) return null;
 
@@ -24,6 +45,7 @@ export async function getAccountCreationTimestamp(email: string): Promise<number
       try {
         const p = JSON.parse(pixToken.token);
         if (typeof p.createdAt === 'number' && p.createdAt > 0) {
+          await saveVerificationToken(`account_created:${cleanEmail}`, String(p.createdAt));
           return p.createdAt;
         }
       } catch {}
@@ -41,6 +63,7 @@ export async function getAccountCreationTimestamp(email: string): Promise<number
           const p = JSON.parse(st.token);
           if (p.customerEmail && p.customerEmail.toLowerCase().trim() === cleanEmail) {
             if (typeof p.createdAt === 'number' && p.createdAt > 0) {
+              await saveVerificationToken(`account_created:${cleanEmail}`, String(p.createdAt));
               return p.createdAt;
             }
           }
@@ -59,6 +82,7 @@ export async function getAccountCreationTimestamp(email: string): Promise<number
       try {
         const p = JSON.parse(leadTokens.token);
         if (typeof p.createdAt === 'number' && p.createdAt > 0) {
+          await saveVerificationToken(`account_created:${cleanEmail}`, String(p.createdAt));
           return p.createdAt;
         }
       } catch {}
@@ -74,11 +98,15 @@ export async function getAccountCreationTimestamp(email: string): Promise<number
     if (dbUser?.plan_expires_at) {
       const exp = new Date(dbUser.plan_expires_at).getTime();
       if (!isNaN(exp) && exp > 0) {
+        let calculatedTs: number | null = null;
         if (dbUser.plan === 'monthly') {
-          return exp - (30 * 24 * 60 * 60 * 1000);
+          calculatedTs = exp - (30 * 24 * 60 * 60 * 1000);
+        } else if (dbUser.plan === 'lifetime' && !dbUser.plan_expires_at.startsWith('2099')) {
+          calculatedTs = exp - (3650 * 24 * 60 * 60 * 1000);
         }
-        if (dbUser.plan === 'lifetime' && !dbUser.plan_expires_at.startsWith('2099')) {
-          return exp - (3650 * 24 * 60 * 60 * 1000);
+        if (calculatedTs && calculatedTs > 0) {
+          await saveVerificationToken(`account_created:${cleanEmail}`, String(calculatedTs));
+          return calculatedTs;
         }
       }
     }
@@ -87,8 +115,11 @@ export async function getAccountCreationTimestamp(email: string): Promise<number
     if (dbUser?.image && dbUser.image.startsWith('{')) {
       try {
         const meta = JSON.parse(dbUser.image);
-        if (typeof meta.createdAt === 'number' && meta.createdAt > 0) return meta.createdAt;
-        if (typeof meta.created_at === 'number' && meta.created_at > 0) return meta.created_at;
+        const metaTs = meta.createdAt || meta.created_at;
+        if (typeof metaTs === 'number' && metaTs > 0) {
+          await saveVerificationToken(`account_created:${cleanEmail}`, String(metaTs));
+          return metaTs;
+        }
       } catch {}
     }
   } catch (err) {
@@ -105,3 +136,24 @@ export async function getAccountCreationTimestamp(email: string): Promise<number
 
   return null;
 }
+
+/**
+ * Salva a data de criação de conta no Supabase de forma estritamente imutável.
+ * Se já existir uma data registrada, mantém SEMPRE o timestamp mais antigo (Math.min),
+ * garantindo que a carência nunca seja resetada ao trocar de aparelho ou relogar.
+ */
+export async function setAccountCreationTimestamp(email: string, ts: number): Promise<number> {
+  const cleanEmail = email.toLowerCase().trim();
+  if (!cleanEmail || !ts || isNaN(ts) || ts <= 0) return ts;
+
+  try {
+    const existing = await getAccountCreationTimestamp(cleanEmail);
+    const finalTs = existing ? Math.min(existing, ts) : ts;
+    await saveVerificationToken(`account_created:${cleanEmail}`, String(finalTs));
+    return finalTs;
+  } catch (err) {
+    console.error('[ACCOUNT CREATION] Erro ao salvar data de criação:', err);
+    return ts;
+  }
+}
+

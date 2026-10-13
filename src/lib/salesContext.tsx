@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { toast } from 'react-hot-toast';
 import { mockProducts, Product } from './mockData';
 import { getDeterministicBaseline } from './deterministicSales';
-import { registerSaleForCampaign, getDivulgados } from './divulgados';
+import { registerSaleForCampaign, getDivulgados, hydrateDivulgados } from './divulgados';
 
 export interface SaleItem {
   id: string;
@@ -255,28 +255,9 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     async function initializeSalesState() {
       try {
         const isUsuarioDemo = userEmail === 'usuario@decolashop.com';
-        const NORMAL_USER_RESET_KEY = 'decolashop_normal_clean_zero_v10';
         const USUARIO_DEMO_APPLY_KEY = 'decolashop_usuario_history_700_1k_apply_v1';
 
-        // Para os outros usuários normais (cliente, user, joao, aleghartz, etc.), garante reset inicial 100% zerado
-        if (isNormalUser && !isUsuarioDemo && localStorage.getItem(`${NORMAL_USER_RESET_KEY}_${cleanEmailKey}`) !== 'done') {
-          try {
-            localStorage.setItem(`${NORMAL_USER_RESET_KEY}_${cleanEmailKey}`, 'done');
-            localStorage.removeItem(userStorageKey);
-            localStorage.removeItem(`decolashop_sales_state_${cleanEmailKey}`);
-            localStorage.removeItem('decolashop_sales_state_usuario_decolashop_com');
-            localStorage.removeItem(`decolashop_saldo_antecipado_${cleanEmailKey}`);
-            localStorage.removeItem(`decolashop_saldo_antecipado_pago_${cleanEmailKey}`);
-            localStorage.removeItem(`decolashop_has_withdrawn_${cleanEmailKey}`);
-            localStorage.removeItem(`decolashop_notified_unlock_250_${cleanEmailKey}`);
-            localStorage.removeItem('decolashop_divulgados');
-            localStorage.removeItem(`decolashop_divulgados_${cleanEmailKey}`);
-            localStorage.removeItem('decolashop_next_sale_target');
-            fetch(`/api/user/sync-state?action=reset&email=${encodeURIComponent(userEmail)}`).catch(() => {});
-          } catch {}
-        }
-
-        // Aplicação do histórico pequeno (700-1k/dia) exclusivamente na conta usuario@decolashop.com
+        // Aplicação do histórico pequeno (700-1k/dia) exclusivamente na conta de demonstração usuario@decolashop.com
         if (isUsuarioDemo && localStorage.getItem(USUARIO_DEMO_APPLY_KEY) !== 'done') {
           try {
             localStorage.setItem(USUARIO_DEMO_APPLY_KEY, 'done');
@@ -312,22 +293,55 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         }
 
         // =========================================================================
+        // SINCRONIZAÇÃO NUVEM (SUPABASE) - GARANTE DADOS CONSISTENTES AO TROCAR DE APARELHO
+        // =========================================================================
+        try {
+          const syncUrl = `/api/user/sync-state?email=${encodeURIComponent(isGerenteUser ? 'gerente@decolashop.com' : userEmail)}`;
+          const syncRes = await fetch(syncUrl);
+          const syncJson = await syncRes.json();
+          if (syncJson?.success && syncJson?.data) {
+            const cloudData = syncJson.data;
+
+            // 1. Se a nuvem possuir campanhas de produtos divulgados, hidrata o localStorage local deste dispositivo
+            if (Array.isArray(cloudData.divulgados) && cloudData.divulgados.length > 0) {
+              hydrateDivulgados(cloudData.divulgados, userEmail);
+            }
+
+            // 2. Se a nuvem tiver data de criação da conta (carência), hidrata localmente
+            if (cloudData.accountCreatedAt) {
+              try {
+                localStorage.setItem(`decolashop_account_created_${cleanEmailKey}`, String(cloudData.accountCreatedAt));
+              } catch {}
+            }
+
+            // 3. Se a nuvem tiver confirmação de antecipação
+            if (cloudData.isAnticipated) {
+              try {
+                localStorage.setItem(`decolashop_saldo_antecipado_${cleanEmailKey}`, 'true');
+                if (cloudData.isAnticipatedPaid) {
+                  localStorage.setItem(`decolashop_saldo_antecipado_pago_${cleanEmailKey}`, 'true');
+                }
+              } catch {}
+            }
+
+            // 4. Se a nuvem possuir métricas válidas e o estado local estiver desatualizado ou vazio
+            if (typeof cloudData.vendasTotais === 'number' && (!parsed || cloudData.vendasTotais >= (parsed.vendasTotais || 0))) {
+              parsed = { ...(parsed || {}), ...cloudData };
+              try {
+                localStorage.setItem(userStorageKey, JSON.stringify(parsed));
+              } catch {}
+            }
+          }
+        } catch (e) {
+          console.warn('[SALES CONTEXT] Erro ao carregar sincronização da nuvem:', e);
+        }
+
+        // =========================================================================
         // CENÁRIO 1: CONTA GERENTE (Histórico Semanal de Vendas entre 3k e 5k/dia)
         // =========================================================================
         if (isGerenteUser) {
           if (!parsed || typeof parsed.vendasTotais !== 'number' || parsed.vendasTotais < 10000) {
-            try {
-              let syncRes = await fetch(`/api/user/sync-state?email=gerente@decolashop.com`);
-              let syncJson = await syncRes.json();
-              if (syncJson?.success && syncJson?.data && syncJson.data.vendasTotais >= 10000) {
-                parsed = syncJson.data;
-              }
-            } catch {}
-
-            if (!parsed || typeof parsed.vendasTotais !== 'number' || parsed.vendasTotais < 10000) {
-              parsed = getDeterministicBaseline(userEmail, Date.now());
-            }
-
+            parsed = getDeterministicBaseline(userEmail, Date.now());
             try {
               const str = JSON.stringify(parsed);
               localStorage.setItem(userStorageKey, str);
@@ -345,18 +359,7 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
           // CENÁRIO 2: CONTA USUÁRIO DEMO (Histórico Pequeno de 700 a 1k/dia)
           // =========================================================================
           if (!parsed || typeof parsed.vendasTotais !== 'number' || parsed.vendasTotais < 1000) {
-            try {
-              let syncRes = await fetch(`/api/user/sync-state?email=usuario@decolashop.com`);
-              let syncJson = await syncRes.json();
-              if (syncJson?.success && syncJson?.data && syncJson.data.vendasTotais >= 1000) {
-                parsed = syncJson.data;
-              }
-            } catch {}
-
-            if (!parsed || typeof parsed.vendasTotais !== 'number' || parsed.vendasTotais < 1000) {
-              parsed = getDeterministicBaseline(userEmail, Date.now());
-            }
-
+            parsed = getDeterministicBaseline(userEmail, Date.now());
             try {
               const str = JSON.stringify(parsed);
               localStorage.setItem(userStorageKey, str);
@@ -370,23 +373,11 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
           }
         } else {
           // =========================================================================
-          // CENÁRIO 3: DEMAIS CONTAS DE USUÁRIOS REAIS (Começam 100% Zeradas)
+          // CENÁRIO 3: DEMAIS CONTAS DE USUÁRIOS REAIS
           // =========================================================================
           // Se houver dados válidos salvos no localStorage ou na nuvem, PRESERVA 100%!
-          // Nunca apaga faturamento ou saldo acumulado da conta do usuário.
           if (!parsed || typeof parsed.vendasTotais !== 'number') {
-            try {
-              let syncRes = await fetch(`/api/user/sync-state?email=${encodeURIComponent(userEmail)}`);
-              let syncJson = await syncRes.json();
-              if (syncJson?.success && syncJson?.data && typeof syncJson.data.vendasTotais === 'number') {
-                parsed = syncJson.data;
-              }
-            } catch {}
-
-            if (!parsed || typeof parsed.vendasTotais !== 'number') {
-              parsed = getDeterministicBaseline(userEmail, Date.now());
-            }
-
+            parsed = getDeterministicBaseline(userEmail, Date.now());
             try {
               localStorage.setItem(userStorageKey, JSON.stringify(parsed));
             } catch {}
@@ -404,11 +395,11 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         let currHourlyData: ChartHour[] = Array.isArray(parsed.hourlyData) ? [...parsed.hourlyData] : [...CLEAN_HOURLY];
         let currRecentSales: SaleItem[] = Array.isArray(parsed.recentSales) ? [...parsed.recentSales] : [];
 
-        // REGRA CRÍTICA: Se for usuário normal (não-gerente) e NÃO possuir produto divulgado ativo:
+        // REGRA CRÍTICA: Se for usuário normal (não-gerente) e NÃO possuir produto divulgado ativo E não tiver vendas acumuladas:
         // A conta DEVE estar estritamente ZERADA (sem vendas, sem pedidos, sem histórico)!
         const initialUserCampaigns = getDivulgados(userEmail);
         const initialActiveCampaigns = initialUserCampaigns.filter(c => c.status === 'active');
-        if (!isGerenteUser && userEmail !== 'usuario@decolashop.com' && initialActiveCampaigns.length === 0) {
+        if (!isGerenteUser && userEmail !== 'usuario@decolashop.com' && initialActiveCampaigns.length === 0 && (!parsed || !parsed.vendasTotais)) {
           currVendasTotais = 0;
           currSaldoDisponivel = 0;
           currVisitas = 0;
@@ -741,6 +732,7 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         unidades,
         hourlyData,
         recentSales,
+        divulgados: getDivulgados(userEmail),
         intervalMode,
         minSeconds,
         maxSeconds,

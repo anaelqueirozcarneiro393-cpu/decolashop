@@ -297,6 +297,14 @@ export default function FinanceiroView() {
           // Se o servidor tiver a data original ou anterior à local, adota a mais antiga (mais fiel à criação)
           const chosenTs = savedLocalTs ? Math.min(savedLocalTs, data.accountCreatedAt) : data.accountCreatedAt;
           applyCreationTimestamp(chosenTs);
+          // Se a data local era mais antiga que a do servidor, sincroniza no servidor
+          if (savedLocalTs && savedLocalTs < data.accountCreatedAt) {
+            fetch('/api/user/account-created', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: userEmail, accountCreatedAt: chosenTs })
+            }).catch(() => {});
+          }
           return;
         }
 
@@ -309,6 +317,11 @@ export default function FinanceiroView() {
             if (typeof syncTs === 'number' && syncTs > 0) {
               const chosenTs = savedLocalTs ? Math.min(savedLocalTs, syncTs) : syncTs;
               applyCreationTimestamp(chosenTs);
+              fetch('/api/user/account-created', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: userEmail, accountCreatedAt: chosenTs })
+              }).catch(() => {});
               return;
             }
 
@@ -321,22 +334,32 @@ export default function FinanceiroView() {
                 const earliestSale = Math.min(...saleTimes);
                 const chosenTs = savedLocalTs ? Math.min(savedLocalTs, earliestSale) : earliestSale;
                 applyCreationTimestamp(chosenTs);
+                fetch('/api/user/account-created', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ email: userEmail, accountCreatedAt: chosenTs })
+                }).catch(() => {});
                 return;
               }
             }
 
-            if (savedLocalTs) return;
+            if (savedLocalTs) {
+              // Persiste o savedLocalTs existente no banco Supabase
+              fetch('/api/user/account-created', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: userEmail, accountCreatedAt: savedLocalTs })
+              }).catch(() => {});
+              return;
+            }
 
             // 5. Fallback final: Usuário novo criado agora
             const freshNow = Date.now();
             applyCreationTimestamp(freshNow);
-            fetch('/api/user/sync-state', {
+            fetch('/api/user/account-created', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                email: userEmail,
-                state: { accountCreatedAt: freshNow }
-              })
+              body: JSON.stringify({ email: userEmail, accountCreatedAt: freshNow })
             }).catch(() => {});
           })
           .catch(() => {});

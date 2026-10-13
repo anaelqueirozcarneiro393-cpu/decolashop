@@ -60,6 +60,21 @@ export default function PerfilView() {
         localStorage.setItem('decolashop_user_name', realName);
       }
     }
+
+    // Carrega dados salvos na nuvem se disponíveis
+    if (realEmail) {
+      fetch(`/api/user/sync-state?email=${encodeURIComponent(realEmail)}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data?.data?.userName && typeof data.data.userName === 'string') {
+            setName(data.data.userName);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('decolashop_user_name', data.data.userName);
+            }
+          }
+        })
+        .catch(() => {});
+    }
   }, [session]);
 
   const userEmail = email.toLowerCase().trim();
@@ -80,15 +95,34 @@ export default function PerfilView() {
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim().toLowerCase();
+
     if (typeof window !== 'undefined') {
-      localStorage.setItem('decolashop_user_name', name.trim());
-      localStorage.setItem('decolashop_user_email', email.trim().toLowerCase());
+      localStorage.setItem('decolashop_user_name', trimmedName);
+      localStorage.setItem('decolashop_user_email', trimmedEmail);
+      localStorage.setItem('decolashop_active_user_email', trimmedEmail);
     }
+
+    // Sincroniza o perfil atualizado na nuvem para manter no celular e outros dispositivos
+    fetch('/api/user/sync-state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: trimmedEmail,
+        state: {
+          userName: trimmedName,
+          userEmail: trimmedEmail
+        }
+      })
+    }).catch(() => {});
+
     setTimeout(() => {
       setIsSaving(false);
-      toast.success('Perfil atualizado com sucesso!');
+      toast.success('Perfil atualizado e sincronizado com sucesso!');
     }, 400);
   };
+
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl">

@@ -374,16 +374,50 @@ export function getDivulgados(email?: string): DivulgadoCampaign[] {
 export function saveDivulgados(campaigns: DivulgadoCampaign[], email?: string): void {
   if (typeof window === 'undefined') return;
   try {
-    const key = getDivulgadosStorageKey(email);
+    const targetEmail = (email || getActiveUserEmail()).toLowerCase().trim();
+    const key = getDivulgadosStorageKey(targetEmail);
     localStorage.setItem(key, JSON.stringify(campaigns));
-    if (isGerenteOrAdminEmail(email)) {
+    if (isGerenteOrAdminEmail(targetEmail)) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(campaigns));
     }
     window.dispatchEvent(new Event('decolashop_divulgados_updated'));
+
+    // Sincroniza em tempo real com o Supabase na nuvem para manter consistência entre PC e celular
+    if (targetEmail) {
+      fetch('/api/user/sync-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: targetEmail,
+          state: { divulgados: campaigns }
+        })
+      }).catch(() => {});
+    }
   } catch (e) {
     console.error('Erro ao salvar produtos divulgados:', e);
   }
 }
+
+/**
+ * Hidrata a lista local de campanhas a partir dos dados retornados da nuvem (Supabase)
+ * quando o usuário faz login em um novo dispositivo ou navegador.
+ */
+export function hydrateDivulgados(campaigns: DivulgadoCampaign[], email?: string): void {
+  if (typeof window === 'undefined' || !Array.isArray(campaigns) || campaigns.length === 0) return;
+  try {
+    const targetEmail = (email || getActiveUserEmail()).toLowerCase().trim();
+    const key = getDivulgadosStorageKey(targetEmail);
+    const localRaw = localStorage.getItem(key);
+    if (!localRaw || JSON.parse(localRaw).length === 0) {
+      localStorage.setItem(key, JSON.stringify(campaigns));
+      if (isGerenteOrAdminEmail(targetEmail)) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(campaigns));
+      }
+      window.dispatchEvent(new Event('decolashop_divulgados_updated'));
+    }
+  } catch {}
+}
+
 
 export const MAX_ACTIVE_CAMPAIGNS = 15;
 
