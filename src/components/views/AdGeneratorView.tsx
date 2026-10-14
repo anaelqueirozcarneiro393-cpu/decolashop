@@ -466,44 +466,56 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
           </p>
 
           {/* Configuração de Margem e Canal Ativo */}
-          <div className="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-2.5">
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2 backdrop-blur-sm">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                <Sparkles size={14} className="text-[#22c55e]" /> Canal & Margem de Lucro
+                <Sparkles size={13} className="text-[#22c55e]" /> Canal & Margem de Lucro
               </span>
               <button
                 type="button"
                 onClick={() => setIsMarginModalOpen(true)}
-                className="text-[11px] font-bold text-[#4ade80] hover:underline cursor-pointer"
+                className="text-xs font-bold text-[#4ade80] hover:text-[#22c55e] transition-colors cursor-pointer flex items-center gap-1"
               >
-                {customMarginConfig ? 'Alterar Canal/Margem' : 'Configurar Agora'}
+                <span>{customMarginConfig ? 'Alterar' : 'Configurar'}</span>
+                <ArrowRight size={12} />
               </button>
             </div>
 
             {customMarginConfig ? (
-              <div className="grid grid-cols-3 gap-2 text-center pt-1 text-xs">
-                <div className="p-2 rounded-xl bg-white/[0.03] border border-white/5">
-                  <span className="text-[10px] text-slate-400 block">Canal</span>
-                  <span className="font-bold text-white block mt-0.5 truncate">{customMarginConfig.channelLabel}</span>
-                </div>
-                <div className="p-2 rounded-xl bg-white/[0.03] border border-white/5">
-                  <span className="text-[10px] text-slate-400 block">Custo Forn.</span>
-                  <span className="font-bold text-slate-300 block mt-0.5">
-                    {isUsd ? 'US$' : 'R$'} {customMarginConfig.supplierCost.toFixed(2)}
+              <div className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-black/40 border border-white/5 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border ${
+                    customMarginConfig.channel === 'mercadolivre' ? 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30' :
+                    customMarginConfig.channel === 'shopee' ? 'bg-orange-500/15 text-orange-400 border-orange-500/30' :
+                    customMarginConfig.channel === 'tiktok' ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30' :
+                    'bg-blue-500/15 text-blue-300 border-blue-500/30'
+                  }`}>
+                    {customMarginConfig.channel === 'mercadolivre' ? '🟡' : customMarginConfig.channel === 'shopee' ? '🟠' : customMarginConfig.channel === 'tiktok' ? '⚫' : '🌐'} {customMarginConfig.channelLabel}
                   </span>
-                  <span className="text-[9px] text-amber-400 font-bold">🔒 Imutável</span>
+                  <span className="text-[11px] text-slate-400">
+                    Custo: {isUsd ? 'US$' : 'R$'} {customMarginConfig.supplierCost.toFixed(2)} (🔒)
+                  </span>
                 </div>
-                <div className="p-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30">
-                  <span className="text-[10px] text-emerald-300 font-bold block">Sua Margem</span>
-                  <span className="font-black text-emerald-400 block mt-0.5">
-                    {isUsd ? 'US$' : 'R$'} {customMarginConfig.sellerMargin.toFixed(2)}
+
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] text-slate-400">Seu Lucro:</span>
+                  <span className="text-xs font-black text-[#4ade80] font-mono bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md">
+                    +{isUsd ? 'US$' : 'R$'} {customMarginConfig.sellerMargin.toFixed(2).replace('.', ',')}
                   </span>
                 </div>
               </div>
             ) : (
-              <p className="text-[11px] text-slate-400 leading-snug">
-                Escolha se sua campanha será no <strong className="text-yellow-400">Mercado Livre</strong>, <strong className="text-orange-400">Shopee</strong> ou <strong className="text-cyan-400">TikTok Shop</strong> e defina a sua margem líquida por venda.
-              </p>
+              <div 
+                onClick={() => setIsMarginModalOpen(true)}
+                className="p-2.5 rounded-xl bg-black/30 border border-dashed border-white/15 hover:border-[#22c55e]/40 transition-all cursor-pointer flex items-center justify-between gap-2"
+              >
+                <span className="text-xs text-slate-400">
+                  Defina onde divulgar (🟡 ML, 🟠 Shopee, ⚫ TikTok) e sua comissão
+                </span>
+                <span className="text-[10px] font-black uppercase tracking-wider text-[#4ade80] bg-[#22c55e]/15 px-2 py-1 rounded-md shrink-0">
+                  Escolher →
+                </span>
+              </div>
             )}
           </div>
 
