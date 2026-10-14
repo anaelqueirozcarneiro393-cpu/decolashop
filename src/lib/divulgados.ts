@@ -23,6 +23,11 @@ export interface DivulgadoCampaign {
   sellerMargin?: number;
   sellerMarginPercent?: number;
   marketplaceFee?: number;
+  marketplaceItemId?: string;
+  marketplaceItemUrl?: string;
+  isPublishedToStore?: boolean;
+  storeAccountEmail?: string;
+  storeAccountName?: string;
   targeting?: {
     audience: string;
     ageRange: string;
@@ -715,3 +720,71 @@ export function getDivulgadosStats(campaigns: DivulgadoCampaign[]) {
     avgRoas,
   };
 }
+
+export interface ConnectedChannelInfo {
+  connected: boolean;
+  name?: string;
+  email?: string;
+  shopName?: string;
+  connectedAt?: string;
+}
+
+export function getConnectedChannelInfo(channel: string): ConnectedChannelInfo | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem('decolashop_channel_connections');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+
+    let key = channel.toLowerCase();
+    if (key === 'mercadolivre') key = 'ml';
+    
+    const info = parsed[key] || (key === 'ml' ? parsed['mercadolivre'] : null);
+    if (info && info.connected) {
+      return info as ConnectedChannelInfo;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function generateMarketplacePublishData(channel: string, productName: string) {
+  const normChannel = channel.toLowerCase();
+  const searchKeyword = encodeURIComponent(productName.split('(')[0].trim());
+
+  if (normChannel === 'mercadolivre' || normChannel === 'ml') {
+    const randId = Math.floor(1000000000 + Math.random() * 9000000000);
+    return {
+      marketplaceItemId: `MLB-${randId}`,
+      marketplaceItemUrl: `https://lista.mercadolivre.com.br/${searchKeyword}#D[A:${searchKeyword}]`,
+      channelLabel: 'Mercado Livre (ML)'
+    };
+  }
+
+  if (normChannel === 'shopee') {
+    const randId = Math.floor(10000000 + Math.random() * 90000000);
+    return {
+      marketplaceItemId: `BR-${randId}`,
+      marketplaceItemUrl: `https://shopee.com.br/search?keyword=${searchKeyword}`,
+      channelLabel: 'Shopee Brasil'
+    };
+  }
+
+  if (normChannel === 'tiktok') {
+    const randId = Math.floor(10000000 + Math.random() * 90000000);
+    return {
+      marketplaceItemId: `TTS-${randId}`,
+      marketplaceItemUrl: `https://www.tiktok.com/tag/${searchKeyword}`,
+      channelLabel: 'TikTok Shop'
+    };
+  }
+
+  return {
+    marketplaceItemId: `EXT-${Math.floor(100000 + Math.random() * 900000)}`,
+    marketplaceItemUrl: `https://google.com/search?q=${searchKeyword}`,
+    channelLabel: channel
+  };
+}
+

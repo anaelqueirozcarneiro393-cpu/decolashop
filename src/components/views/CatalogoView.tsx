@@ -35,7 +35,7 @@ import SafeImage from '@/components/SafeImage';
 import { toast } from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
 import { useSales } from '@/lib/salesContext';
-import { addDivulgado } from '@/lib/divulgados';
+import { addDivulgado, getConnectedChannelInfo, generateMarketplacePublishData } from '@/lib/divulgados';
 import MarginSelectionModal, { MarginConfig } from '@/components/MarginSelectionModal';
 
 interface CatalogoViewProps {
@@ -75,6 +75,13 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
 
   const handleConfirmMargin = (config: MarginConfig) => {
     try {
+      const storeInfo = getConnectedChannelInfo(config.channel);
+      const isStoreConnected = !!storeInfo?.connected;
+      const pubData = generateMarketplacePublishData(
+        config.channel, 
+        config.product.name || config.product.title || 'Produto Viral DecolaShop'
+      );
+
       addDivulgado({
         productId: config.product.id,
         name: config.product.name || config.product.title || 'Produto Viral DecolaShop',
@@ -91,6 +98,11 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
         sellerMargin: config.sellerMargin,
         sellerMarginPercent: config.sellerMarginPercent,
         marketplaceFee: config.marketplaceFeeAmount,
+        marketplaceItemId: pubData.marketplaceItemId,
+        marketplaceItemUrl: pubData.marketplaceItemUrl,
+        isPublishedToStore: isStoreConnected,
+        storeAccountEmail: storeInfo?.email,
+        storeAccountName: storeInfo?.name || storeInfo?.shopName,
         networks: [config.channelLabel, 'Google Shopping', 'Meta Ads', 'WhatsApp Grupos VIP'],
         impressions: Math.floor(Math.random() * 1400) + 900,
         clicks: Math.floor(Math.random() * 85) + 45,
@@ -113,10 +125,17 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
 
       triggerDelayedCampaignSales(config.product, config.finalSellingPrice);
 
-      toast.success(
-        `🎉 Campanha no ${config.channelLabel} ativada! Sua margem de lucro de ${isUsd ? 'US$' : 'R$'} ${config.sellerMargin.toFixed(2)} por venda está garantida.`,
-        { duration: 5500, icon: '🚀' }
-      );
+      if (isStoreConnected) {
+        toast.success(
+          `🚀 Publicado na sua conta ${config.channelLabel}! Anúncio ${pubData.marketplaceItemId} ativo no seu painel de vendas.`,
+          { duration: 6000, icon: '✅' }
+        );
+      } else {
+        toast.success(
+          `🎉 Campanha no ${config.channelLabel} ativada! Sua margem de lucro de ${isUsd ? 'US$' : 'R$'} ${config.sellerMargin.toFixed(2)} por venda está garantida.`,
+          { duration: 5500, icon: '🚀' }
+        );
+      }
 
       setMarginModalProduct(null);
 

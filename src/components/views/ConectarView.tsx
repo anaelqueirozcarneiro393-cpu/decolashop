@@ -142,21 +142,29 @@ export default function ConectarView() {
         minute: '2-digit'
       });
 
-      const updated: ConnectionsState = {
-        ...connections,
-        [selectedChannel]: {
-          connected: true,
-          name: name.trim(),
-          email: email.trim(),
-          connectedAt: nowStr,
-          shopName: `${name.trim().split(' ')[0]} Store`
-        }
+      const channelData = {
+        connected: true,
+        name: name.trim(),
+        email: email.trim(),
+        connectedAt: nowStr,
+        shopName: `${name.trim().split(' ')[0]} Store`,
+        appId: selectedChannel === 'ml' ? '3278352647379225' : undefined
       };
+
+      const updated: any = {
+        ...connections,
+        [selectedChannel]: channelData
+      };
+
+      if (selectedChannel === 'ml') {
+        updated['mercadolivre'] = channelData;
+      }
 
       setConnections(updated);
 
       try {
         localStorage.setItem('decolashop_channel_connections', JSON.stringify(updated));
+        window.dispatchEvent(new Event('decolashop_channel_connections_updated'));
       } catch {
         // ignore
       }
@@ -166,7 +174,7 @@ export default function ConectarView() {
   };
 
   const handleDisconnect = () => {
-    const updated: ConnectionsState = {
+    const updated: any = {
       ...connections,
       [selectedChannel]: {
         ...connections[selectedChannel],
@@ -174,10 +182,18 @@ export default function ConectarView() {
       }
     };
 
+    if (selectedChannel === 'ml') {
+      updated['mercadolivre'] = {
+        ...(updated['mercadolivre'] || {}),
+        connected: false
+      };
+    }
+
     setConnections(updated);
 
     try {
       localStorage.setItem('decolashop_channel_connections', JSON.stringify(updated));
+      window.dispatchEvent(new Event('decolashop_channel_connections_updated'));
     } catch {
       // ignore
     }

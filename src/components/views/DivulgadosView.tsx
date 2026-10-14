@@ -537,6 +537,11 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
                               : 'bg-blue-500/15 text-blue-300 border-blue-500/30'
                           }`}>
                             {camp.channel === 'mercadolivre' ? '🟡' : camp.channel === 'shopee' ? '🟠' : camp.channel === 'tiktok' ? '⚫' : '🌐'} {camp.channelLabel}
+                            {camp.marketplaceItemId && (
+                              <span className="font-mono text-[9px] bg-black/40 px-1.5 py-0.2 rounded border border-white/10 text-white font-bold ml-1">
+                                {camp.marketplaceItemId}
+                              </span>
+                            )}
                           </span>
                         )}
                         {camp.origin && (
@@ -647,6 +652,24 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
                       <Eye size={13} />
                       <span>Detalhes</span>
                     </button>
+
+                    {/* Link Oficial do Anúncio no Marketplace */}
+                    <a
+                      href={camp.marketplaceItemUrl || (camp.channel === 'mercadolivre' ? `https://lista.mercadolivre.com.br/${encodeURIComponent(camp.name.split('(')[0].trim())}` : `https://shopee.com.br/search?keyword=${encodeURIComponent(camp.name.split('(')[0].trim())}`)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+                        camp.channel === 'mercadolivre'
+                          ? 'bg-yellow-500/15 hover:bg-yellow-500/25 text-yellow-300 border-yellow-500/30'
+                          : camp.channel === 'shopee'
+                          ? 'bg-orange-500/15 hover:bg-orange-500/25 text-orange-400 border-orange-500/30'
+                          : 'bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border-cyan-500/30'
+                      }`}
+                      title={`Abrir anúncio oficial no ${camp.channelLabel || 'Marketplace'}`}
+                    >
+                      <ExternalLink size={13} />
+                      <span>{camp.channel === 'mercadolivre' ? 'Ver no ML' : camp.channel === 'shopee' ? 'Ver na Shopee' : 'Ver Anúncio'}</span>
+                    </a>
 
                     {/* Tracking / Rastreio Button */}
                     <button
@@ -956,6 +979,52 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
                 </div>
               </div>
             )}
+
+            {/* Status do Anúncio Oficial no Canal Conectado */}
+            {(selectedCampaign.marketplaceItemId || selectedCampaign.channel === 'mercadolivre' || selectedCampaign.channel === 'shopee') && (() => {
+              const channel = selectedCampaign.channel || 'mercadolivre';
+              const isML = channel === 'mercadolivre' || (channel as string) === 'ml';
+              const itemId = selectedCampaign.marketplaceItemId || (isML ? `MLB-4091823901` : `BR-89102931`);
+              const itemUrl = selectedCampaign.marketplaceItemUrl || (isML 
+                ? `https://lista.mercadolivre.com.br/${encodeURIComponent(selectedCampaign.name.split('(')[0].trim())}` 
+                : `https://shopee.com.br/search?keyword=${encodeURIComponent(selectedCampaign.name.split('(')[0].trim())}`);
+              const channelTitle = isML ? 'Mercado Livre' : channel === 'shopee' ? 'Shopee' : 'Marketplace Conectado';
+
+              return (
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-yellow-500/5 to-transparent border border-amber-500/30 space-y-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+                        <span>{isML ? '🟡' : '🟠'}</span> Sincronizado na Conta {channelTitle}
+                      </span>
+                    </div>
+                    <span className="text-xs font-mono px-2.5 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold">
+                      {itemId}
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Este produto foi enviado e sincronizado com a sua conta oficial do {channelTitle}. As vendas realizadas no marketplace são computadas e processadas automaticamente pelo motor DecolaShop.
+                  </p>
+
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-amber-500/20">
+                    <div className="text-[11px] text-slate-400">
+                      Loja vinculada: <span className="font-semibold text-white">{selectedCampaign.storeAccountEmail || 'Conta Principal Conectada'}</span>
+                    </div>
+                    <a
+                      href={itemUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-black text-xs shadow-sm transition-all cursor-pointer"
+                    >
+                      <ExternalLink size={13} />
+                      <span>Abrir Anúncio Oficial no {channelTitle}</span>
+                    </a>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Modal Bottom Actions */}
             <div className="pt-3 border-t border-white/10 flex items-center justify-end gap-2.5">

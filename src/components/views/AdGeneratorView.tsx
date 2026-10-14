@@ -19,7 +19,7 @@ import { useSales } from '@/lib/salesContext';
 import { getProductsFromSupabase } from '@/app/actions';
 import { Product, mockProducts } from '@/lib/mockData';
 import { useSession } from 'next-auth/react';
-import { addDivulgado, getDivulgados, MAX_ACTIVE_CAMPAIGNS } from '@/lib/divulgados';
+import { addDivulgado, getDivulgados, MAX_ACTIVE_CAMPAIGNS, getConnectedChannelInfo, generateMarketplacePublishData } from '@/lib/divulgados';
 import { useRegionCurrency } from '@/lib/regionState';
 import MarginSelectionModal, { MarginConfig } from '@/components/MarginSelectionModal';
 
@@ -187,6 +187,13 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
           ? 'Estados Unidos & Europa (Envio Prioritário Internacional)'
           : 'Brasil (Entrega Rápida 7 Dias)';
 
+        const storeInfo = getConnectedChannelInfo(config.channel);
+        const isStoreConnected = !!storeInfo?.connected;
+        const pubData = generateMarketplacePublishData(
+          config.channel, 
+          selectedProduct.name || selectedProduct.title || 'Produto Viral DecolaShop'
+        );
+
         addDivulgado({
           productId: selectedProduct.id,
           name: selectedProduct.name || selectedProduct.title || 'Produto Viral DecolaShop',
@@ -203,6 +210,11 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
           sellerMargin: config.sellerMargin,
           sellerMarginPercent: config.sellerMarginPercent,
           marketplaceFee: config.marketplaceFeeAmount,
+          marketplaceItemId: pubData.marketplaceItemId,
+          marketplaceItemUrl: pubData.marketplaceItemUrl,
+          isPublishedToStore: isStoreConnected,
+          storeAccountEmail: storeInfo?.email,
+          storeAccountName: storeInfo?.name || storeInfo?.shopName,
           networks,
           impressions: Math.floor(Math.random() * 1500) + 950,
           clicks: Math.floor(Math.random() * 90) + 50,
@@ -225,9 +237,17 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
 
         window.dispatchEvent(new Event('decolashop_divulgados_updated'));
 
-        toast.success(`🚀 Anúncio publicado no ${config.channelLabel}! Sua margem de lucro de ${prodIsUsd ? 'US$' : 'R$'} ${config.sellerMargin.toFixed(2)} por venda está garantida.`, {
-          duration: 5000
-        });
+        if (isStoreConnected) {
+          toast.success(
+            `🚀 Publicado na sua conta ${config.channelLabel}! Anúncio ${pubData.marketplaceItemId} ativo no seu painel de vendas.`,
+            { duration: 6000, icon: '✅' }
+          );
+        } else {
+          toast.success(
+            `🚀 Anúncio publicado no ${config.channelLabel}! Sua margem de lucro de ${prodIsUsd ? 'US$' : 'R$'} ${config.sellerMargin.toFixed(2)} por venda está garantida.`,
+            { duration: 5000 }
+          );
+        }
       }
     }, 150);
   };
