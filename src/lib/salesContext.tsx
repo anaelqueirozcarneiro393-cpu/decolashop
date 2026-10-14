@@ -4,8 +4,9 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import { useSession } from 'next-auth/react';
 import { toast } from 'react-hot-toast';
 import { mockProducts, Product } from './mockData';
-import { getDeterministicBaseline } from './deterministicSales';
+import { getDeterministicBaseline, getDeterministicBaselineUSD } from './deterministicSales';
 import { registerSaleForCampaign, getDivulgados, hydrateDivulgados } from './divulgados';
+import { ALL_INTERNATIONAL_PRODUCTS } from './internationalCatalogData';
 
 export interface SaleItem {
   id: string;
@@ -58,6 +59,18 @@ interface SalesContextType {
   hourlyData: ChartHour[];
   recentSales: SaleItem[];
   autoSimulate: boolean;
+  
+  // Métricas Internacionais (US$) 100% SEPARADAS da Nacional (R$)
+  vendasTotaisUSD: number;
+  saldoDisponivelUSD: number;
+  visitasUSD: number;
+  cliquesUSD: number;
+  pedidosUSD: number;
+  unidadesUSD: number;
+  hourlyDataUSD: ChartHour[];
+  recentSalesUSD: SaleItem[];
+  setSaldoDisponivelUSDDirect: (val: number) => void;
+  addSaleUSD: (targetProduct?: Partial<Product>, customPrice?: number) => void;
   
   // Taxa de antecipação dinâmica
   taxaAntecipacao: number;
@@ -177,6 +190,16 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
   const [unidades, setUnidades] = useState<number>(0);
   const [hourlyData, setHourlyData] = useState<ChartHour[]>(CLEAN_HOURLY);
   const [recentSales, setRecentSales] = useState<SaleItem[]>([]);
+
+  // Estados de Vendas e Saldo em Dólar (US$) 100% SEPARADOS do Nacional (R$)
+  const [vendasTotaisUSD, setVendasTotaisUSD] = useState<number>(0);
+  const [saldoDisponivelUSD, setSaldoDisponivelUSD] = useState<number>(0);
+  const [visitasUSD, setVisitasUSD] = useState<number>(0);
+  const [cliquesUSD, setCliquesUSD] = useState<number>(0);
+  const [pedidosUSD, setPedidosUSD] = useState<number>(0);
+  const [unidadesUSD, setUnidadesUSD] = useState<number>(0);
+  const [hourlyDataUSD, setHourlyDataUSD] = useState<ChartHour[]>(CLEAN_HOURLY);
+  const [recentSalesUSD, setRecentSalesUSD] = useState<SaleItem[]>([]);
   // Vendas automáticas ativas por padrão para que nunca pare de cair vendas
   const [autoSimulate, setAutoSimulate] = useState<boolean>(true);
   const [isSoundEnabled, setIsSoundEnabled] = useState<boolean>(true);
@@ -703,6 +726,39 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         setUnidades(currUnidades);
         setHourlyData(currHourlyData);
         setRecentSales(currRecentSales);
+
+        // Carrega estado de Vendas e Saldo Internacional em Dólar (US$) 100% SEPARADO
+        const userStorageKeyUSD = `decolashop_metrics_usd_${cleanEmailKey}`;
+        let parsedUSD: any = null;
+        try {
+          const rawUSD = localStorage.getItem(userStorageKeyUSD);
+          if (rawUSD) parsedUSD = JSON.parse(rawUSD);
+        } catch {}
+
+        if (!parsedUSD || typeof parsedUSD.vendasTotais !== 'number') {
+          parsedUSD = getDeterministicBaselineUSD(userEmail, Date.now());
+          try {
+            localStorage.setItem(userStorageKeyUSD, JSON.stringify(parsedUSD));
+          } catch {}
+        }
+
+        const currVendasTotaisUSD = typeof parsedUSD.vendasTotais === 'number' ? parsedUSD.vendasTotais : 0;
+        const currSaldoDisponivelUSD = typeof parsedUSD.saldoDisponivel === 'number' ? parsedUSD.saldoDisponivel : 0;
+        const currVisitasUSD = typeof parsedUSD.visitas === 'number' ? parsedUSD.visitas : 0;
+        const currCliquesUSD = typeof parsedUSD.cliques === 'number' ? parsedUSD.cliques : 0;
+        const currPedidosUSD = typeof parsedUSD.pedidos === 'number' ? parsedUSD.pedidos : 0;
+        const currUnidadesUSD = typeof parsedUSD.unidades === 'number' ? parsedUSD.unidades : 0;
+        const currHourlyDataUSD: ChartHour[] = Array.isArray(parsedUSD.hourlyData) ? [...parsedUSD.hourlyData] : [...CLEAN_HOURLY];
+        const currRecentSalesUSD: SaleItem[] = Array.isArray(parsedUSD.recentSales) ? [...parsedUSD.recentSales] : [];
+
+        setVendasTotaisUSD(currVendasTotaisUSD);
+        setSaldoDisponivelUSD(currSaldoDisponivelUSD);
+        setVisitasUSD(currVisitasUSD);
+        setCliquesUSD(currCliquesUSD);
+        setPedidosUSD(currPedidosUSD);
+        setUnidadesUSD(currUnidadesUSD);
+        setHourlyDataUSD(currHourlyDataUSD);
+        setRecentSalesUSD(currRecentSalesUSD);
       } catch {
         // ignore
       } finally {
@@ -756,6 +812,22 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
           body: JSON.stringify({ email: userEmail, state: dataToSave })
         }).catch(() => {});
       }
+
+      // Salva estado internacional em Dólar (US$) 100% isolado
+      const userStorageKeyUSD = `decolashop_metrics_usd_${cleanEmailKey}`;
+      const dataToSaveUSD = {
+        vendasTotais: vendasTotaisUSD,
+        saldoDisponivel: saldoDisponivelUSD,
+        visitas: visitasUSD,
+        cliques: cliquesUSD,
+        pedidos: pedidosUSD,
+        unidades: unidadesUSD,
+        hourlyData: hourlyDataUSD,
+        recentSales: recentSalesUSD,
+        lastActiveTimestamp: Date.now(),
+        lastSavedDate: new Date().toDateString()
+      };
+      localStorage.setItem(userStorageKeyUSD, JSON.stringify(dataToSaveUSD));
     } catch {
       // ignore
     }
@@ -769,6 +841,14 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     unidades,
     hourlyData,
     recentSales,
+    vendasTotaisUSD,
+    saldoDisponivelUSD,
+    visitasUSD,
+    cliquesUSD,
+    pedidosUSD,
+    unidadesUSD,
+    hourlyDataUSD,
+    recentSalesUSD,
     intervalMode,
     minSeconds,
     maxSeconds,
@@ -803,7 +883,106 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
   // Taxa de Antecipação: Começa em R$ 0,00 e sobe de acordo com o saldo disponível (7% sobre o saldo), com limite máximo de R$ 150,00
   const taxaAntecipacao = Math.min(150, Math.round(saldoDisponivel * 0.07 * 100) / 100);
 
+  const addSaleUSD = (targetProduct?: Partial<Product>, customPrice?: number) => {
+    let chosen: Product;
+    if (targetProduct && targetProduct.name) {
+      chosen = targetProduct as Product;
+    } else {
+      chosen = ALL_INTERNATIONAL_PRODUCTS[Math.floor(Math.random() * ALL_INTERNATIONAL_PRODUCTS.length)];
+    }
+
+    if (!chosen) {
+      chosen = ALL_INTERNATIONAL_PRODUCTS[0];
+    }
+
+    let parsedPrice = 49.90;
+    if (customPrice && customPrice > 0) {
+      parsedPrice = customPrice;
+    } else if (typeof chosen.price === 'number') {
+      parsedPrice = chosen.price;
+    } else if (typeof chosen.price === 'string') {
+      const clean = chosen.price.replace('US$', '').replace('$', '').replace(/\s/g, '').replace(',', '.').trim();
+      parsedPrice = parseFloat(clean) || 49.90;
+    }
+
+    const commissionVal = Math.round(parsedPrice * 0.32 * 100) / 100;
+    const now = new Date();
+    const timeStr = `Hoje, ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    const newTx: SaleItem = {
+      id: `TX-USD-${Math.floor(1000 + Math.random() * 9000)}`,
+      product: chosen.name || (chosen as any).title || 'Global Product DecolaShop',
+      value: parsedPrice,
+      commission: commissionVal,
+      time: timeStr,
+      timestamp: now.getTime(),
+      image: chosen.image_url,
+    };
+
+    registerSaleForCampaign(chosen.id || chosen.name, parsedPrice, userEmail);
+
+    setVendasTotaisUSD(prev => Math.round((prev + parsedPrice) * 100) / 100);
+    setSaldoDisponivelUSD(prev => Math.round((prev + commissionVal) * 100) / 100);
+    setPedidosUSD(prev => prev + 1);
+    setUnidadesUSD(prev => prev + 1);
+    setCliquesUSD(prev => prev + Math.floor(Math.random() * 6) + 3);
+    setVisitasUSD(prev => prev + Math.floor(Math.random() * 4) + 2);
+    setRecentSalesUSD(prev => [newTx, ...prev.slice(0, 99)]);
+
+    const currentHourStr = String(Math.floor(now.getHours() / 2) * 2).padStart(2, '0');
+    setHourlyDataUSD(prev => prev.map(h => {
+      if (h.hour === currentHourStr) {
+        return { ...h, valHoje: Math.round(((h.valHoje || 0) + parsedPrice) * 100) / 100 };
+      }
+      return h;
+    }));
+
+    if (isSoundEnabledRef.current) {
+      playCashChime();
+    }
+
+    toast.custom((t) => (
+      <div className={`flex items-center gap-3 p-3.5 rounded-2xl bg-[#0b172a]/95 border border-blue-500/50 shadow-2xl shadow-blue-500/25 text-white max-w-sm backdrop-blur-xl ${
+        t.visible ? 'animate-in slide-in-from-top-3 duration-300' : 'animate-out fade-out duration-200'
+      }`}>
+        <div className="relative w-12 h-12 rounded-xl overflow-hidden border border-blue-500/40 flex-shrink-0 bg-slate-900">
+          <img 
+            src={chosen.image_url} 
+            alt={chosen.name} 
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              (e.target as HTMLElement).style.display = 'none';
+            }}
+          />
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-1 mb-0.5">
+            <span className="text-[9px] font-black uppercase tracking-wider text-blue-400 bg-blue-500/15 px-1.5 py-0.5 rounded border border-blue-500/30">
+              Venda Global Aprovada! 🗽
+            </span>
+            <span className="text-xs font-black text-blue-400">
+              + US$ {commissionVal.toFixed(2)}
+            </span>
+          </div>
+          <p className="text-xs font-bold text-white truncate leading-tight" title={chosen.name}>
+            {chosen.name}
+          </p>
+          <p className="text-[10px] text-slate-400 mt-0.5">
+            Valor: <strong className="text-slate-200">US$ {parsedPrice.toFixed(2)}</strong> • FedEx/DHL Global
+          </p>
+        </div>
+      </div>
+    ), { duration: 4000 });
+  };
+
   const addSale = (targetProduct?: Partial<Product>, customPrice?: number) => {
+    // Se for produto internacional ou em dólar, redireciona para a carteira internacional
+    if (targetProduct && (targetProduct.currency === 'USD' || (targetProduct as any).isInternational)) {
+      addSaleUSD(targetProduct, customPrice);
+      return;
+    }
+
     const isMgr = isGerenteUserRef.current;
     const userDivs = getDivulgados(userEmail);
     const activeCampaigns = userDivs.filter((d: any) => d.status === 'active');
@@ -1035,16 +1214,42 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem(`decolashop_saldo_antecipado_pago_${cleanEmailKey}`);
       localStorage.removeItem(`decolashop_has_withdrawn_${cleanEmailKey}`);
       localStorage.removeItem(`decolashop_notified_unlock_250_${cleanEmailKey}`);
+      localStorage.removeItem(`decolashop_metrics_usd_${cleanEmailKey}`);
       localStorage.removeItem('decolashop_divulgados');
       localStorage.removeItem('decolashop_next_sale_target');
       window.dispatchEvent(new Event('decolashop_divulgados_updated'));
     } catch {}
+
+    const baselineUSD = getDeterministicBaselineUSD(userEmail, Date.now());
+    if (baselineUSD && isGerenteUser) {
+      setVendasTotaisUSD(baselineUSD.vendasTotais);
+      setSaldoDisponivelUSD(baselineUSD.saldoDisponivel);
+      setVisitasUSD(baselineUSD.visitas);
+      setCliquesUSD(baselineUSD.cliques);
+      setPedidosUSD(baselineUSD.pedidos);
+      setUnidadesUSD(baselineUSD.unidades);
+      setHourlyDataUSD(baselineUSD.hourlyData);
+      setRecentSalesUSD(baselineUSD.recentSales);
+    } else {
+      setVendasTotaisUSD(0);
+      setSaldoDisponivelUSD(0);
+      setVisitasUSD(0);
+      setCliquesUSD(0);
+      setPedidosUSD(0);
+      setUnidadesUSD(0);
+      setHourlyDataUSD(CLEAN_HOURLY);
+      setRecentSalesUSD([]);
+    }
 
     toast.success('Conta redefinida com sucesso para o estado inicial.');
   };
 
   const setSaldoDisponivelDirect = (val: number) => {
     setSaldoDisponivel(val);
+  };
+
+  const setSaldoDisponivelUSDDirect = (val: number) => {
+    setSaldoDisponivelUSD(val);
   };
 
   const toggleAutoSimulate = () => {
@@ -1200,6 +1405,19 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
       hourlyData,
       recentSales,
       autoSimulate,
+
+      // Métricas Internacionais (US$) 100% SEPARADAS
+      vendasTotaisUSD,
+      saldoDisponivelUSD,
+      visitasUSD,
+      cliquesUSD,
+      pedidosUSD,
+      unidadesUSD,
+      hourlyDataUSD,
+      recentSalesUSD,
+      setSaldoDisponivelUSDDirect,
+      addSaleUSD,
+
       taxaAntecipacao,
       intervalMode,
       minSeconds,

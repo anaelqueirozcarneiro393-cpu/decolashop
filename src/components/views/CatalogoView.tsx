@@ -29,6 +29,7 @@ import {
   INTERNATIONAL_SUPPLIER_METADATA,
   getInternationalProductsByActivatedSuppliers
 } from '@/lib/internationalCatalogData';
+import { getNationalProductsBySuppliers, NATIONAL_CATALOG_2500 } from '@/lib/nationalCatalogData';
 import { useRegionCurrency } from '@/lib/regionState';
 import SafeImage from '@/components/SafeImage';
 import { toast } from 'react-hot-toast';
@@ -62,35 +63,7 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
   const [selectedCategory, setSelectedCategory] = useState('Todas');
   const [isLoading, setIsLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [visibleCount, setVisibleCount] = useState(24);
-
-  // Combina e filtra produtos garantindo unicidade absoluta de imagens e títulos
-  const combineUniqueProducts = (supplierIds: string[]) => {
-    const matched = getProductsByActivatedSuppliers(supplierIds);
-    const combined: Product[] = [];
-    const seenImages = new Set<string>();
-    const seenNames = new Set<string>();
-
-    const allCandidates = [...matched, ...mockProducts];
-    for (const p of allCandidates) {
-      if (!p || !p.image_url) continue;
-
-      // Normalização estrita da URL da imagem para evitar duplicatas por parâmetros de query
-      const normUrl = p.image_url.split('?')[0].trim().toLowerCase();
-      // Normalização do nome
-      const normName = (p.name || p.title || '').trim().toLowerCase().slice(0, 30);
-
-      if (seenImages.has(normUrl) || seenNames.has(normName)) {
-        continue;
-      }
-
-      seenImages.add(normUrl);
-      seenNames.add(normName);
-      combined.push(p);
-    }
-
-    return combined;
-  };
+  const [visibleCount, setVisibleCount] = useState(48);
 
   // Carrega fornecedores ativados e produtos únicos do catálogo (Nacional vs Exterior)
   const loadSuppliersAndProducts = () => {
@@ -106,7 +79,7 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
       return;
     }
 
-    // MODO NACIONAL: Fornecedores homologados brasileiros em R$
+    // MODO NACIONAL: Fornecedores homologados brasileiros em R$ com +2.500 produtos únicos
     let activeIds: string[] = [];
     try {
       const saved = localStorage.getItem('decolashop_activated_suppliers_v3');
@@ -128,8 +101,8 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
     }
 
     setActivatedSuppliers(activeIds);
-    const uniqueList = combineUniqueProducts(activeIds);
-    setProducts(uniqueList);
+    const nationalList = getNationalProductsBySuppliers(activeIds);
+    setProducts(nationalList);
     setIsLoading(false);
   };
 
@@ -155,7 +128,7 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
       setActivatedSuppliers(allIds);
       const uniqueList = getInternationalProductsByActivatedSuppliers(allIds);
       setProducts(uniqueList);
-      toast.success('🎉 Todos os 8 fornecedores globais ativados com catálogo em Dólar (US$)!');
+      toast.success('🎉 Todos os fornecedores globais ativados com catálogo em Dólar (US$)!');
       return;
     }
 
@@ -165,9 +138,9 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
       localStorage.setItem('decolashop_activated_suppliers_v3', JSON.stringify(allIds));
       window.dispatchEvent(new CustomEvent('decolashop_suppliers_updated'));
     } catch {}
-    const uniqueList = combineUniqueProducts(allIds);
-    setProducts(uniqueList);
-    toast.success('🎉 Todos os 8 fornecedores homologados foram ativados com catálogo completo e fotos exclusivas!');
+    const nationalList = getNationalProductsBySuppliers(allIds);
+    setProducts(nationalList);
+    toast.success('🎉 Todos os 8 fornecedores homologados foram ativados com catálogo completo (+2.500 produtos únicos) e fotos exclusivas!');
   };
 
 
@@ -647,7 +620,7 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
       {!isLoading && filtered.length > displayedProducts.length && (
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-6">
           <button
-            onClick={() => setVisibleCount(prev => prev + 24)}
+            onClick={() => setVisibleCount(prev => prev + 48)}
             className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-secondary/80 hover:bg-secondary border border-border/60 text-white font-bold text-xs transition-all active:scale-95 shadow-lg shadow-black/20 cursor-pointer"
           >
             <span>Carregar Mais Produtos ({filtered.length - displayedProducts.length} restantes)</span>

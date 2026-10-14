@@ -1,5 +1,6 @@
 import { mockProducts, Product } from './mockData';
 import { ChartHour, SaleItem } from './salesContext';
+import { ALL_INTERNATIONAL_PRODUCTS } from './internationalCatalogData';
 
 // PRNG clássico e ultra rápido (Mulberry32) para geração determinística baseada em semente
 function mulberry32(a: number) {
@@ -498,3 +499,120 @@ export function getDeterministicBaseline(email: string, nowMs: number = Date.now
     lastSavedDate: new Date(nowMs).toDateString(),
   };
 }
+
+/**
+ * Gera o estado determinístico de vendas e saldo internacional em DÓLAR (US$)
+ * 100% SEPARADO e independente do mercado nacional (R$).
+ */
+export function getDeterministicBaselineUSD(email: string, nowMs: number = Date.now()): DeterministicState {
+  const isGerente = isGerenteAccount(email);
+  const seed = hashEmail(email) + 8881;
+  const rand = mulberry32(seed);
+
+  const cleanHourly: ChartHour[] = [
+    { hour: '00', valHoje: 0, valOntem: 0 },
+    { hour: '02', valHoje: 0, valOntem: 0 },
+    { hour: '04', valHoje: 0, valOntem: 0 },
+    { hour: '06', valHoje: 0, valOntem: 0 },
+    { hour: '08', valHoje: 0, valOntem: 0 },
+    { hour: '10', valHoje: 0, valOntem: 0 },
+    { hour: '12', valHoje: 0, valOntem: 0 },
+    { hour: '14', valHoje: 0, valOntem: 0 },
+    { hour: '16', valHoje: 0, valOntem: 0 },
+    { hour: '18', valHoje: 0, valOntem: 0 },
+    { hour: '20', valHoje: 0, valOntem: 0 },
+    { hour: '22', valHoje: 0, valOntem: 0 },
+  ];
+
+  if (isGerente) {
+    // Para conta Gerente/Admin: Vendas internacionais consistentes em US$
+    const vendasTotais = Math.round((2850.00 + rand() * 950.00) * 100) / 100;
+    const saldoDisponivel = Math.round((vendasTotais * 0.32) * 100) / 100;
+    const pedidos = 26 + Math.floor(rand() * 8);
+    const unidades = pedidos + Math.floor(rand() * 3);
+    const visitas = 4150 + Math.floor(rand() * 800);
+    const cliques = 280 + Math.floor(rand() * 60);
+
+    const recentSales: SaleItem[] = [
+      {
+        id: `sale-usd-${seed}-1`,
+        product: 'Pro 4K Pocket Projector HDR 1080p Support Native',
+        value: 129.00,
+        commission: 41.28,
+        time: 'Hoje, 14:15',
+        timestamp: nowMs - 1000 * 60 * 42,
+        image: 'https://images.unsplash.com/photo-1461151304267-38535e780c79?auto=format&fit=crop&q=80&w=800'
+      },
+      {
+        id: `sale-usd-${seed}-2`,
+        product: 'MagSafe Wireless PowerBank 10000mAh Fast Charging',
+        value: 49.90,
+        commission: 15.96,
+        time: 'Hoje, 11:30',
+        timestamp: nowMs - 1000 * 60 * 210,
+        image: 'https://images.unsplash.com/photo-1622445262464-84b1456045b6?auto=format&fit=crop&q=80&w=800'
+      },
+      {
+        id: `sale-usd-${seed}-3`,
+        product: 'ANC Studio Wireless Headphones Over-Ear High Fidelity',
+        value: 89.90,
+        commission: 28.76,
+        time: 'Ontem, 20:05',
+        timestamp: nowMs - 1000 * 60 * 60 * 17,
+        image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&q=80&w=800'
+      },
+      {
+        id: `sale-usd-${seed}-4`,
+        product: '4K GPS Foldable Brushless Drone with Optical Flow',
+        value: 159.00,
+        commission: 50.88,
+        time: 'Ontem, 16:40',
+        timestamp: nowMs - 1000 * 60 * 60 * 21,
+        image: 'https://images.unsplash.com/photo-1527977966376-1c8408f9f108?auto=format&fit=crop&q=80&w=800'
+      }
+    ];
+
+    const hourlyData: ChartHour[] = [
+      { hour: '00', valHoje: 0, valOntem: 49.90 },
+      { hour: '02', valHoje: 0, valOntem: 0 },
+      { hour: '04', valHoje: 0, valOntem: 0 },
+      { hour: '06', valHoje: 49.90, valOntem: 0 },
+      { hour: '08', valHoje: 89.90, valOntem: 89.90 },
+      { hour: '10', valHoje: 129.00, valOntem: 129.00 },
+      { hour: '12', valHoje: 178.90, valOntem: 159.00 },
+      { hour: '14', valHoje: 129.00, valOntem: 209.00 },
+      { hour: '16', valHoje: 89.90, valOntem: 219.00 },
+      { hour: '18', valHoje: 49.90, valOntem: 169.00 },
+      { hour: '20', valHoje: 0, valOntem: 89.90 },
+      { hour: '22', valHoje: 0, valOntem: 49.90 },
+    ];
+
+    return {
+      vendasTotais,
+      saldoDisponivel,
+      visitas,
+      cliques,
+      pedidos,
+      unidades,
+      hourlyData,
+      recentSales,
+      lastActiveTimestamp: nowMs,
+      lastSavedDate: new Date(nowMs).toDateString()
+    };
+  }
+
+  // Usuário comum inicia com histórico separado
+  return {
+    vendasTotais: 0,
+    saldoDisponivel: 0,
+    visitas: 0,
+    cliques: 0,
+    pedidos: 0,
+    unidades: 0,
+    hourlyData: cleanHourly,
+    recentSales: [],
+    lastActiveTimestamp: nowMs,
+    lastSavedDate: new Date(nowMs).toDateString(),
+  };
+}
+

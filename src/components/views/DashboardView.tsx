@@ -60,16 +60,27 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
     pedidos,
     unidades,
     hourlyData,
-    availableProducts
+    availableProducts,
+    vendasTotaisUSD,
+    saldoDisponivelUSD,
+    visitasUSD,
+    cliquesUSD,
+    pedidosUSD,
+    unidadesUSD,
+    hourlyDataUSD
   } = useSales();
 
   // Opção de Vender para o Exterior / Moeda do Dashboard (Dólar vs Real)
   const { currency, isUsd, setCurrency } = useRegionCurrency();
 
-  const USD_RATE = 5.60;
   const currencySymbol = isUsd ? 'US$' : 'R$';
-  const displayVendasTotais = isUsd ? (vendasTotais / USD_RATE) : vendasTotais;
-  const displaySaldoDisponivel = isUsd ? (saldoDisponivel / USD_RATE) : saldoDisponivel;
+  const displayVendasTotais = isUsd ? vendasTotaisUSD : vendasTotais;
+  const displaySaldoDisponivel = isUsd ? saldoDisponivelUSD : saldoDisponivel;
+  const displayVisitas = isUsd ? visitasUSD : visitas;
+  const displayCliques = isUsd ? cliquesUSD : cliques;
+  const displayPedidos = isUsd ? pedidosUSD : pedidos;
+  const displayUnidades = isUsd ? unidadesUSD : unidades;
+  const displayHourlyData = isUsd ? hourlyDataUSD : hourlyData;
 
   const handleCurrencyChange = (newCurrency: 'BRL' | 'USD') => {
     setCurrency(newCurrency);
@@ -106,7 +117,7 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
       formattedPrice = `R$ ${numericPrice.toFixed(2).replace('.', ',')}`;
     }
 
-    const units = pedidos > 0 ? Math.max(1, Math.floor(pedidos * (0.35 - index * 0.06))) : 0;
+    const units = displayPedidos > 0 ? Math.max(1, Math.floor(displayPedidos * (0.35 - index * 0.06))) : 0;
     const marketSales = p.vendas_mes 
       ? `${p.vendas_mes.toLocaleString('pt-BR')} no radar` 
       : 'Alta conversão';
@@ -114,7 +125,7 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
       rank: index + 1,
       id: p.id,
       name: p.name || p.title || 'Produto do Catálogo',
-      sales: pedidos > 0 ? `${units} vendas na sua loja` : marketSales,
+      sales: displayPedidos > 0 ? `${units} vendas na sua loja` : marketSales,
       price: formattedPrice,
       image: p.image_url,
     };
@@ -155,7 +166,7 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
               </div>
               <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5">
                 {isUsd 
-                  ? 'Faturamento, produtos e comissões internacionais convertidos para Dólar Americano (câmbio R$ 5,60).' 
+                  ? 'Operação e carteira internacional 100% independente em Dólar Americano (US$).' 
                   : 'Comissões das lojas e campanhas nacionais em Reais (R$).'}
               </p>
             </div>
@@ -210,7 +221,7 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
 
           <p className="text-[9px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3 sm:mb-5">
             {isUsd 
-              ? 'VALOR ACUMULADO CONVERTIDO EM DÓLAR AMERICANO (US$)' 
+              ? 'VALOR ACUMULADO DA OPERAÇÃO INTERNACIONAL EM DÓLAR (US$)' 
               : 'VALOR ACUMULADO DE TODAS AS VENDAS COM DIVULGAÇÃO'}
           </p>
 
@@ -243,28 +254,28 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
                 <div className="p-2 sm:p-3.5 flex flex-col items-center text-center border-r border-white/10 sm:border-b">
                   <Users size={15} className="text-[#22c55e] mb-1" />
                   <span className="text-[10px] sm:text-[11px] text-slate-400 mb-0.5">Visitas</span>
-                  <span className="text-sm sm:text-lg md:text-xl font-black text-white">{visitas.toLocaleString('pt-BR')}</span>
+                  <span className="text-sm sm:text-lg md:text-xl font-black text-white">{displayVisitas.toLocaleString('pt-BR')}</span>
                 </div>
 
                 {/* Cliques */}
                 <div className="p-2 sm:p-3.5 flex flex-col items-center text-center border-r sm:border-r-0 border-white/10 sm:border-b">
                   <Eye size={15} className="text-[#4ade80] mb-1" />
                   <span className="text-[10px] sm:text-[11px] text-slate-400 mb-0.5">Cliques</span>
-                  <span className="text-sm sm:text-lg md:text-xl font-black text-white">{cliques.toLocaleString('pt-BR')}</span>
+                  <span className="text-sm sm:text-lg md:text-xl font-black text-white">{displayCliques.toLocaleString('pt-BR')}</span>
                 </div>
 
                 {/* Pedidos */}
                 <div className="p-2 sm:p-3.5 flex flex-col items-center text-center border-r border-white/10">
                   <ShoppingCart size={15} className="text-[#22c55e] mb-1" />
                   <span className="text-[10px] sm:text-[11px] text-slate-400 mb-0.5">Pedidos</span>
-                  <span className="text-sm sm:text-lg md:text-xl font-black text-[#4ade80]">{pedidos}</span>
+                  <span className="text-sm sm:text-lg md:text-xl font-black text-[#4ade80]">{displayPedidos}</span>
                 </div>
 
                 {/* Unidades */}
                 <div className="p-2 sm:p-3.5 flex flex-col items-center text-center">
                   <Package size={15} className="text-[#4ade80] mb-1" />
                   <span className="text-[10px] sm:text-[11px] text-slate-400 mb-0.5">Unidades</span>
-                  <span className="text-sm sm:text-lg md:text-xl font-black text-white">{unidades}</span>
+                  <span className="text-sm sm:text-lg md:text-xl font-black text-white">{displayUnidades}</span>
                 </div>
               </div>
 
@@ -295,13 +306,13 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
           {/* Coluna 2: Visão Geral de Vendas - Gráfico Ultra Moderno & Interativo */}
           <div className="lg:col-span-5 flex flex-col justify-between">
             <SalesOverviewChart
-              vendasTotais={vendasTotais}
-              saldoDisponivel={saldoDisponivel}
-              pedidos={pedidos}
-              hourlyData={hourlyData}
+              vendasTotais={displayVendasTotais}
+              saldoDisponivel={displaySaldoDisponivel}
+              pedidos={displayPedidos}
+              hourlyData={displayHourlyData}
               onNavigate={onNavigate}
               currency={currency}
-              usdRate={USD_RATE}
+              usdRate={1}
             />
           </div>
 

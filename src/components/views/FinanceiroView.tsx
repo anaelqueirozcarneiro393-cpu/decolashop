@@ -18,18 +18,37 @@ import {
   Sparkles,
   ArrowRight,
   Receipt,
-  Mail
+  Mail,
+  Globe
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useSales, formatSaleTime } from '@/lib/salesContext';
+import { useRegionCurrency } from '@/lib/regionState';
 import { useSession } from 'next-auth/react';
 
 export default function FinanceiroView() {
   const { data: session } = useSession();
-  const { saldoDisponivel, vendasTotais, pedidos, cliques, taxaAntecipacao, recentSales } = useSales();
+  const { 
+    saldoDisponivel, 
+    vendasTotais, 
+    pedidos, 
+    cliques, 
+    taxaAntecipacao, 
+    recentSales,
+    saldoDisponivelUSD,
+    vendasTotaisUSD,
+    pedidosUSD,
+    cliquesUSD,
+    recentSalesUSD
+  } = useSales();
+  const { currency, isUsd, setCurrency } = useRegionCurrency();
+
   const [pixType, setPixType] = useState('CPF');
   const [pixKey, setPixKey] = useState('000.000.000-00');
   const [withdrawAmount, setWithdrawAmount] = useState('0,00');
+  const [intlMethod, setIntlMethod] = useState<'PAYPAL' | 'WISE' | 'SWIFT'>('PAYPAL');
+  const [intlAccount, setIntlAccount] = useState('');
+  const [intlWithdrawAmount, setIntlWithdrawAmount] = useState('0,00');
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Estados do Modal Pix da Taxa e Confirmação de Saque
@@ -377,7 +396,15 @@ export default function FinanceiroView() {
     };
   }, [userEmail, cleanEmailKey, recentSales]);
 
-  const averageCommission = pedidos > 0 ? (saldoDisponivel / pedidos).toFixed(2).replace('.', ',') : '0,00';
+  const currentSaldo = isUsd ? saldoDisponivelUSD : saldoDisponivel;
+  const currentVendas = isUsd ? vendasTotaisUSD : vendasTotais;
+  const currentPedidos = isUsd ? pedidosUSD : pedidos;
+  const currentCliques = isUsd ? cliquesUSD : cliques;
+  const currentRecentSales = isUsd ? recentSalesUSD : recentSales;
+  const currentSymbol = isUsd ? 'US$' : 'R$';
+  const averageCommission = currentPedidos > 0 
+    ? (currentSaldo / currentPedidos).toFixed(2).replace('.', ',') 
+    : '0,00';
 
   const handleAntecipacao = async (customFee?: number) => {
     const feeToCharge = typeof customFee === 'number' && customFee > 0 ? customFee : (taxaAntecipacao > 0 ? taxaAntecipacao : 150);
@@ -532,27 +559,93 @@ export default function FinanceiroView() {
         </div>
         <h1 className="text-3xl font-black text-white tracking-tight">Financeiro</h1>
         <p className="text-xs text-slate-400 mt-1">
-          Acompanhe suas vendas, comissões recebidas e solicite saques diretamente para sua conta via PIX.
+          Acompanhe suas vendas, comissões recebidas e solicite saques diretamente para sua conta.
         </p>
+      </div>
+
+      {/* Seletor de Carteira: Brasil (R$) vs Internacional (US$) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-[#0d121f]/90 border border-white/10 backdrop-blur-xl shadow-xl">
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${
+            isUsd 
+              ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40 shadow-[0_0_15px_rgba(59,130,246,0.3)]' 
+              : 'bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/40 shadow-[0_0_15px_rgba(34,197,94,0.25)]'
+          }`}>
+            <Wallet size={20} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs sm:text-sm font-black text-white">
+                {isUsd ? 'Carteira Internacional (US$)' : 'Carteira Nacional (R$)'}
+              </span>
+              <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                isUsd 
+                  ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40' 
+                  : 'bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/40'
+              }`}>
+                {isUsd ? 'Saldo em Dólar' : 'Saldo em Reais'}
+              </span>
+            </div>
+            <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5">
+              {isUsd 
+                ? 'Saldos e comissões da operação internacional nos EUA e Europa (100% separados da carteira nacional).' 
+                : 'Saldos e comissões das vendas de produtos com estoque nacional no Brasil.'}
+            </p>
+          </div>
+        </div>
+
+        {/* Toggle Switch Pills */}
+        <div className="flex items-center p-1 rounded-xl bg-black/60 border border-white/10 shrink-0 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={() => setCurrency('BRL')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+              !isUsd
+                ? 'bg-[#22c55e] text-black shadow-md font-black'
+                : 'text-slate-400 hover:text-white font-bold'
+            }`}
+          >
+            <span>🇧🇷</span>
+            <span>Carteira Nacional (R$)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setCurrency('USD')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+              isUsd
+                ? 'bg-blue-500 text-white shadow-md font-black shadow-blue-500/30'
+                : 'text-slate-400 hover:text-white font-bold'
+            }`}
+          >
+            <span>🇺🇸</span>
+            <span>Carteira Internacional (US$)</span>
+          </button>
+        </div>
       </div>
 
       {/* 4 Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Saldo Disponível */}
         <div className="bg-[#0d121f]/90 rounded-3xl p-6 border border-white/10 shadow-xl backdrop-blur-xl relative overflow-hidden flex flex-col justify-between">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#22c55e] to-[#4ade80] shadow-[0_0_10px_#22c55e]" />
+          <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${isUsd ? 'from-blue-500 to-cyan-400 shadow-[0_0_10px_#3b82f6]' : 'from-[#22c55e] to-[#4ade80] shadow-[0_0_10px_#22c55e]'}`} />
           <div>
             <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-              <Wallet size={14} className="text-[#22c55e]" />
-              <span>SALDO DISPONÍVEL</span>
+              <Wallet size={14} className={isUsd ? 'text-blue-400' : 'text-[#22c55e]'} />
+              <span>SALDO DISPONÍVEL {isUsd ? '(INTERNACIONAL)' : ''}</span>
             </div>
             <div className="flex items-baseline gap-1 my-2">
-              <span className="text-sm font-black text-[#4ade80]">R$</span>
+              <span className={`text-sm font-black ${isUsd ? 'text-blue-400' : 'text-[#4ade80]'}`}>{currentSymbol}</span>
               <span className="text-3xl font-black text-white">
-                {saldoDisponivel.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {currentSaldo.toLocaleString(isUsd ? 'en-US' : 'pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
-            {isAnticipated ? (
+            {isUsd ? (
+              <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-blue-500/30 bg-blue-500/15 text-[10px] font-bold text-blue-300 mb-2">
+                <Globe size={11} />
+                <span>CARTEIRA GLOBAL ATIVA • DÓLAR</span>
+              </div>
+            ) : isAnticipated ? (
               <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-[#22c55e]/30 bg-[#22c55e]/15 text-[10px] font-bold text-[#4ade80] mb-2">
                 <CheckCircle2 size={11} />
                 <span>LIBERADO PARA SAQUE IMEDIATO</span>
@@ -569,7 +662,9 @@ export default function FinanceiroView() {
               </div>
             )}
             <p className="text-[10px] text-slate-400">
-              {isAnticipated 
+              {isUsd
+                ? 'Comissões internacionais de vendas nos EUA e Europa creditadas diretamente em Dólar (US$).'
+                : isAnticipated 
                 ? 'Carência eliminada com sucesso via antecipação' 
                 : isCarenciaCompleted
                 ? 'Prazo regulamentar de 30 dias cumprido: saldo liberado para saque'
@@ -577,7 +672,7 @@ export default function FinanceiroView() {
             </p>
           </div>
           <p className="text-[10px] text-slate-500 mt-4 pt-3 border-t border-white/10">
-            Ganhos acumulados através de divulgações bem-sucedidas.
+            {isUsd ? 'Ganhos acumulados através de campanhas internacionais.' : 'Ganhos acumulados através de divulgações bem-sucedidas no Brasil.'}
           </p>
         </div>
 
@@ -586,16 +681,16 @@ export default function FinanceiroView() {
           <div>
             <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
               <ShoppingBag size={14} className="text-slate-400" />
-              <span>VENDAS REALIZADAS</span>
+              <span>{isUsd ? 'VENDAS GLOBAIS' : 'VENDAS REALIZADAS'}</span>
             </div>
             <div className="flex items-baseline gap-1.5 my-2">
-              <span className="text-3xl font-black text-white">{pedidos}</span>
+              <span className="text-3xl font-black text-white">{currentPedidos}</span>
               <span className="text-xs font-bold text-slate-400">pedidos</span>
             </div>
           </div>
           <div className="text-[10px] text-slate-400 mt-4 pt-3 border-t border-white/10 flex items-center justify-between">
-            <span>Unidades: <strong className="text-white">{pedidos}</strong></span>
-            <span>Vendas: <strong className="text-white">R$ {vendasTotais.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></span>
+            <span>Unidades: <strong className="text-white">{currentPedidos}</strong></span>
+            <span>Vendas: <strong className="text-white">{currentSymbol} {currentVendas.toLocaleString(isUsd ? 'en-US' : 'pt-BR', { minimumFractionDigits: 2 })}</strong></span>
           </div>
         </div>
 
@@ -603,16 +698,16 @@ export default function FinanceiroView() {
         <div className="bg-[#0d121f]/90 rounded-3xl p-6 border border-white/10 shadow-xl backdrop-blur-xl flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-              <TrendingUp size={14} className="text-[#22c55e]" />
+              <TrendingUp size={14} className={isUsd ? 'text-blue-400' : 'text-[#22c55e]'} />
               <span>COMISSÃO MÉDIA</span>
             </div>
             <div className="flex items-baseline gap-1 my-2">
-              <span className="text-sm font-black text-[#4ade80]">R$</span>
+              <span className={`text-sm font-black ${isUsd ? 'text-blue-400' : 'text-[#4ade80]'}`}>{currentSymbol}</span>
               <span className="text-3xl font-black text-white">{averageCommission}</span>
             </div>
           </div>
           <p className="text-[10px] text-slate-400 mt-4 pt-3 border-t border-white/10">
-            Média de 32% por cada produto vendido.
+            {isUsd ? 'Média de 32% por cada produto internacional vendido.' : 'Média de 32% por cada produto vendido no Brasil.'}
           </p>
         </div>
 
@@ -621,15 +716,15 @@ export default function FinanceiroView() {
           <div>
             <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
               <Eye size={14} className="text-cyan-400" />
-              <span>CLIQUES TOTAIS</span>
+              <span>{isUsd ? 'CLIQUES GLOBAIS' : 'CLIQUES TOTAIS'}</span>
             </div>
             <div className="flex items-baseline gap-1.5 my-2">
-              <span className="text-3xl font-black text-white">{cliques.toLocaleString('pt-BR')}</span>
+              <span className="text-3xl font-black text-white">{currentCliques.toLocaleString('pt-BR')}</span>
               <span className="text-xs font-bold text-slate-400">acessos</span>
             </div>
           </div>
           <p className="text-[10px] text-slate-400 mt-4 pt-3 border-t border-white/10">
-            Tráfego orgânico gerado via posts com IA.
+            {isUsd ? 'Tráfego internacional gerado via anúncios em Dólar.' : 'Tráfego orgânico gerado via posts com IA.'}
           </p>
         </div>
       </div>
@@ -820,106 +915,186 @@ export default function FinanceiroView() {
         </div>
       </div>
 
-      {/* Solicitação de Saque PIX Card */}
-      <div className="bg-[#0d121f]/90 rounded-3xl p-6 md:p-8 border border-white/10 shadow-xl backdrop-blur-xl space-y-6">
-        <div>
-          <h3 className="text-sm font-extrabold text-white">
-            Solicitar Saque PIX
-          </h3>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Cadastre sua chave PIX de mesma titularidade para transferências instantâneas.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Seção de Saque: Internacional (US$) vs Nacional (R$ com Carência/PIX) */}
+      {isUsd ? (
+        /* Solicitação de Saque Internacional (Dólar US$) */
+        <div className="bg-[#0d121f]/90 rounded-3xl p-6 md:p-8 border border-blue-500/30 shadow-xl backdrop-blur-xl space-y-6">
           <div>
-            <label className="block text-xs font-bold text-slate-300 mb-1.5">Tipo de Chave</label>
-            <select
-              value={pixType}
-              onChange={(e) => setPixType(e.target.value)}
-              className="w-full bg-black/40 border border-white/10 rounded-2xl py-3 px-4 text-xs font-medium text-white focus:outline-none focus:border-[#22c55e]"
-            >
-              <option value="CPF">CPF</option>
-              <option value="CNPJ">CNPJ</option>
-              <option value="EMAIL">E-mail</option>
-              <option value="TELEFONE">Telefone</option>
-              <option value="ALEATORIA">Chave Aleatória</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-300 mb-1.5">Chave PIX</label>
-            <input
-              type="text"
-              value={pixKey}
-              onChange={(e) => setPixKey(e.target.value)}
-              placeholder="Digite sua chave PIX"
-              className="w-full bg-black/40 border border-white/10 rounded-2xl py-3 px-4 text-xs font-medium text-white focus:outline-none focus:border-[#22c55e]"
-            />
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-bold text-slate-300">Valor do Saque (R$)</label>
-              <span className="text-[10px] text-[#22c55e] font-extrabold uppercase tracking-wide">Mínimo: R$ 2.000,00</span>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-500/15 text-blue-300 text-[10px] font-black uppercase tracking-wider mb-2 border border-blue-500/30">
+              <Globe size={11} />
+              <span>SAQUE INTERNACIONAL (US$)</span>
             </div>
-            <input
-              type="text"
-              value={withdrawAmount}
-              onChange={(e) => setWithdrawAmount(e.target.value)}
-              placeholder="Mínimo R$ 2.000,00"
-              className="w-full bg-black/40 border border-white/10 rounded-2xl py-3 px-4 text-xs font-medium text-white focus:outline-none focus:border-[#22c55e]"
-            />
+            <h3 className="text-sm font-extrabold text-white">
+              Solicitar Saque da Carteira Global
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Cadastre sua conta internacional (PayPal Global, Wise USD ou Transferência Bancária Swift) para recebimento das comissões em Dólar.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">Método de Recebimento</label>
+              <select
+                value={intlMethod}
+                onChange={(e) => setIntlMethod(e.target.value as any)}
+                className="w-full bg-black/40 border border-white/10 rounded-2xl py-3 px-4 text-xs font-medium text-white focus:outline-none focus:border-blue-500"
+              >
+                <option value="PAYPAL">PayPal Global (E-mail)</option>
+                <option value="WISE">Wise Multi-Currency (Chave/E-mail)</option>
+                <option value="SWIFT">Wire Transfer / SWIFT (IBAN)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                {intlMethod === 'PAYPAL' ? 'E-mail da Conta PayPal' : intlMethod === 'WISE' ? 'Chave ou E-mail Wise' : 'Código IBAN / Swift'}
+              </label>
+              <input
+                type="text"
+                value={intlAccount}
+                onChange={(e) => setIntlAccount(e.target.value)}
+                placeholder={intlMethod === 'PAYPAL' ? 'seu-email@paypal.com' : intlMethod === 'WISE' ? 'email-wise@exemplo.com' : 'IBAN BR32...'}
+                className="w-full bg-black/40 border border-white/10 rounded-2xl py-3 px-4 text-xs font-medium text-white focus:outline-none focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold text-slate-300">Valor do Saque (US$)</label>
+                <span className="text-[10px] text-blue-400 font-extrabold uppercase tracking-wide">Mínimo: US$ 500,00</span>
+              </div>
+              <input
+                type="text"
+                value={intlWithdrawAmount}
+                onChange={(e) => setIntlWithdrawAmount(e.target.value)}
+                placeholder="Mínimo US$ 500,00"
+                className="w-full bg-black/40 border border-white/10 rounded-2xl py-3 px-4 text-xs font-medium text-white focus:outline-none focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <span className="text-[11px] text-slate-400 flex items-center gap-1.5">
+              <Lock size={12} className="text-blue-400" />
+              <span>Transferências internacionais protegidas por conformidade KYC / AML global • Saque mínimo de US$ 500,00.</span>
+            </span>
+
+            <button
+              type="button"
+              disabled
+              className="w-full sm:w-auto py-3.5 px-6 rounded-2xl bg-white/5 border border-white/10 text-slate-500 font-extrabold text-xs uppercase tracking-wider cursor-not-allowed opacity-50 select-none pointer-events-none flex items-center justify-center gap-2"
+              title="Função de saque temporariamente inativa"
+            >
+              <Lock size={13} className="text-slate-500" />
+              <span>SOLICITAR SAQUE INTERNACIONAL (MÍN. US$ 500,00)</span>
+            </button>
           </div>
         </div>
+      ) : (
+        /* Solicitação de Saque PIX Card (Nacional) */
+        <div className="bg-[#0d121f]/90 rounded-3xl p-6 md:p-8 border border-white/10 shadow-xl backdrop-blur-xl space-y-6">
+          <div>
+            <h3 className="text-sm font-extrabold text-white">
+              Solicitar Saque PIX
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Cadastre sua chave PIX de mesma titularidade para transferências instantâneas.
+            </p>
+          </div>
 
-        <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <span className="text-[11px] text-slate-400 flex items-center gap-1.5">
-            <Lock size={12} className="text-[#22c55e]" />
-            <span>Transferências protegidas por criptografia de ponta a ponta BACEN • Saque mínimo de R$ 2.000,00.</span>
-          </span>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">Tipo de Chave</label>
+              <select
+                value={pixType}
+                onChange={(e) => setPixType(e.target.value)}
+                className="w-full bg-black/40 border border-white/10 rounded-2xl py-3 px-4 text-xs font-medium text-white focus:outline-none focus:border-[#22c55e]"
+              >
+                <option value="CPF">CPF</option>
+                <option value="CNPJ">CNPJ</option>
+                <option value="EMAIL">E-mail</option>
+                <option value="TELEFONE">Telefone</option>
+                <option value="ALEATORIA">Chave Aleatória</option>
+              </select>
+            </div>
 
-          {/* Botão de Solicitar Saque PIX mantido 100% INATIVO conforme solicitado */}
-          <button
-            type="button"
-            disabled
-            className="w-full sm:w-auto py-3.5 px-6 rounded-2xl bg-white/5 border border-white/10 text-slate-500 font-extrabold text-xs uppercase tracking-wider cursor-not-allowed opacity-50 select-none pointer-events-none flex items-center justify-center gap-2"
-            title="Função de saque temporariamente inativa"
-          >
-            <Lock size={13} className="text-slate-500" />
-            <span>SOLICITAR SAQUE PIX (MÍN. R$ 2.000,00)</span>
-          </button>
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">Chave PIX</label>
+              <input
+                type="text"
+                value={pixKey}
+                onChange={(e) => setPixKey(e.target.value)}
+                placeholder="Digite sua chave PIX"
+                className="w-full bg-black/40 border border-white/10 rounded-2xl py-3 px-4 text-xs font-medium text-white focus:outline-none focus:border-[#22c55e]"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold text-slate-300">Valor do Saque (R$)</label>
+                <span className="text-[10px] text-[#22c55e] font-extrabold uppercase tracking-wide">Mínimo: R$ 2.000,00</span>
+              </div>
+              <input
+                type="text"
+                value={withdrawAmount}
+                onChange={(e) => setWithdrawAmount(e.target.value)}
+                placeholder="Mínimo R$ 2.000,00"
+                className="w-full bg-black/40 border border-white/10 rounded-2xl py-3 px-4 text-xs font-medium text-white focus:outline-none focus:border-[#22c55e]"
+              />
+            </div>
+          </div>
+
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <span className="text-[11px] text-slate-400 flex items-center gap-1.5">
+              <Lock size={12} className="text-[#22c55e]" />
+              <span>Transferências protegidas por criptografia de ponta a ponta BACEN • Saque mínimo de R$ 2.000,00.</span>
+            </span>
+
+            {/* Botão de Solicitar Saque PIX mantido 100% INATIVO conforme solicitado */}
+            <button
+              type="button"
+              disabled
+              className="w-full sm:w-auto py-3.5 px-6 rounded-2xl bg-white/5 border border-white/10 text-slate-500 font-extrabold text-xs uppercase tracking-wider cursor-not-allowed opacity-50 select-none pointer-events-none flex items-center justify-center gap-2"
+              title="Função de saque temporariamente inativa"
+            >
+              <Lock size={13} className="text-slate-500" />
+              <span>SOLICITAR SAQUE PIX (MÍN. R$ 2.000,00)</span>
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ================= EXTRATO DETALHADO DE VENDAS & COMISSÕES ================= */}
       <div className="bg-[#0d121f]/90 rounded-3xl p-6 md:p-8 border border-white/10 shadow-xl backdrop-blur-xl space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#22c55e]/10 border border-[#22c55e]/25 text-[#4ade80] text-[10px] font-black uppercase tracking-wider mb-1">
+            <div className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full ${isUsd ? 'bg-blue-500/10 border border-blue-500/25 text-blue-300' : 'bg-[#22c55e]/10 border border-[#22c55e]/25 text-[#4ade80]'} text-[10px] font-black uppercase tracking-wider mb-1`}>
               <CheckCircle2 size={11} />
-              <span>Extrato de Vendas em Tempo Real</span>
+              <span>{isUsd ? 'Extrato Global em Tempo Real (US$)' : 'Extrato de Vendas em Tempo Real (R$)'}</span>
             </div>
             <h3 className="text-sm sm:text-base font-extrabold text-white flex items-center gap-2">
               <span>Registro de Vendas e Comissões</span>
               <span className="text-xs px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-400 font-semibold">
-                {recentSales.length} {recentSales.length === 1 ? 'venda' : 'vendas'}
+                {currentRecentSales.length} {currentRecentSales.length === 1 ? 'venda' : 'vendas'}
               </span>
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">
-              Histórico detalhado de cada venda gerada pelo radar e campanhas de IA vinculadas à sua conta.
+              {isUsd 
+                ? 'Histórico detalhado de cada venda internacional em Dólar vinculada à sua conta.'
+                : 'Histórico detalhado de cada venda gerada pelo radar e campanhas de IA vinculadas à sua conta.'}
             </p>
           </div>
 
           <div className="flex items-center gap-2 bg-white/[0.02] border border-white/5 px-3 py-1.5 rounded-2xl">
             <span className="text-[11px] text-slate-400 font-medium">Saldo a Receber:</span>
-            <span className="text-sm font-black text-[#4ade80]">
-              R$ {saldoDisponivel.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <span className={`text-sm font-black ${isUsd ? 'text-blue-400' : 'text-[#4ade80]'}`}>
+              {currentSymbol} {currentSaldo.toLocaleString(isUsd ? 'en-US' : 'pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
         </div>
 
-        {recentSales.length > 0 ? (
+        {currentRecentSales.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
@@ -933,7 +1108,7 @@ export default function FinanceiroView() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {recentSales.map((sale) => (
+                {currentRecentSales.map((sale) => (
                   <tr key={sale.id} className="hover:bg-white/[0.02] transition-colors group">
                     <td className="py-3.5 pl-2 font-mono text-[11px] font-bold text-slate-400">
                       {sale.id}
@@ -952,7 +1127,7 @@ export default function FinanceiroView() {
                             <ShoppingBag size={14} className="m-auto text-slate-500 mt-2" />
                           )}
                         </div>
-                        <span className="font-bold text-white truncate group-hover:text-[#4ade80] transition-colors" title={sale.product}>
+                        <span className={`font-bold text-white truncate ${isUsd ? 'group-hover:text-blue-400' : 'group-hover:text-[#4ade80]'} transition-colors`} title={sale.product}>
                           {sale.product}
                         </span>
                       </div>
@@ -961,13 +1136,18 @@ export default function FinanceiroView() {
                       {formatSaleTime(sale.timestamp, sale.time)}
                     </td>
                     <td className="py-3.5 text-right font-semibold text-slate-300">
-                      R$ {sale.value.toFixed(2).replace('.', ',')}
+                      {currentSymbol} {sale.value.toFixed(2).replace('.', ',')}
                     </td>
-                    <td className="py-3.5 text-right font-black text-[#4ade80]">
-                      + R$ {sale.commission.toFixed(2).replace('.', ',')}
+                    <td className={`py-3.5 text-right font-black ${isUsd ? 'text-blue-400' : 'text-[#4ade80]'}`}>
+                      + {currentSymbol} {sale.commission.toFixed(2).replace('.', ',')}
                     </td>
                     <td className="py-3.5 text-right pr-2">
-                      {isAnticipated || isCarenciaCompleted ? (
+                      {isUsd ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-blue-500/15 text-blue-300 border border-blue-500/30">
+                          <CheckCircle2 size={10} />
+                          <span>Global Liberado</span>
+                        </span>
+                      ) : isAnticipated || isCarenciaCompleted ? (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-[#22c55e]/15 text-[#4ade80] border border-[#22c55e]/30">
                           <CheckCircle2 size={10} />
                           <span>Liberado</span>
