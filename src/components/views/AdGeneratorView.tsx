@@ -20,6 +20,8 @@ import { getProductsFromSupabase } from '@/app/actions';
 import { Product, mockProducts } from '@/lib/mockData';
 import { useSession } from 'next-auth/react';
 import { addDivulgado, getDivulgados, MAX_ACTIVE_CAMPAIGNS } from '@/lib/divulgados';
+import { useRegionCurrency } from '@/lib/regionState';
+import MarginSelectionModal, { MarginConfig } from '@/components/MarginSelectionModal';
 
 interface AdGeneratorViewProps {
   product?: any;
@@ -29,6 +31,7 @@ interface AdGeneratorViewProps {
 export default function AdGeneratorView({ product: initialProduct, onNavigate }: AdGeneratorViewProps) {
   const { data: session } = useSession();
   const userEmail = session?.user?.email?.toLowerCase().trim();
+  const { isUsd } = useRegionCurrency();
   const [products, setProducts] = useState<Product[]>(mockProducts);
   const [selectedProduct, setSelectedProduct] = useState<Product>(initialProduct || mockProducts[0]);
   const [selectedCategory, setSelectedCategory] = useState('Todos');
@@ -37,6 +40,8 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
   const [publishProgress, setPublishProgress] = useState(0);
   const [remainingSeconds, setRemainingSeconds] = useState(60);
   const [isPublishFinished, setIsPublishFinished] = useState(false);
+  const [isMarginModalOpen, setIsMarginModalOpen] = useState(false);
+  const [customMarginConfig, setCustomMarginConfig] = useState<MarginConfig | null>(null);
   const publishIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
   const { addSale, triggerDelayedCampaignSales } = useSales();
 
@@ -121,6 +126,22 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
       return;
     }
 
+    // Se o usuário ainda não configurou canal e margem, abre o modal
+    if (!customMarginConfig) {
+      setIsMarginModalOpen(true);
+      return;
+    }
+
+    startPublishingWithConfig(customMarginConfig);
+  };
+
+  const handleConfirmMargin = (config: MarginConfig) => {
+    setCustomMarginConfig(config);
+    setIsMarginModalOpen(false);
+    startPublishingWithConfig(config);
+  };
+
+  const startPublishingWithConfig = (config: MarginConfig) => {
     if (publishIntervalRef.current) clearInterval(publishIntervalRef.current);
 
     // Duração entre 50 e 70 segundos (exatamente 60 segundos)
@@ -147,25 +168,22 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
         setRemainingSeconds(0);
         setIsPublishFinished(true);
 
-        const isUsd = (selectedProduct as any)?.currency === 'USD' || 
+        const prodIsUsd = isUsd || (selectedProduct as any)?.currency === 'USD' || 
           (typeof selectedProduct.price === 'string' && selectedProduct.price.includes('$') && !selectedProduct.price.includes('R$'));
 
-        const rawPrice = typeof selectedProduct.price === 'string'
-          ? parseFloat(selectedProduct.price.replace('US$', '').replace('$', '').replace('R$', '').replace('.', '').replace(',', '.').trim()) || (isUsd ? 39.90 : 99.90)
-          : (selectedProduct.price || (isUsd ? 39.90 : 99.90));
+        const sellingPrice = config.finalSellingPrice;
 
-        // Ativa vendas com cadência natural
-        triggerDelayedCampaignSales(selectedProduct, rawPrice);
+        // Ativa vendas com cadência natural usando o preço final e a margem líquida dela
+        triggerDelayedCampaignSales(selectedProduct, sellingPrice);
 
-        const defaultCommission = isUsd 
-          ? `US$ ${(rawPrice * 0.32).toFixed(2).replace('.', ',')}`
-          : `R$ ${(rawPrice * 0.32).toFixed(2).replace('.', ',')}`;
+        const networks = [
+          config.channelLabel,
+          prodIsUsd ? 'Meta Ads (US)' : 'Meta Ads (Instagram & Facebook)',
+          prodIsUsd ? 'Google Shopping Global' : 'Google Shopping',
+          prodIsUsd ? 'Shopify US' : 'WhatsApp Grupos VIP'
+        ];
 
-        const networks = isUsd
-          ? ['TikTok Shop US', 'Meta Ads (Instagram & Facebook US)', 'Google Shopping Global', 'Pinterest Ads US', 'Shopify Global Channel']
-          : ['Meta Ads (Instagram & Facebook)', 'TikTok Shop Ads', 'Google Shopping', 'Kwai Ads', 'WhatsApp Grupos VIP', 'Twitter/X Feed'];
-
-        const targetingLocation = isUsd 
+        const targetingLocation = prodIsUsd 
           ? 'Estados Unidos & Europa (Envio Prioritário Internacional)'
           : 'Brasil (Entrega Rápida 7 Dias)';
 
@@ -174,11 +192,17 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
           name: selectedProduct.name || selectedProduct.title || 'Produto Viral DecolaShop',
           image_url: selectedProduct.image_url,
           category: selectedProduct.category || 'Geral',
-          price: rawPrice,
-          commission: selectedProduct.commission || defaultCommission,
-          currency: isUsd ? 'USD' : 'BRL',
-          origin: (selectedProduct as any)?.origin || (isUsd ? 'East Brunswick, New Jersey - EUA' : 'São Paulo - SP (Hub Nacional)'),
+          price: sellingPrice,
+          commission: `${prodIsUsd ? 'US$' : 'R$'} ${config.sellerMargin.toFixed(2).replace('.', ',')}`,
+          currency: prodIsUsd ? 'USD' : 'BRL',
+          origin: (selectedProduct as any)?.origin || (prodIsUsd ? 'East Brunswick, New Jersey - EUA' : 'São Paulo - SP (Hub Nacional)'),
           status: 'active',
+          channel: config.channel,
+          channelLabel: config.channelLabel,
+          supplierCost: config.supplierCost,
+          sellerMargin: config.sellerMargin,
+          sellerMarginPercent: config.sellerMarginPercent,
+          marketplaceFee: config.marketplaceFeeAmount,
           networks,
           impressions: Math.floor(Math.random() * 1500) + 950,
           clicks: Math.floor(Math.random() * 90) + 50,
@@ -187,22 +211,22 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
           roas: 4.6,
           conversionRate: 3.8,
           targeting: {
-            audience: `Compradores engajados na categoria ${selectedProduct.category || 'Geral'}`,
+            audience: `Compradores engajados no ${config.channelLabel} na categoria ${selectedProduct.category || 'Geral'}`,
             ageRange: '18 - 50 anos',
             location: targetingLocation,
-            interests: [selectedProduct.category || 'Compras Online', isUsd ? 'Global Tech' : 'Ofertas Shopee', 'Tendências']
+            interests: [config.channelLabel, selectedProduct.category || 'Compras Online', 'Tendências']
           },
           sampleCopy: {
-            headline: isUsd ? `🔥 BESTSELLER: ${selectedProduct.name || selectedProduct.title}` : `🔥 OFERTA IMPERDÍVEL: ${selectedProduct.name || selectedProduct.title}`,
-            body: selectedProduct.description || (isUsd ? 'Top-rated product with 7-day express delivery and 100% satisfaction guarantee.' : 'Produto validado com alta taxa de satisfação e pronta entrega para todo o Brasil.'),
-            cta: isUsd ? '👉 ORDER NOW - 7-DAY GUARANTEED DELIVERY' : '👉 CLIQUE AQUI PARA GARANTIR O SEU'
+            headline: `🔥 OFERTA OFICIAL NO ${config.channelLabel.toUpperCase()}: ${selectedProduct.name || selectedProduct.title}`,
+            body: selectedProduct.description || (prodIsUsd ? 'Top-rated product with 7-day express delivery and 100% satisfaction guarantee.' : 'Produto validado com alta taxa de satisfação e pronta entrega para todo o Brasil.'),
+            cta: `👉 COMPRAR COM DESCONTO NO ${config.channelLabel.toUpperCase()}`
           }
         }, userEmail);
 
         window.dispatchEvent(new Event('decolashop_divulgados_updated'));
 
-        toast.success('🚀 Anúncio publicado nas 6 redes! Tráfego ativo iniciado.', {
-          duration: 4000
+        toast.success(`🚀 Anúncio publicado no ${config.channelLabel}! Sua margem de lucro de ${prodIsUsd ? 'US$' : 'R$'} ${config.sellerMargin.toFixed(2)} por venda está garantida.`, {
+          duration: 5000
         });
       }
     }, 150);
@@ -441,6 +465,48 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
             <strong className="text-[#4ade80] font-extrabold">Twitter</strong>.
           </p>
 
+          {/* Configuração de Margem e Canal Ativo */}
+          <div className="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                <Sparkles size={14} className="text-[#22c55e]" /> Canal & Margem de Lucro
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsMarginModalOpen(true)}
+                className="text-[11px] font-bold text-[#4ade80] hover:underline cursor-pointer"
+              >
+                {customMarginConfig ? 'Alterar Canal/Margem' : 'Configurar Agora'}
+              </button>
+            </div>
+
+            {customMarginConfig ? (
+              <div className="grid grid-cols-3 gap-2 text-center pt-1 text-xs">
+                <div className="p-2 rounded-xl bg-white/[0.03] border border-white/5">
+                  <span className="text-[10px] text-slate-400 block">Canal</span>
+                  <span className="font-bold text-white block mt-0.5 truncate">{customMarginConfig.channelLabel}</span>
+                </div>
+                <div className="p-2 rounded-xl bg-white/[0.03] border border-white/5">
+                  <span className="text-[10px] text-slate-400 block">Custo Forn.</span>
+                  <span className="font-bold text-slate-300 block mt-0.5">
+                    {isUsd ? 'US$' : 'R$'} {customMarginConfig.supplierCost.toFixed(2)}
+                  </span>
+                  <span className="text-[9px] text-amber-400 font-bold">🔒 Imutável</span>
+                </div>
+                <div className="p-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30">
+                  <span className="text-[10px] text-emerald-300 font-bold block">Sua Margem</span>
+                  <span className="font-black text-emerald-400 block mt-0.5">
+                    {isUsd ? 'US$' : 'R$'} {customMarginConfig.sellerMargin.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <p className="text-[11px] text-slate-400 leading-snug">
+                Escolha se sua campanha será no <strong className="text-yellow-400">Mercado Livre</strong>, <strong className="text-orange-400">Shopee</strong> ou <strong className="text-cyan-400">TikTok Shop</strong> e defina a sua margem líquida por venda.
+              </p>
+            )}
+          </div>
+
           {/* Big Action Button */}
           <button
             onClick={handleStartPublishing}
@@ -631,6 +697,15 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
           </div>
         </div>
       )}
+
+      {/* Modal de Seleção de Margem e Canal */}
+      <MarginSelectionModal
+        isOpen={isMarginModalOpen}
+        onClose={() => setIsMarginModalOpen(false)}
+        product={selectedProduct}
+        onConfirm={handleConfirmMargin}
+        isUsd={isUsd}
+      />
     </div>
   );
 }

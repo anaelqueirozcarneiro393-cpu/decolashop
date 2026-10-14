@@ -33,6 +33,10 @@ import { getNationalProductsBySuppliers, NATIONAL_CATALOG_2500 } from '@/lib/nat
 import { useRegionCurrency } from '@/lib/regionState';
 import SafeImage from '@/components/SafeImage';
 import { toast } from 'react-hot-toast';
+import { useSession } from 'next-auth/react';
+import { useSales } from '@/lib/salesContext';
+import { addDivulgado } from '@/lib/divulgados';
+import MarginSelectionModal, { MarginConfig } from '@/components/MarginSelectionModal';
 
 interface CatalogoViewProps {
   onNavigate: (view: any, product?: any) => void;
@@ -55,6 +59,9 @@ const CATEGORIES = [
 ];
 
 export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }: CatalogoViewProps) {
+  const { data: session } = useSession();
+  const userEmail = session?.user?.email?.toLowerCase().trim();
+  const { triggerDelayedCampaignSales } = useSales();
   const { currency, isUsd, setCurrency } = useRegionCurrency();
   const [products, setProducts] = useState<Product[]>([]);
   const [activatedSuppliers, setActivatedSuppliers] = useState<string[]>([]);
@@ -64,6 +71,62 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
   const [isLoading, setIsLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(48);
+  const [marginModalProduct, setMarginModalProduct] = useState<Product | null>(null);
+
+  const handleConfirmMargin = (config: MarginConfig) => {
+    try {
+      addDivulgado({
+        productId: config.product.id,
+        name: config.product.name || config.product.title || 'Produto Viral DecolaShop',
+        image_url: config.product.image_url,
+        category: config.product.category || 'Geral',
+        price: config.finalSellingPrice,
+        commission: `${isUsd ? 'US$' : 'R$'} ${config.sellerMargin.toFixed(2).replace('.', ',')}`,
+        currency: isUsd ? 'USD' : 'BRL',
+        origin: (config.product as any)?.origin || (isUsd ? 'East Brunswick, New Jersey - EUA' : 'São Paulo - SP (Hub Nacional)'),
+        status: 'active',
+        channel: config.channel,
+        channelLabel: config.channelLabel,
+        supplierCost: config.supplierCost,
+        sellerMargin: config.sellerMargin,
+        sellerMarginPercent: config.sellerMarginPercent,
+        marketplaceFee: config.marketplaceFeeAmount,
+        networks: [config.channelLabel, 'Google Shopping', 'Meta Ads', 'WhatsApp Grupos VIP'],
+        impressions: Math.floor(Math.random() * 1400) + 900,
+        clicks: Math.floor(Math.random() * 85) + 45,
+        salesCount: 0,
+        revenue: 0,
+        roas: 4.8,
+        conversionRate: 3.9,
+        targeting: {
+          audience: `Compradores do ${config.channelLabel} na categoria ${config.product.category || 'Geral'}`,
+          ageRange: '18 - 50 anos',
+          location: isUsd ? 'Estados Unidos & Europa' : 'Brasil (Envio Rápido 7 Dias)',
+          interests: [config.channelLabel, config.product.category || 'Tendências', 'Compras Online']
+        },
+        sampleCopy: {
+          headline: `🔥 OFERTA OFICIAL NO ${config.channelLabel.toUpperCase()}: ${config.product.name || config.product.title}`,
+          body: config.product.description || 'Produto com estoque homologado e despacho 24h.',
+          cta: `👉 COMPRAR COM DESCONTO NO ${config.channelLabel.toUpperCase()}`
+        }
+      }, userEmail);
+
+      triggerDelayedCampaignSales(config.product, config.finalSellingPrice);
+
+      toast.success(
+        `🎉 Campanha no ${config.channelLabel} ativada! Sua margem de lucro de ${isUsd ? 'US$' : 'R$'} ${config.sellerMargin.toFixed(2)} por venda está garantida.`,
+        { duration: 5500, icon: '🚀' }
+      );
+
+      setMarginModalProduct(null);
+
+      setTimeout(() => {
+        onNavigate('divulgados');
+      }, 800);
+    } catch {
+      toast.error('Erro ao registrar campanha.');
+    }
+  };
 
   // Carrega fornecedores ativados e produtos únicos do catálogo (Nacional vs Exterior)
   const loadSuppliersAndProducts = () => {
@@ -543,7 +606,7 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
                 <div className="space-y-2 pt-3 border-t border-white/10">
                   <div className="grid grid-cols-2 gap-2">
                     <button
-                      onClick={() => onNavigate('divulgacao-ia', prod)}
+                      onClick={() => setMarginModalProduct(prod)}
                       className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-primary text-black font-extrabold text-xs hover:bg-primary/90 transition-all shadow-md shadow-primary/20 active:scale-95 cursor-pointer"
                     >
                       <Sparkles size={13} />
@@ -634,6 +697,15 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
           </button>
         </div>
       )}
+
+      {/* Modal de Seleção de Margem e Canal */}
+      <MarginSelectionModal
+        isOpen={!!marginModalProduct}
+        onClose={() => setMarginModalProduct(null)}
+        product={marginModalProduct}
+        onConfirm={handleConfirmMargin}
+        isUsd={isUsd}
+      />
     </div>
   );
 }

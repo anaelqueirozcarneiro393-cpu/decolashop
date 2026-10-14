@@ -17,6 +17,12 @@ export interface DivulgadoCampaign {
   revenue: number;
   roas: number;
   conversionRate: number;
+  channel?: 'mercadolivre' | 'shopee' | 'tiktok' | 'amazon' | 'shopify' | 'geral';
+  channelLabel?: string;
+  supplierCost?: number;
+  sellerMargin?: number;
+  sellerMarginPercent?: number;
+  marketplaceFee?: number;
   targeting?: {
     audience: string;
     ageRange: string;

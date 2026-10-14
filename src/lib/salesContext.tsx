@@ -1016,7 +1016,9 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         image_url: randCamp.image_url,
         category: randCamp.category || 'Geral',
         hype_score: 95,
-        url: 'https://shopee.com.br'
+        url: 'https://shopee.com.br',
+        sellerMargin: randCamp.sellerMargin,
+        commission: randCamp.commission
       };
     } else {
       chosen = availableProducts[Math.floor(Math.random() * availableProducts.length)];
@@ -1041,7 +1043,16 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
       parsedPrice = parseFloat(clean) || 149.90;
     }
 
-    const commissionVal = Math.round(parsedPrice * 0.32 * 100) / 100;
+    let commissionVal = Math.round(parsedPrice * 0.32 * 100) / 100;
+    if ((chosen as any).sellerMargin && typeof (chosen as any).sellerMargin === 'number' && (chosen as any).sellerMargin > 0) {
+      commissionVal = (chosen as any).sellerMargin;
+    } else if (typeof chosen.commission === 'string') {
+      const match = chosen.commission.match(/[\d.,]+/);
+      if (match) {
+        const val = parseFloat(match[0].replace(',', '.'));
+        if (!isNaN(val) && val > 0) commissionVal = val;
+      }
+    }
     const now = new Date();
     const timeStr = `Hoje, ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     

@@ -526,6 +526,19 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
                         <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-slate-400">
                           {camp.category}
                         </span>
+                        {camp.channelLabel && (
+                          <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md border flex items-center gap-1 ${
+                            camp.channel === 'mercadolivre'
+                              ? 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30'
+                              : camp.channel === 'shopee'
+                              ? 'bg-orange-500/15 text-orange-400 border-orange-500/30'
+                              : camp.channel === 'tiktok'
+                              ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'
+                              : 'bg-blue-500/15 text-blue-300 border-blue-500/30'
+                          }`}>
+                            {camp.channel === 'mercadolivre' ? '🟡' : camp.channel === 'shopee' ? '🟠' : camp.channel === 'tiktok' ? '⚫' : '🌐'} {camp.channelLabel}
+                          </span>
+                        )}
                         {camp.origin && (
                           <span className="text-[10px] text-cyan-400 flex items-center gap-1 bg-cyan-500/10 px-2 py-0.5 rounded-md border border-cyan-500/20">
                             <MapPin size={10} />
@@ -542,13 +555,25 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
                         {camp.name}
                       </h3>
 
-                      <div className="flex items-center gap-3 mt-1.5 text-xs">
+                      <div className="flex items-center gap-3 mt-1.5 text-xs flex-wrap">
                         <span className="font-black text-[#4ade80] text-sm">
                           {formattedPrice}
                         </span>
-                        {camp.commission && (
+                        {camp.sellerMargin !== undefined ? (
+                          <span className="text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md text-[11px] flex items-center gap-1">
+                            <span>Sua Margem:</span>
+                            <strong className="text-emerald-300">{isUsd ? 'US$' : 'R$'} {camp.sellerMargin.toFixed(2).replace('.', ',')}</strong>
+                            <span className="text-[10px] text-emerald-400/80">({camp.sellerMarginPercent || 35}%)</span>
+                          </span>
+                        ) : camp.commission ? (
                           <span className="text-slate-400 text-[11px]">
                             Comissão: <strong className="text-white">{camp.commission}</strong>
+                          </span>
+                        ) : null}
+                        {camp.supplierCost !== undefined && (
+                          <span className="text-slate-400 text-[11px] flex items-center gap-1">
+                            Custo Forn.: <strong className="text-slate-300">{isUsd ? 'US$' : 'R$'} {camp.supplierCost.toFixed(2).replace('.', ',')}</strong>
+                            <span className="text-[9px] text-amber-400 font-bold bg-amber-500/10 px-1 rounded border border-amber-500/20">🔒 Imutável</span>
                           </span>
                         )}
                       </div>
@@ -811,6 +836,46 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
                 </p>
               </div>
             </div>
+
+            {/* Margem e Canal Breakdown */}
+            {(selectedCampaign.channelLabel || selectedCampaign.sellerMargin !== undefined) && (
+              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/20 space-y-2.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-300 font-semibold flex items-center gap-1.5">
+                    <span className="text-sm">
+                      {selectedCampaign.channel === 'mercadolivre' ? '🟡' : selectedCampaign.channel === 'shopee' ? '🟠' : selectedCampaign.channel === 'tiktok' ? '⚫' : '🌐'}
+                    </span>
+                    Canal de Venda Escolhido:
+                  </span>
+                  <span className="font-black text-white px-2.5 py-0.5 rounded-md bg-white/10 border border-white/10">
+                    {selectedCampaign.channelLabel || 'Marketplace Integrado'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-emerald-500/20 text-center">
+                  <div className="p-2 rounded-xl bg-black/40 border border-white/5">
+                    <span className="text-[10px] text-slate-400 block font-medium">Custo Fornecedor</span>
+                    <span className="text-xs font-bold text-slate-300 block mt-0.5">
+                      {selectedCampaign.currency === 'USD' ? 'US$' : 'R$'} {(selectedCampaign.supplierCost || (typeof selectedCampaign.price === 'number' ? selectedCampaign.price * 0.45 : 45)).toFixed(2).replace('.', ',')}
+                    </span>
+                    <span className="text-[9px] text-amber-400 font-black">🔒 Imutável</span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-black/40 border border-white/5">
+                    <span className="text-[10px] text-slate-400 block font-medium">Taxa do Canal</span>
+                    <span className="text-xs font-bold text-slate-300 block mt-0.5">
+                      {selectedCampaign.currency === 'USD' ? 'US$' : 'R$'} {(selectedCampaign.marketplaceFee || (typeof selectedCampaign.price === 'number' ? selectedCampaign.price * 0.13 : 13)).toFixed(2).replace('.', ',')}
+                    </span>
+                    <span className="text-[9px] text-slate-500 font-semibold">Comissão Canal</span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30">
+                    <span className="text-[10px] text-emerald-300 font-bold block">Sua Margem Líquida</span>
+                    <span className="text-xs font-black text-emerald-400 block mt-0.5">
+                      {selectedCampaign.currency === 'USD' ? 'US$' : 'R$'} {(selectedCampaign.sellerMargin || (typeof selectedCampaign.price === 'number' ? selectedCampaign.price * 0.35 : 35)).toFixed(2).replace('.', ',')}
+                    </span>
+                    <span className="text-[9px] text-emerald-400 font-black uppercase">100% Seu Lucro</span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Key Metrics */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
