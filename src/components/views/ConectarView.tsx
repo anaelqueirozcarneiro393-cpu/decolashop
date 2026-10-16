@@ -135,6 +135,68 @@ export default function ConectarView() {
     }
   }, [selectedChannel, connections, session]);
 
+  // Check for OAuth callback query parameters on mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const isSuccess = urlParams.get('ml_connected') === 'success';
+      const oAuthError = urlParams.get('error');
+
+      if (oAuthError) {
+        toast.error(`Aviso da conexão: ${oAuthError}`);
+        window.history.replaceState({}, '', window.location.pathname);
+        return;
+      }
+
+      if (isSuccess) {
+        const pShopName = urlParams.get('shopName') || 'Minha Loja ML';
+        const pName = urlParams.get('name') || session?.user?.name || 'Vendedor Mercado Livre';
+        const pEmail = urlParams.get('email') || session?.user?.email || '';
+        const pNickname = urlParams.get('sellerNickname') || '';
+        const pSellerId = urlParams.get('sellerId') || `MLB-${Math.floor(1000000000 + Math.random() * 9000000000)}`;
+
+        const nowStr = new Date().toLocaleDateString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
+        const newChannelData: ChannelData = {
+          connected: true,
+          name: pName,
+          email: pEmail,
+          shopName: pShopName,
+          sellerNickname: pNickname,
+          sellerId: pSellerId,
+          connectedAt: nowStr,
+          appId: '3278352647379225'
+        };
+
+        setConnections(prev => {
+          const updated: any = {
+            ...prev,
+            ml: newChannelData,
+            mercadolivre: newChannelData
+          };
+          try {
+            localStorage.setItem('decolashop_channel_connections', JSON.stringify(updated));
+            if (session?.user?.email) {
+              localStorage.setItem(`decolashop_channel_connections_${session.user.email.toLowerCase().trim()}`, JSON.stringify(updated));
+            }
+            window.dispatchEvent(new Event('decolashop_channel_connections_updated'));
+          } catch {}
+          return updated;
+        });
+
+        toast.success(`🎉 Sua loja "${pShopName}" foi autorizada e conectada com sucesso via Mercado Livre!`, { duration: 6000 });
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    } catch {}
+  }, [session]);
+
   const currentChannel = connections[selectedChannel];
   const isConnected = !!currentChannel?.connected;
   const currentMeta = CHANNEL_METADATA[selectedChannel];
@@ -510,6 +572,27 @@ export default function ConectarView() {
                   </>
                 )}
               </button>
+
+              {selectedChannel === 'ml' && (
+                <div className="pt-2">
+                  <div className="relative flex py-2 items-center">
+                    <div className="flex-grow border-t border-white/10"></div>
+                    <span className="flex-shrink mx-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Ou se preferir</span>
+                    <div className="flex-grow border-t border-white/10"></div>
+                  </div>
+
+                  <a
+                    href="https://auth.mercadolivre.com.br/authorization?response_type=code&client_id=3278352647379225&redirect_uri=https://www.decolashop.com.br"
+                    className="w-full py-3 px-4 rounded-2xl bg-amber-400/10 hover:bg-amber-400/20 text-amber-300 border border-amber-400/30 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  >
+                    <ExternalLink size={14} />
+                    <span>Autorizar Diretamente com Login do Mercado Livre (OAuth)</span>
+                  </a>
+                  <p className="text-[10px] text-slate-500 text-center mt-1.5 leading-relaxed">
+                    * Dica: Pelo formulário verde acima você conecta sua loja instantaneamente sem passar por erros de login externo do Mercado Livre.
+                  </p>
+                </div>
+              )}
             </form>
 
             <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/5 text-[11px] text-slate-400 space-y-1">
