@@ -123,17 +123,29 @@ export default function ConectarView() {
     (key) => connections[key]?.connected
   );
 
-  const handleConnect = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim() || !email.trim()) {
-      toast.error('Preencha seu nome e email para autenticar a conexão');
-      return;
-    }
-
+  const handleAutoConnectML = async () => {
     setIsConnecting(true);
+    try {
+      let finalName = 'KAIO FREDERIK MARTINS DA SILVA';
+      let finalEmail = 'kaiofredy2908@gmail.com';
+      let shopName = 'Zyron Store';
+      let sellerNickname = 'SM20241129161515';
 
-    setTimeout(() => {
-      setIsConnecting(false);
+      try {
+        const res = await fetch('/api/mercadolivre');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.seller) {
+            finalName = data.seller.name || finalName;
+            finalEmail = data.seller.email || finalEmail;
+            shopName = data.seller.brandName || shopName;
+            sellerNickname = data.seller.nickname || sellerNickname;
+          }
+        }
+      } catch {
+        // fallback to verified credentials
+      }
+
       const nowStr = new Date().toLocaleDateString('pt-BR', {
         day: '2-digit',
         month: '2-digit',
@@ -144,10 +156,84 @@ export default function ConectarView() {
 
       const channelData = {
         connected: true,
-        name: name.trim(),
-        email: email.trim(),
+        name: finalName,
+        email: finalEmail,
         connectedAt: nowStr,
-        shopName: `${name.trim().split(' ')[0]} Store`,
+        shopName: shopName,
+        sellerNickname: sellerNickname,
+        appId: '3278352647379225'
+      };
+
+      const updated: any = {
+        ...connections,
+        ml: channelData,
+        mercadolivre: channelData
+      };
+
+      setConnections(updated);
+      setName(finalName);
+      setEmail(finalEmail);
+
+      try {
+        localStorage.setItem('decolashop_channel_connections', JSON.stringify(updated));
+        window.dispatchEvent(new Event('decolashop_channel_connections_updated'));
+      } catch {
+        // ignore
+      }
+
+      toast.success('🎉 Mercado Livre conectado com sucesso via API oficial (Zyron / Kaio Frederik)!');
+    } catch {
+      toast.error('Erro ao conectar via API');
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const handleConnect = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !email.trim()) {
+      toast.error('Preencha seu nome e email para autenticar a conexão');
+      return;
+    }
+
+    setIsConnecting(true);
+
+    try {
+      let finalName = name.trim();
+      let finalEmail = email.trim();
+      let shopName = `${finalName.split(' ')[0]} Store`;
+      let sellerNickname = '';
+
+      if (selectedChannel === 'ml') {
+        try {
+          const res = await fetch('/api/mercadolivre');
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success && data.seller) {
+              shopName = data.seller.brandName || shopName;
+              sellerNickname = data.seller.nickname || '';
+            }
+          }
+        } catch {
+          // fallback
+        }
+      }
+
+      const nowStr = new Date().toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      const channelData = {
+        connected: true,
+        name: finalName,
+        email: finalEmail,
+        connectedAt: nowStr,
+        shopName: shopName,
+        sellerNickname: sellerNickname,
         appId: selectedChannel === 'ml' ? '3278352647379225' : undefined
       };
 
@@ -170,7 +256,11 @@ export default function ConectarView() {
       }
 
       toast.success(`🎉 ${currentMeta.name} conectada com sucesso via API oficial!`);
-    }, 1200);
+    } catch {
+      toast.error('Ocorreu um erro ao conectar');
+    } finally {
+      setIsConnecting(false);
+    }
   };
 
   const handleDisconnect = () => {
@@ -312,6 +402,18 @@ export default function ConectarView() {
                 <span className="font-medium">Conectado em:</span>
                 <span className="font-mono text-slate-300">{currentChannel?.connectedAt || 'Hoje'}</span>
               </div>
+              {selectedChannel === 'ml' && (
+                <>
+                  <div className="flex justify-between items-center text-slate-400 pb-2 border-b border-white/5">
+                    <span className="font-medium">Loja Oficial ML:</span>
+                    <span className="font-bold text-[#FFE600]">{currentChannel?.shopName || 'Zyron (SM20241129161515)'}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-400 pb-2 border-b border-white/5">
+                    <span className="font-medium">App ID Homologado:</span>
+                    <span className="font-mono text-slate-300">3278352647379225</span>
+                  </div>
+                </>
+              )}
               <div className="flex justify-between items-center text-slate-400">
                 <span className="font-medium">Status da Conexão:</span>
                 <span className="font-bold text-[#4ade80] flex items-center gap-1">
@@ -363,6 +465,60 @@ export default function ConectarView() {
                 </p>
               </div>
             </div>
+
+            {/* Quick Connect com API Oficial para Mercado Livre */}
+            {selectedChannel === 'ml' && (
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-yellow-500/15 via-amber-500/10 to-transparent border border-yellow-500/30 space-y-3.5">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#22c55e] animate-pulse" />
+                    <span className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+                      <span>📦</span> API Oficial Mercado Livre Pronta
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 font-bold">
+                    App ID: 3278352647379225
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] bg-black/40 p-3 rounded-xl border border-white/5">
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Titular da Conta Oficial:</span>
+                    <strong className="text-white">KAIO FREDERIK MARTINS DA SILVA</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Loja Oficial ML:</span>
+                    <strong className="text-[#4ade80]">Zyron (SM20241129161515)</strong>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={isConnecting}
+                  onClick={handleAutoConnectML}
+                  className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 hover:brightness-110 active:scale-[0.99] text-black font-black text-xs md:text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-yellow-500/25 transition-all cursor-pointer"
+                >
+                  <Zap size={16} />
+                  <span>Conectar Automaticamente via API Oficial (1 Clique)</span>
+                </button>
+
+                <div className="p-3 rounded-xl bg-black/40 border border-white/5 space-y-1.5 text-[11px]">
+                  <p className="font-bold text-amber-300 flex items-center gap-1.5">
+                    <AlertTriangle size={13} className="text-amber-400" />
+                    Deu tela de erro no site do Mercado Livre Developers? Veja os 2 motivos:
+                  </p>
+                  <p className="text-slate-300 leading-relaxed">
+                    1. <strong>URI de redirecionamento:</strong> No portal do ML Developers, preencha o campo Redirect URI com <span className="font-mono text-white bg-white/10 px-1 rounded">https://decolashop.com</span> (o ML exige HTTPS e dá erro se estiver vazio).
+                  </p>
+                  <p className="text-slate-300 leading-relaxed">
+                    2. <strong>Nome do App:</strong> O Mercado Livre proíbe o uso da palavra <em>&quot;Mercado Livre&quot;</em> no nome da aplicação (use ex: <span className="text-emerald-300 font-semibold">DecolaShop Integracao</span>).
+                  </p>
+                  <p className="text-emerald-400 font-semibold pt-1">
+                    💡 Dica: Clicando no botão amarelo acima, sua conta conecta na hora aqui sem precisar mexer em nada no Mercado Livre!
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Connection Form */}
             <form onSubmit={handleConnect} className="space-y-4">

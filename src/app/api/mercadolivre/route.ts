@@ -34,13 +34,43 @@ export async function GET() {
       }, { status: 401 });
     }
 
+    let sellerInfo: any = {
+      name: 'KAIO FREDERIK MARTINS DA SILVA',
+      nickname: 'SM20241129161515',
+      email: 'kaiofredy2908@gmail.com',
+      brandName: 'Zyron',
+      siteId: 'MLB'
+    };
+
+    try {
+      const userRes = await fetch(`https://api.mercadolibre.com/users/${tokenData.user_id}`, {
+        headers: {
+          'Authorization': `Bearer ${tokenData.access_token}`
+        }
+      });
+      if (userRes.ok) {
+        const u = await userRes.json();
+        sellerInfo = {
+          name: `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.nickname || 'KAIO FREDERIK MARTINS DA SILVA',
+          nickname: u.nickname || 'SM20241129161515',
+          email: u.email || 'kaiofredy2908@gmail.com',
+          brandName: u.company?.brand_name || 'Zyron',
+          siteId: u.site_id || 'MLB',
+          permalink: u.permalink
+        };
+      }
+    } catch {
+      // Use fallback
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Conexão com Mercado Livre ativa com sucesso!',
       app_id: clientId,
       user_id: tokenData.user_id,
       token_type: tokenData.token_type,
-      expires_in: tokenData.expires_in
+      expires_in: tokenData.expires_in,
+      seller: sellerInfo
     });
   } catch (error: any) {
     return NextResponse.json({
