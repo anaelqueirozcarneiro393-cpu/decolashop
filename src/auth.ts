@@ -72,6 +72,43 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const purchaseCode = rawPurchaseCode;
 
         // =========================================================================
+        // 0.0 NOVO USUÁRIO MENSAL: GIRLAN DIEGO (girlandiego@gmail.com)
+        // =========================================================================
+        const isGirlanLogin = 
+          rawEmail === "girlandiego@gmail.com" || 
+          rawEmail === "girlandiego" || 
+          rawEmail === "girlan" ||
+          rawEmail === "girlan diego";
+
+        if (isGirlanLogin) {
+          const validGirlanPasswords = [
+            "d12451245#g",
+            "decola@2026",
+            "decola123",
+            "mensal123",
+            "123456"
+          ];
+          const isGirlanPasswordValid = 
+            rawPassword === "D12451245#g" || 
+            (rawPassword && validGirlanPasswords.includes(rawPassword.toLowerCase()));
+
+          if (!isGirlanPasswordValid) {
+            console.warn(`[AUTH] Tentativa de login no Girlan Diego (Mensal) com senha inválida`);
+            return null;
+          }
+
+          return {
+            id: "girlandiego@gmail.com",
+            name: "Girlan Diego",
+            email: "girlandiego@gmail.com",
+            image: "https://api.dicebear.com/7.x/bottts/svg?seed=girlandiego",
+            plan: "monthly",
+            order_bumps: ["bump_fornecedores"],
+            role: "user",
+          };
+        }
+
+        // =========================================================================
         // 0.0 NOVO USUÁRIO MENSAL: GABRIEL MARTINS (gabriel.martins@decolashop.com)
         // =========================================================================
         const isGabrielLogin = 
@@ -812,6 +849,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         cleanEmail.includes("jucielyj9") ||
         cleanEmail.includes("kaio") ||
         cleanEmail.includes("parceiro") ||
+        cleanEmail.includes("girlandiego") ||
+        cleanEmail.includes("girlan") ||
         cleanEmail.includes("gabriel") ||
         cleanEmail.includes("matheus") ||
         cleanEmail.includes("mensal") ||
@@ -845,6 +884,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       if (token.email) {
         const emailLower = token.email.toLowerCase();
+
+        // 0.0 GIRLAN DIEGO (Garantia de plano mensal)
+        if (emailLower.includes("girlandiego") || emailLower.includes("girlan")) {
+          token.plan = "monthly";
+          token.role = "user";
+          token.order_bumps = ["bump_fornecedores"];
+          return token;
+        }
 
         // 0.0 GABRIEL MARTINS (Garantia de plano mensal)
         if (emailLower.includes("gabriel") || emailLower.includes("mensal")) {
