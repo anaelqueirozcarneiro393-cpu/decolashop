@@ -64,9 +64,10 @@ import {
 
 interface DivulgadosViewProps {
   onNavigate: (view: any, product?: any) => void;
+  initialTab?: 'divulgados' | 'vendidos';
 }
 
-export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
+export default function DivulgadosView({ onNavigate, initialTab = 'divulgados' }: DivulgadosViewProps) {
   const { data: session } = useSession();
   const rawEmail = 
     session?.user?.email || 
@@ -75,6 +76,14 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
   const isGerente = isGerenteOrAdminEmail(userEmail);
 
   const { currency, isUsd: globalIsUsd, setCurrency } = useRegionCurrency();
+
+  const [activeMainTab, setActiveMainTab] = useState<'divulgados' | 'vendidos'>(initialTab);
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveMainTab(initialTab);
+    }
+  }, [initialTab]);
 
   const [campaigns, setCampaigns] = useState<DivulgadoCampaign[]>([]);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'paused'>('all');
@@ -177,14 +186,15 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
     toast.success('WhatsApp aberto com mensagem de rastreio!');
   };
 
-  const categories = ['Todas', ...Array.from(new Set(campaigns.map(c => c.category).filter(Boolean)))];
+  const soldCampaigns = campaigns.filter(c => (c.salesCount || (c as any).sales || 0) > 0);
+  const baseCampaigns = activeMainTab === 'vendidos' ? soldCampaigns : campaigns;
 
-  const filteredCampaigns = campaigns.filter(c => {
-    const matchStatus = 
-      statusFilter === 'all' ? true : 
-      statusFilter === 'active' ? c.status === 'active' : 
-      c.status === 'paused';
-    
+  const categories = ['Todas', ...Array.from(new Set(baseCampaigns.map(c => c.category).filter(Boolean)))];
+
+  const inTransitCount = soldCampaigns.filter(c => !getCampaignShippingInfo(c).isDelivered).length;
+  const deliveredCount = soldCampaigns.filter(c => getCampaignShippingInfo(c).isDelivered).length;
+
+  const filteredCampaigns = baseCampaigns.filter(c => {
     const isItemUsd = c.currency === 'USD' || (typeof c.price === 'string' && c.price.includes('$') && !c.price.includes('R$'));
     const matchRegion = 
       regionFilter === 'all' ? true :
@@ -192,7 +202,20 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
       !isItemUsd;
 
     const matchCategory = selectedCategory === 'Todas' || c.category === selectedCategory;
-    const matchSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (c.marketplaceItemId && c.marketplaceItemId.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (activeMainTab === 'vendidos' && getCampaignShippingInfo(c).trackingCode.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    const matchStatus = 
+      activeMainTab === 'vendidos' ? (
+        statusFilter === 'all' ? true :
+        statusFilter === 'active' ? !getCampaignShippingInfo(c).isDelivered :
+        getCampaignShippingInfo(c).isDelivered
+      ) : (
+        statusFilter === 'all' ? true : 
+        statusFilter === 'active' ? c.status === 'active' : 
+        c.status === 'paused'
+      );
 
     return matchStatus && matchRegion && matchCategory && matchSearch;
   });
@@ -205,28 +228,63 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
   const totalUsdRevenue = usdCampaigns.reduce((acc, c) => acc + (c.revenue || 0), 0);
   const totalBrlRevenue = brlCampaigns.reduce((acc, c) => acc + (c.revenue || 0), 0);
 
+  const totalSoldProfitBrl = soldCampaigns
+    .filter(c => !(c.currency === 'USD' || (typeof c.price === 'string' && c.price.includes('$') && !c.price.includes('R$'))))
+    .reduce((acc, c) => acc + ((c.sellerMargin || (typeof c.price === 'number' ? c.price * 0.35 : 35)) * (c.salesCount || (c as any).sales || 1)), 0);
+  const totalSoldProfitUsd = soldCampaigns
+    .filter(c => c.currency === 'USD' || (typeof c.price === 'string' && c.price.includes('$') && !c.price.includes('R$')))
+    .reduce((acc, c) => acc + ((c.sellerMargin || (typeof c.price === 'number' ? c.price * 0.35 : 35)) * (c.salesCount || (c as any).sales || 1)), 0);
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-20 animate-in fade-in duration-300">
-      {/* Top Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#22c55e]/15 text-[#4ade80] border border-[#22c55e]/30 text-xs font-bold mb-2 shadow-[0_0_10px_rgba(34,197,94,0.15)]">
-            <Megaphone className="w-3.5 h-3.5 text-[#22c55e]" />
-            <span>CENTRAL DE TRANSMISSÃO, TRÁFEGO & RASTREAMENTO</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight flex items-center gap-2">
-            Produtos Divulgados
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/30 font-bold">
-              {stats.activeCount} Ativos
+      {/* Top Main Navigation Tabs: Anúncios Divulgados vs Produtos Vendidos */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-2 bg-[#0d121f]/90 border border-white/10 rounded-2xl shadow-xl backdrop-blur-xl">
+        <div className="flex items-center gap-2 flex-1 w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={() => {
+              setActiveMainTab('divulgados');
+              onNavigate('divulgados');
+            }}
+            className={`flex-1 sm:flex-initial px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              activeMainTab === 'divulgados'
+                ? 'bg-[#22c55e] text-black shadow-lg shadow-[#22c55e]/25'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Megaphone size={16} />
+            <span>Anúncios Divulgados</span>
+            <span className={`px-2 py-0.5 rounded-md text-[10px] font-black ${
+              activeMainTab === 'divulgados' ? 'bg-black/30 text-black' : 'bg-white/10 text-slate-300'
+            }`}>
+              {campaigns.length}
             </span>
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
-            Monitore em tempo real as campanhas ativas, vendas geradas e acompanhe a rota logística com o prazo estrito de 7 dias de entrega.
-          </p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveMainTab('vendidos');
+              onNavigate('vendidos');
+            }}
+            className={`flex-1 sm:flex-initial px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              activeMainTab === 'vendidos'
+                ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/25'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <PackageCheck size={16} />
+            <span>Produtos Vendidos & Rastreio</span>
+            <span className={`px-2 py-0.5 rounded-md text-[10px] font-black ${
+              activeMainTab === 'vendidos' ? 'bg-black/30 text-white' : 'bg-emerald-500/20 text-emerald-400'
+            }`}>
+              {soldCampaigns.length}
+            </span>
+          </button>
         </div>
 
         {/* Global Region & Add Actions */}
-        <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="flex items-center gap-2.5 flex-wrap self-end lg:self-auto">
           {/* Seletor de Região / Moeda Global */}
           <div className="p-1 rounded-xl bg-black/60 border border-white/10 flex items-center shadow-lg">
             <button
@@ -281,87 +339,207 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
         </div>
       </div>
 
-      {/* Summary KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {/* Ativas */}
-        <div className="rounded-2xl p-4 sm:p-5 bg-[#0d121f]/90 border border-white/10 hover:border-[#22c55e]/30 transition-all shadow-xl backdrop-blur-xl">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Campanhas Ativas</span>
-            <div className="w-8 h-8 rounded-lg bg-[#22c55e]/15 flex items-center justify-center text-[#22c55e]">
-              <Sparkles size={16} />
+      {/* Dynamic Header */}
+      <div>
+        {activeMainTab === 'divulgados' ? (
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#22c55e]/15 text-[#4ade80] border border-[#22c55e]/30 text-xs font-bold mb-2 shadow-[0_0_10px_rgba(34,197,94,0.15)]">
+              <Megaphone className="w-3.5 h-3.5 text-[#22c55e]" />
+              <span>CENTRAL DE TRANSMISSÃO & TRÁFEGO</span>
             </div>
-          </div>
-          <div className="flex items-baseline justify-between">
-            <div className="text-xl sm:text-2xl font-black text-white">
-              {stats.activeCount} <span className="text-xs text-slate-400 font-normal">/ {MAX_ACTIVE_CAMPAIGNS} máx</span>
-            </div>
-            {stats.activeCount >= MAX_ACTIVE_CAMPAIGNS && (
-              <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                Limite 15/15
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight flex items-center gap-2">
+              Produtos Divulgados
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/30 font-bold">
+                {stats.activeCount} Ativos
               </span>
-            )}
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
+              Monitore em tempo real as campanhas ativas, visualizações e cliques nos marketplaces parceiros.
+            </p>
           </div>
-          <div className="flex items-center gap-1.5 mt-2 text-[10px] sm:text-xs text-[#4ade80] font-bold">
-            <span className="w-2 h-2 rounded-full bg-[#22c55e] animate-pulse" />
-            <span>Transmitindo em redes VIP</span>
-          </div>
-        </div>
-
-        {/* Impressões */}
-        <div className="rounded-2xl p-4 sm:p-5 bg-[#0d121f]/90 border border-white/10 hover:border-[#22c55e]/30 transition-all shadow-xl backdrop-blur-xl">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Visualizações</span>
-            <div className="w-8 h-8 rounded-lg bg-blue-500/15 flex items-center justify-center text-blue-400">
-              <Eye size={16} />
+        ) : (
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-xs font-bold mb-2 shadow-[0_0_10px_rgba(6,182,212,0.15)]">
+              <Truck className="w-3.5 h-3.5 text-cyan-400" />
+              <span>LOGÍSTICA & ACOMPANHAMENTO DE ENVIOS (PRAZO RIGOROSO DE 7 DIAS)</span>
             </div>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight flex items-center gap-2">
+              Produtos Vendidos & Rastreio
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold">
+                {soldCampaigns.length} Encomendas
+              </span>
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
+              Acompanhe o status de transporte, transportadora parceira, códigos de rastreio e entrega garantida aos clientes no prazo de até 7 dias corridos.
+            </p>
           </div>
-          <div className="text-xl sm:text-2xl font-black text-white">
-            {stats.totalImpressions.toLocaleString('pt-BR')}
-          </div>
-          <div className="flex items-center gap-1 mt-2 text-[10px] sm:text-xs text-blue-400 font-bold">
-            <TrendingUp size={12} />
-            <span>+16.4% tráfego nas últimas 24h</span>
-          </div>
-        </div>
-
-        {/* Cliques */}
-        <div className="rounded-2xl p-4 sm:p-5 bg-[#0d121f]/90 border border-white/10 hover:border-[#22c55e]/30 transition-all shadow-xl backdrop-blur-xl">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Cliques no Link</span>
-            <div className="w-8 h-8 rounded-lg bg-purple-500/15 flex items-center justify-center text-purple-400">
-              <MousePointerClick size={16} />
-            </div>
-          </div>
-          <div className="text-xl sm:text-2xl font-black text-white">
-            {stats.totalClicks.toLocaleString('pt-BR')}
-          </div>
-          <div className="flex items-center gap-1 mt-2 text-[10px] sm:text-xs text-purple-400 font-bold">
-            <span>CTR Médio: 4.2%</span>
-          </div>
-        </div>
-
-        {/* Faturamento */}
-        <div className="rounded-2xl p-4 sm:p-5 bg-[#0d121f]/90 border border-white/10 hover:border-[#22c55e]/30 transition-all shadow-xl backdrop-blur-xl">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Faturamento de Vendas</span>
-            <div className="w-8 h-8 rounded-lg bg-amber-500/15 flex items-center justify-center text-amber-400">
-              <DollarSign size={16} />
-            </div>
-          </div>
-          <div className="text-lg sm:text-xl font-black text-[#4ade80]">
-            {regionFilter === 'USD' ? (
-              <span>US$ {totalUsdRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-            ) : regionFilter === 'BRL' ? (
-              <span>R$ {totalBrlRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-            ) : (
-              <span>R$ {totalBrlRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-xs text-blue-400 font-normal">+ US$ {totalUsdRevenue.toFixed(0)}</span></span>
-            )}
-          </div>
-          <div className="flex items-center gap-1 mt-2 text-[10px] sm:text-xs text-amber-400 font-bold">
-            <span>{stats.totalSales} pedidos concluídos • ROAS {stats.avgRoas}x</span>
-          </div>
-        </div>
+        )}
       </div>
+
+      {/* Dynamic Summary KPI Cards */}
+      {activeMainTab === 'divulgados' ? (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {/* Ativas */}
+          <div className="rounded-2xl p-4 sm:p-5 bg-[#0d121f]/90 border border-white/10 hover:border-[#22c55e]/30 transition-all shadow-xl backdrop-blur-xl">
+            <div className="flex items-center justify-between text-slate-400 mb-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider">Campanhas Ativas</span>
+              <div className="w-8 h-8 rounded-lg bg-[#22c55e]/15 flex items-center justify-center text-[#22c55e]">
+                <Sparkles size={16} />
+              </div>
+            </div>
+            <div className="flex items-baseline justify-between">
+              <div className="text-xl sm:text-2xl font-black text-white">
+                {stats.activeCount} <span className="text-xs text-slate-400 font-normal">/ {MAX_ACTIVE_CAMPAIGNS} máx</span>
+              </div>
+              {stats.activeCount >= MAX_ACTIVE_CAMPAIGNS && (
+                <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                  Limite 15/15
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 mt-2 text-[10px] sm:text-xs text-[#4ade80] font-bold">
+              <span className="w-2 h-2 rounded-full bg-[#22c55e] animate-pulse" />
+              <span>Transmitindo em redes VIP</span>
+            </div>
+          </div>
+
+          {/* Impressões */}
+          <div className="rounded-2xl p-4 sm:p-5 bg-[#0d121f]/90 border border-white/10 hover:border-[#22c55e]/30 transition-all shadow-xl backdrop-blur-xl">
+            <div className="flex items-center justify-between text-slate-400 mb-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider">Visualizações</span>
+              <div className="w-8 h-8 rounded-lg bg-blue-500/15 flex items-center justify-center text-blue-400">
+                <Eye size={16} />
+              </div>
+            </div>
+            <div className="text-xl sm:text-2xl font-black text-white">
+              {stats.totalImpressions.toLocaleString('pt-BR')}
+            </div>
+            <div className="flex items-center gap-1 mt-2 text-[10px] sm:text-xs text-blue-400 font-bold">
+              <TrendingUp size={12} />
+              <span>+16.4% tráfego nas últimas 24h</span>
+            </div>
+          </div>
+
+          {/* Cliques */}
+          <div className="rounded-2xl p-4 sm:p-5 bg-[#0d121f]/90 border border-white/10 hover:border-[#22c55e]/30 transition-all shadow-xl backdrop-blur-xl">
+            <div className="flex items-center justify-between text-slate-400 mb-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider">Cliques no Link</span>
+              <div className="w-8 h-8 rounded-lg bg-purple-500/15 flex items-center justify-center text-purple-400">
+                <MousePointerClick size={16} />
+              </div>
+            </div>
+            <div className="text-xl sm:text-2xl font-black text-white">
+              {stats.totalClicks.toLocaleString('pt-BR')}
+            </div>
+            <div className="flex items-center gap-1 mt-2 text-[10px] sm:text-xs text-purple-400 font-bold">
+              <span>CTR Médio: 4.2%</span>
+            </div>
+          </div>
+
+          {/* Vendas IA geradas */}
+          <div 
+            onClick={() => {
+              setActiveMainTab('vendidos');
+              onNavigate('vendidos');
+            }}
+            className="rounded-2xl p-4 sm:p-5 bg-[#0d121f]/90 border border-white/10 hover:border-emerald-500/40 transition-all shadow-xl backdrop-blur-xl cursor-pointer group"
+          >
+            <div className="flex items-center justify-between text-slate-400 mb-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider">Vendas Convertidas</span>
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/15 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">
+                <PackageCheck size={16} />
+              </div>
+            </div>
+            <div className="text-xl sm:text-2xl font-black text-[#4ade80]">
+              {stats.totalSales} <span className="text-xs text-slate-400 font-normal">pedidos</span>
+            </div>
+            <div className="flex items-center gap-1 mt-2 text-[10px] sm:text-xs text-emerald-400 font-bold group-hover:underline">
+              <span>Ver logísticas de rastreio →</span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {/* Total Pedidos Vendidos */}
+          <div className="rounded-2xl p-4 sm:p-5 bg-[#0d121f]/90 border border-cyan-500/30 hover:border-cyan-500/50 transition-all shadow-xl backdrop-blur-xl">
+            <div className="flex items-center justify-between text-slate-400 mb-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider">Total de Pedidos</span>
+              <div className="w-8 h-8 rounded-lg bg-cyan-500/15 flex items-center justify-center text-cyan-400">
+                <PackageCheck size={16} />
+              </div>
+            </div>
+            <div className="text-xl sm:text-2xl font-black text-white">
+              {stats.totalSales} <span className="text-xs text-cyan-400 font-normal">encomendas</span>
+            </div>
+            <div className="flex items-center gap-1.5 mt-2 text-[10px] sm:text-xs text-cyan-300 font-bold">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+              <span>Envios despachados e rastreáveis</span>
+            </div>
+          </div>
+
+          {/* Faturamento Vendido */}
+          <div className="rounded-2xl p-4 sm:p-5 bg-[#0d121f]/90 border border-white/10 hover:border-[#22c55e]/30 transition-all shadow-xl backdrop-blur-xl">
+            <div className="flex items-center justify-between text-slate-400 mb-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider">Faturamento Concluído</span>
+              <div className="w-8 h-8 rounded-lg bg-[#22c55e]/15 flex items-center justify-center text-[#22c55e]">
+                <DollarSign size={16} />
+              </div>
+            </div>
+            <div className="text-lg sm:text-xl font-black text-[#4ade80]">
+              {regionFilter === 'USD' ? (
+                <span>US$ {totalUsdRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              ) : regionFilter === 'BRL' ? (
+                <span>R$ {totalBrlRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              ) : (
+                <span>R$ {totalBrlRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-xs text-blue-400 font-normal">+ US$ {totalUsdRevenue.toFixed(0)}</span></span>
+              )}
+            </div>
+            <div className="flex items-center gap-1 mt-2 text-[10px] sm:text-xs text-emerald-400 font-bold">
+              <CheckCircle2 size={12} />
+              <span>100% recebido e faturado</span>
+            </div>
+          </div>
+
+          {/* Margem Líquida Total */}
+          <div className="rounded-2xl p-4 sm:p-5 bg-[#0d121f]/90 border border-white/10 hover:border-[#22c55e]/30 transition-all shadow-xl backdrop-blur-xl">
+            <div className="flex items-center justify-between text-slate-400 mb-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider">Margem Lucrada (Seu Saldo)</span>
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/15 flex items-center justify-center text-emerald-400">
+                <TrendingUp size={16} />
+              </div>
+            </div>
+            <div className="text-lg sm:text-xl font-black text-emerald-400">
+              {regionFilter === 'USD' ? (
+                <span>US$ {totalSoldProfitUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              ) : regionFilter === 'BRL' ? (
+                <span>R$ {totalSoldProfitBrl.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              ) : (
+                <span>R$ {totalSoldProfitBrl.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-xs text-blue-400 font-normal">+ US$ {totalSoldProfitUsd.toFixed(0)}</span></span>
+              )}
+            </div>
+            <div className="flex items-center gap-1 mt-2 text-[10px] sm:text-xs text-emerald-300 font-bold">
+              <span>100% livre após taxas do marketplace</span>
+            </div>
+          </div>
+
+          {/* Prazo Rigoroso 7 Dias */}
+          <div className="rounded-2xl p-4 sm:p-5 bg-[#0d121f]/90 border border-amber-500/30 hover:border-amber-500/50 transition-all shadow-xl backdrop-blur-xl">
+            <div className="flex items-center justify-between text-slate-400 mb-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider">Prazo de Entrega</span>
+              <div className="w-8 h-8 rounded-lg bg-amber-500/15 flex items-center justify-center text-amber-400">
+                <Truck size={16} />
+              </div>
+            </div>
+            <div className="text-xl sm:text-2xl font-black text-white">
+              7 Dias <span className="text-xs text-amber-400 font-normal">estritos</span>
+            </div>
+            <div className="flex items-center gap-1 mt-2 text-[10px] sm:text-xs text-amber-300 font-bold">
+              <ShieldCheck size={12} className="text-[#22c55e]" />
+              <span>100% das entregas dentro do prazo</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filter and Search Bar */}
       <div className="rounded-2xl p-3 sm:p-4 bg-[#0d121f]/80 border border-white/10 flex flex-col md:flex-row items-center justify-between gap-3">
@@ -371,33 +549,33 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
             onClick={() => setStatusFilter('all')}
             className={`flex-1 md:flex-initial px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               statusFilter === 'all'
-                ? 'bg-[#22c55e] text-black shadow-md'
+                ? activeMainTab === 'vendidos' ? 'bg-cyan-500 text-black shadow-md font-black' : 'bg-[#22c55e] text-black shadow-md font-black'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            Todos ({campaigns.length})
+            Todos ({baseCampaigns.length})
           </button>
           <button
             onClick={() => setStatusFilter('active')}
             className={`flex-1 md:flex-initial px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               statusFilter === 'active'
-                ? 'bg-[#22c55e] text-black shadow-md'
+                ? activeMainTab === 'vendidos' ? 'bg-cyan-500 text-black shadow-md font-black' : 'bg-[#22c55e] text-black shadow-md font-black'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span>Em Veiculação ({stats.activeCount})</span>
+            <span className={`w-2 h-2 rounded-full ${activeMainTab === 'vendidos' ? 'bg-cyan-400' : 'bg-emerald-400'}`} />
+            <span>{activeMainTab === 'vendidos' ? `Em Trânsito (${inTransitCount})` : `Em Veiculação (${stats.activeCount})`}</span>
           </button>
           <button
             onClick={() => setStatusFilter('paused')}
             className={`flex-1 md:flex-initial px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               statusFilter === 'paused'
-                ? 'bg-amber-400 text-black shadow-md'
+                ? activeMainTab === 'vendidos' ? 'bg-[#22c55e] text-black shadow-md font-black' : 'bg-amber-400 text-black shadow-md font-black'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            <span className="w-2 h-2 rounded-full bg-amber-400" />
-            <span>Pausados ({campaigns.length - stats.activeCount})</span>
+            <span className={`w-2 h-2 rounded-full ${activeMainTab === 'vendidos' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+            <span>{activeMainTab === 'vendidos' ? `Entregues (${deliveredCount})` : `Pausados (${campaigns.length - stats.activeCount})`}</span>
           </button>
         </div>
 
@@ -407,7 +585,7 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
             <input
               type="text"
-              placeholder="Buscar produto divulgado ou rastreio..."
+              placeholder={activeMainTab === 'vendidos' ? 'Buscar pedido vendido, rastreio ou cidade...' : 'Buscar produto divulgado...'}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-black/40 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#22c55e]"
@@ -434,12 +612,18 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
       {filteredCampaigns.length === 0 ? (
         <div className="rounded-3xl p-12 bg-[#0d121f]/60 border border-white/10 text-center space-y-4">
           <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 mx-auto flex items-center justify-center text-slate-500">
-            <Megaphone size={28} />
+            {activeMainTab === 'vendidos' ? <PackageCheck size={32} className="text-cyan-400" /> : <Megaphone size={28} />}
           </div>
           <div>
-            <h3 className="text-lg font-bold text-white">Nenhum produto divulgado encontrado</h3>
+            <h3 className="text-lg font-bold text-white">
+              {activeMainTab === 'vendidos'
+                ? 'Nenhum pedido vendido com rastreio pendente'
+                : 'Nenhum produto divulgado encontrado'}
+            </h3>
             <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
-              {searchQuery 
+              {activeMainTab === 'vendidos'
+                ? 'O acompanhamento logístico de transporte, transportadora e prazo de entrega de 7 dias é ativado automaticamente assim que seus produtos divulgados realizam vendas.'
+                : searchQuery 
                 ? 'Nenhum item corresponde ao termo pesquisado. Tente outra palavra-chave.' 
                 : regionFilter !== 'all'
                 ? `Você ainda não possui produtos divulgados no filtro de região selecionado (${regionFilter === 'USD' ? 'Exterior' : 'Brasil'}).`
@@ -447,7 +631,18 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
             </p>
           </div>
           <div className="flex items-center justify-center gap-3">
-            {campaigns.length === 0 && isGerente ? (
+            {activeMainTab === 'vendidos' ? (
+              <button
+                onClick={() => {
+                  setActiveMainTab('divulgados');
+                  onNavigate('divulgados');
+                }}
+                className="px-4 py-2 rounded-xl bg-[#22c55e] hover:bg-[#16a34a] text-black font-black text-xs transition-colors flex items-center gap-2 cursor-pointer shadow-lg shadow-[#22c55e]/20"
+              >
+                <Megaphone size={14} />
+                <span>Ver Anúncios Divulgados</span>
+              </button>
+            ) : campaigns.length === 0 && isGerente ? (
               <button
                 onClick={handleRestoreDefaults}
                 className="px-4 py-2 rounded-xl bg-white/10 text-white text-xs font-bold hover:bg-white/20 transition-all flex items-center gap-1.5 cursor-pointer"
@@ -457,7 +652,7 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
             ) : null}
             <button
               onClick={() => onNavigate('divulgacao-ia')}
-              className="px-4 py-2 rounded-xl bg-[#22c55e] text-black text-xs font-black uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs transition-colors flex items-center gap-2 cursor-pointer"
             >
               <Plus size={14} /> Divulgar Agora
             </button>
@@ -485,7 +680,9 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
               <div
                 key={camp.id}
                 className={`rounded-2xl sm:rounded-3xl p-4 sm:p-5 bg-[#0d121f]/90 border transition-all shadow-xl backdrop-blur-xl flex flex-col gap-4 ${
-                  isActive
+                  activeMainTab === 'vendidos'
+                    ? 'border-cyan-500/20 hover:border-cyan-500/40'
+                    : isActive
                     ? 'border-white/10 hover:border-[#22c55e]/40'
                     : 'border-white/5 opacity-75 hover:opacity-100 hover:border-amber-400/30'
                 }`}
@@ -502,14 +699,21 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
                         className="w-full h-full object-cover"
                       />
                       <div className="absolute top-1.5 left-1.5">
-                        <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider flex items-center gap-1 shadow-md ${
-                          isActive
-                            ? 'bg-[#22c55e] text-black'
-                            : 'bg-amber-400 text-black'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-black animate-pulse' : 'bg-black/60'}`} />
-                          {isActive ? 'ATIVO' : 'PAUSADO'}
-                        </span>
+                        {activeMainTab === 'vendidos' ? (
+                          <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider flex items-center gap-1 shadow-md bg-emerald-500 text-black">
+                            <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" />
+                            PEDIDO VENDIDO
+                          </span>
+                        ) : (
+                          <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider flex items-center gap-1 shadow-md ${
+                            isActive
+                              ? 'bg-[#22c55e] text-black'
+                              : 'bg-amber-400 text-black'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-black animate-pulse' : 'bg-black/60'}`} />
+                            {isActive ? 'ATIVO' : 'PAUSADO'}
+                          </span>
+                        )}
                       </div>
 
                       {/* Flag Pill */}
@@ -597,211 +801,306 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
                     </div>
                   </div>
 
-                  {/* Center: Live Performance Numbers */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 py-3 px-3.5 rounded-2xl bg-black/40 border border-white/5 text-center flex-shrink-0 lg:min-w-[360px]">
-                    <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Visualizações</span>
-                      <span className="text-xs sm:text-sm font-black text-white mt-0.5 block">
-                        {camp.impressions.toLocaleString('pt-BR')}
-                      </span>
-                    </div>
+                  {/* Center: Performance Numbers / Order Fulfillment */}
+                  {activeMainTab === 'vendidos' ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 py-3 px-3.5 rounded-2xl bg-black/40 border border-cyan-500/20 text-center flex-shrink-0 lg:min-w-[360px]">
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Pedidos</span>
+                        <span className="text-xs sm:text-sm font-black text-cyan-300 mt-0.5 block">
+                          {camp.salesCount} ped.
+                        </span>
+                      </div>
 
-                    <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Cliques</span>
-                      <span className="text-xs sm:text-sm font-black text-white mt-0.5 block">
-                        {camp.clicks.toLocaleString('pt-BR')}
-                      </span>
-                    </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Faturamento</span>
+                        <span className="text-xs sm:text-sm font-black text-[#4ade80] mt-0.5 block">
+                          {formattedRevenue}
+                        </span>
+                      </div>
 
-                    <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Vendas IA</span>
-                      <span className="text-xs sm:text-sm font-black text-[#4ade80] mt-0.5 block">
-                        {camp.salesCount} ped.
-                      </span>
-                    </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Lucro Líquido</span>
+                        <span className="text-xs sm:text-sm font-black text-emerald-300 mt-0.5 block">
+                          {isUsd ? 'US$' : 'R$'} {((camp.sellerMargin || (typeof camp.price === 'number' ? camp.price * 0.35 : 35)) * (camp.salesCount || 1)).toFixed(2).replace('.', ',')}
+                        </span>
+                      </div>
 
-                    <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Faturamento</span>
-                      <span className="text-xs sm:text-sm font-black text-[#4ade80] mt-0.5 block">
-                        {formattedRevenue}
-                      </span>
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Previsão</span>
+                        <span className={`text-[11px] font-black mt-0.5 block truncate ${shipping.isDelivered ? 'text-[#4ade80]' : 'text-amber-300'}`}>
+                          {shipping.isDelivered ? 'Entregue (7d)' : shipping.estimatedDeliveryDate}
+                        </span>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 py-3 px-3.5 rounded-2xl bg-black/40 border border-white/5 text-center flex-shrink-0 lg:min-w-[360px]">
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Visualizações</span>
+                        <span className="text-xs sm:text-sm font-black text-white mt-0.5 block">
+                          {camp.impressions.toLocaleString('pt-BR')}
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Cliques</span>
+                        <span className="text-xs sm:text-sm font-black text-white mt-0.5 block">
+                          {camp.clicks.toLocaleString('pt-BR')}
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Vendas IA</span>
+                        <span className="text-xs sm:text-sm font-black text-[#4ade80] mt-0.5 block">
+                          {camp.salesCount} ped.
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Faturamento</span>
+                        <span className="text-xs sm:text-sm font-black text-[#4ade80] mt-0.5 block">
+                          {formattedRevenue}
+                        </span>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Right: Actions */}
                   <div className="flex items-center gap-2 justify-end flex-wrap flex-shrink-0">
-                    {/* Pause / Resume Button */}
-                    <button
-                      onClick={(e) => handleToggle(camp.id, e)}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                        isActive
-                          ? 'bg-amber-400/10 text-amber-300 border border-amber-400/30 hover:bg-amber-400/20'
-                          : 'bg-[#22c55e]/15 text-[#4ade80] border border-[#22c55e]/30 hover:bg-[#22c55e]/25'
-                      }`}
-                      title={isActive ? 'Pausar divulgação' : 'Retomar divulgação'}
-                    >
-                      {isActive ? <Pause size={13} /> : <Play size={13} />}
-                      <span>{isActive ? 'Pausar' : 'Retomar'}</span>
-                    </button>
+                    {activeMainTab === 'vendidos' ? (
+                      <>
+                        {/* Tracking / Rastreio Button */}
+                        <button
+                          onClick={() => setTrackingCampaign(camp)}
+                          className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-md cursor-pointer ${
+                            shipping.isDelivered
+                              ? 'bg-[#22c55e] text-black hover:brightness-110 shadow-[#22c55e]/25'
+                              : 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:brightness-110 shadow-cyan-500/25'
+                          }`}
+                          title="Acompanhar transporte e entrega em tempo real (prazo 7 dias)"
+                        >
+                          <Truck size={14} />
+                          <span>{shipping.isDelivered ? 'Entregue (7d)' : 'Rastrear Pedido'}</span>
+                        </button>
 
-                    {/* View Details Modal */}
-                    <button
-                      onClick={() => setSelectedCampaign(camp)}
-                      className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold border border-white/10 transition-all flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <Eye size={13} />
-                      <span>Detalhes</span>
-                    </button>
+                        {/* WhatsApp Notification */}
+                        <button
+                          type="button"
+                          onClick={() => handleSendWhatsAppNotification(camp, shipping)}
+                          className="px-3 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                          title="Notificar cliente com dados de rastreio no WhatsApp"
+                        >
+                          <MessageCircle size={13} />
+                          <span className="hidden sm:inline">WhatsApp</span>
+                        </button>
 
-                    {/* Link Oficial do Anúncio no Marketplace */}
-                    <a
-                      href={camp.marketplaceItemUrl || (camp.channel === 'mercadolivre' ? `https://lista.mercadolivre.com.br/${encodeURIComponent(camp.name.split('(')[0].trim())}` : `https://shopee.com.br/search?keyword=${encodeURIComponent(camp.name.split('(')[0].trim())}`)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
-                        camp.channel === 'mercadolivre'
-                          ? 'bg-yellow-500/15 hover:bg-yellow-500/25 text-yellow-300 border-yellow-500/30'
-                          : camp.channel === 'shopee'
-                          ? 'bg-orange-500/15 hover:bg-orange-500/25 text-orange-400 border-orange-500/30'
-                          : 'bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border-cyan-500/30'
-                      }`}
-                      title={`Abrir anúncio oficial no ${camp.channelLabel || 'Marketplace'}`}
-                    >
-                      <ExternalLink size={13} />
-                      <span>{camp.channel === 'mercadolivre' ? 'Ver no ML' : camp.channel === 'shopee' ? 'Ver na Shopee' : 'Ver Anúncio'}</span>
-                    </a>
+                        {/* View Details Modal */}
+                        <button
+                          onClick={() => setSelectedCampaign(camp)}
+                          className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold border border-white/10 transition-all flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Eye size={13} />
+                          <span>Detalhes</span>
+                        </button>
 
-                    {/* Tracking / Rastreio Button */}
-                    <button
-                      onClick={() => setTrackingCampaign(camp)}
-                      className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-md cursor-pointer ${
-                        shipping.isDelivered
-                          ? 'bg-[#22c55e] text-black hover:brightness-110 shadow-[#22c55e]/25'
-                          : 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:brightness-110 shadow-cyan-500/25'
-                      }`}
-                      title="Acompanhar transporte e entrega em tempo real (prazo 7 dias)"
-                    >
-                      <Truck size={14} />
-                      <span>{shipping.isDelivered ? 'Entregue (7d)' : 'Rastrear Pedido'}</span>
-                    </button>
+                        {/* Link Oficial do Anúncio no Marketplace */}
+                        <a
+                          href={camp.marketplaceItemUrl || (camp.channel === 'mercadolivre' ? `https://lista.mercadolivre.com.br/${encodeURIComponent(camp.name.split('(')[0].trim())}` : `https://shopee.com.br/search?keyword=${encodeURIComponent(camp.name.split('(')[0].trim())}`)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-bold border border-white/10 transition-all flex items-center gap-1.5 cursor-pointer"
+                          title={`Abrir anúncio oficial no ${camp.channelLabel || 'Marketplace'}`}
+                        >
+                          <ExternalLink size={13} />
+                          <span>Anúncio</span>
+                        </a>
+                      </>
+                    ) : (
+                      <>
+                        {/* Pause / Resume Button */}
+                        <button
+                          onClick={(e) => handleToggle(camp.id, e)}
+                          className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                            isActive
+                              ? 'bg-amber-400/10 text-amber-300 border border-amber-400/30 hover:bg-amber-400/20'
+                              : 'bg-[#22c55e]/15 text-[#4ade80] border border-[#22c55e]/30 hover:bg-[#22c55e]/25'
+                          }`}
+                          title={isActive ? 'Pausar divulgação' : 'Retomar divulgação'}
+                        >
+                          {isActive ? <Pause size={13} /> : <Play size={13} />}
+                          <span>{isActive ? 'Pausar' : 'Retomar'}</span>
+                        </button>
 
-                    {/* Video IA Shortcut */}
-                    <button
-                      onClick={() => onNavigate('video-ia', { 
-                        id: camp.productId, 
-                        name: camp.name, 
-                        image_url: camp.image_url, 
-                        price: camp.price 
-                      })}
-                      className="px-3 py-2 rounded-xl bg-gradient-to-r from-[#84cc16]/15 to-[#a3e635]/15 text-[#a3e635] border border-[#84cc16]/30 hover:bg-[#84cc16]/25 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-                      title="Criar Vídeo com IA para este produto"
-                    >
-                      <Video size={13} />
-                      <span className="hidden sm:inline">Vídeo IA</span>
-                    </button>
+                        {/* View Details Modal */}
+                        <button
+                          onClick={() => setSelectedCampaign(camp)}
+                          className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold border border-white/10 transition-all flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Eye size={13} />
+                          <span>Detalhes</span>
+                        </button>
 
-                    {/* Share in Shopee/WhatsApp groups */}
-                    <FindGroupsButton 
-                      productName={camp.name} 
-                      className="px-3 py-2 text-xs"
-                    />
+                        {/* Link Oficial do Anúncio no Marketplace */}
+                        <a
+                          href={camp.marketplaceItemUrl || (camp.channel === 'mercadolivre' ? `https://lista.mercadolivre.com.br/${encodeURIComponent(camp.name.split('(')[0].trim())}` : `https://shopee.com.br/search?keyword=${encodeURIComponent(camp.name.split('(')[0].trim())}`)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+                            camp.channel === 'mercadolivre'
+                              ? 'bg-yellow-500/15 hover:bg-yellow-500/25 text-yellow-300 border-yellow-500/30'
+                              : camp.channel === 'shopee'
+                              ? 'bg-orange-500/15 hover:bg-orange-500/25 text-orange-400 border-orange-500/30'
+                              : 'bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border-cyan-500/30'
+                          }`}
+                          title={`Abrir anúncio oficial no ${camp.channelLabel || 'Marketplace'}`}
+                        >
+                          <ExternalLink size={13} />
+                          <span>{camp.channel === 'mercadolivre' ? 'Ver no ML' : camp.channel === 'shopee' ? 'Ver na Shopee' : 'Ver Anúncio'}</span>
+                        </a>
 
-                    {/* Remove */}
-                    <button
-                      onClick={(e) => handleDelete(camp.id, e)}
-                      className="p-2 rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
-                      title="Excluir campanha"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                        {/* Video IA Shortcut */}
+                        <button
+                          onClick={() => onNavigate('video-ia', { 
+                            id: camp.productId, 
+                            name: camp.name, 
+                            image_url: camp.image_url, 
+                            price: camp.price 
+                          })}
+                          className="px-3 py-2 rounded-xl bg-gradient-to-r from-[#84cc16]/15 to-[#a3e635]/15 text-[#a3e635] border border-[#84cc16]/30 hover:bg-[#84cc16]/25 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                          title="Criar Vídeo com IA para este produto"
+                        >
+                          <Video size={13} />
+                          <span className="hidden sm:inline">Vídeo IA</span>
+                        </button>
+
+                        {/* Share in Shopee/WhatsApp groups */}
+                        <FindGroupsButton 
+                          productName={camp.name} 
+                          className="px-3 py-2 text-xs"
+                        />
+
+                        {/* Remove */}
+                        <button
+                          onClick={(e) => handleDelete(camp.id, e)}
+                          className="p-2 rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                          title="Excluir campanha"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
 
-                {/* Logística & Acompanhamento de Entrega (Prazo Rigoroso de 7 Dias) */}
-                <div className="w-full pt-3.5 border-t border-white/10 flex flex-col gap-3">
-                  {/* Status row com badges detalhados */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <div className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-sm ${
-                        shipping.isDelivered
-                          ? 'bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/40 shadow-[0_0_10px_rgba(34,197,94,0.2)]'
-                          : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                      }`}>
-                        {shipping.isDelivered ? <CheckCircle2 size={13} className="text-[#22c55e]" /> : <Truck size={13} className="text-cyan-400" />}
-                        <span>{shipping.isDelivered ? '✅ ENTREGUE AO CLIENTE (7 DIAS CUMPRIDOS)' : `🚚 ${shipping.statusLabel.toUpperCase()}`}</span>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 text-[11px] text-slate-300 font-mono bg-white/5 px-2 py-0.5 rounded-md border border-white/5">
-                        <span className="text-slate-500">Rastreio:</span>
-                        <strong className="text-white">{shipping.trackingCode}</strong>
-                      </div>
-
-                      <span className="text-[11px] text-slate-400">
-                        • Destino: <strong className="text-slate-200">{shipping.recipientCity}</strong>
-                      </span>
-
-                      <span className="text-[11px] text-slate-500 hidden md:inline">
-                        • {shipping.carrier}
+                {/* Se aba for DIVULGADOS: Mostra aviso sutil de vendas, SEM barra de rastreio logístico */}
+                {activeMainTab === 'divulgados' && camp.salesCount > 0 && (
+                  <div className="w-full pt-3 border-t border-white/5 flex items-center justify-between text-xs flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-[#22c55e] animate-pulse" />
+                      <span className="text-slate-300 font-semibold">
+                        Anúncio com conversão ativa: <strong className="text-emerald-400">{camp.salesCount} pedido(s) vendido(s)</strong>
                       </span>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveMainTab('vendidos');
+                        onNavigate('vendidos');
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                    >
+                      <PackageCheck size={13} />
+                      <span>Ver Acompanhamento & Rastreio ({camp.salesCount}) →</span>
+                    </button>
+                  </div>
+                )}
 
-                    <div className="flex items-center gap-2.5 self-start sm:self-auto">
-                      <span className="text-[11px] text-slate-400 font-medium">
-                        {shipping.isDelivered ? (
-                          <span className="text-[#4ade80] font-bold">Entrega pontual confirmada</span>
-                        ) : (
-                          <span>Previsão: <strong className="text-amber-300">{shipping.estimatedDeliveryDate}</strong> ({shipping.daysRemaining} {shipping.daysRemaining === 1 ? 'dia restante' : 'dias restantes'})</span>
-                        )}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setTrackingCampaign(camp)}
-                        className="px-2.5 py-1 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <span>Ver Rota</span>
-                        <Navigation size={11} />
-                      </button>
+                {/* Se aba for VENDIDOS: Mostra a Logística Completa de Entrega (Prazo Rigoroso de 7 Dias) */}
+                {activeMainTab === 'vendidos' && (
+                  <div className="w-full pt-3.5 border-t border-white/10 flex flex-col gap-3">
+                    {/* Status row com badges detalhados */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <div className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-sm ${
+                          shipping.isDelivered
+                            ? 'bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/40 shadow-[0_0_10px_rgba(34,197,94,0.2)]'
+                            : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                        }`}>
+                          {shipping.isDelivered ? <CheckCircle2 size={13} className="text-[#22c55e]" /> : <Truck size={13} className="text-cyan-400" />}
+                          <span>{shipping.isDelivered ? '✅ ENTREGUE AO CLIENTE (7 DIAS CUMPRIDOS)' : `🚚 ${shipping.statusLabel.toUpperCase()}`}</span>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 text-[11px] text-slate-300 font-mono bg-white/5 px-2 py-0.5 rounded-md border border-white/5">
+                          <span className="text-slate-500">Rastreio:</span>
+                          <strong className="text-white">{shipping.trackingCode}</strong>
+                        </div>
+
+                        <span className="text-[11px] text-slate-400">
+                          • Destino: <strong className="text-slate-200">{shipping.recipientCity}</strong>
+                        </span>
+
+                        <span className="text-[11px] text-slate-500 hidden md:inline">
+                          • {shipping.carrier}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2.5 self-start sm:self-auto">
+                        <span className="text-[11px] text-slate-400 font-medium">
+                          {shipping.isDelivered ? (
+                            <span className="text-[#4ade80] font-bold">Entrega pontual confirmada</span>
+                          ) : (
+                            <span>Previsão: <strong className="text-amber-300">{shipping.estimatedDeliveryDate}</strong> ({shipping.daysRemaining} {shipping.daysRemaining === 1 ? 'dia restante' : 'dias restantes'})</span>
+                          )}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setTrackingCampaign(camp)}
+                          className="px-2.5 py-1 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <span>Ver Rota</span>
+                          <Navigation size={11} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Visual 5-Checkpoints Progress Tracker */}
+                    <div className="relative pt-1 pb-1">
+                      <div className="w-full h-2 rounded-full bg-black/60 border border-white/10 overflow-hidden relative">
+                        <div 
+                          className={`h-full rounded-full transition-all duration-700 ${
+                            shipping.isDelivered 
+                              ? 'bg-gradient-to-r from-emerald-500 via-green-400 to-[#22c55e] shadow-[0_0_12px_rgba(34,197,94,0.6)]' 
+                              : 'bg-gradient-to-r from-indigo-500 via-cyan-400 to-[#22c55e] shadow-[0_0_12px_rgba(6,182,212,0.5)]'
+                          }`}
+                          style={{ width: `${shipping.progressPercentage}%` }}
+                        />
+                      </div>
+
+                      {/* 5 checkpoints labels */}
+                      <div className="grid grid-cols-5 text-[10px] text-slate-400 font-medium mt-1.5 px-0.5">
+                        <div className={`text-left flex items-center gap-1 ${shipping.steps[0].isCompleted ? 'text-[#4ade80] font-bold' : ''}`}>
+                          <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                          <span className="truncate">1. Pedido</span>
+                        </div>
+                        <div className={`text-center flex items-center justify-center gap-1 ${shipping.steps[1].isCompleted ? 'text-[#4ade80] font-bold' : ''}`}>
+                          <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                          <span className="truncate">2. Despacho</span>
+                        </div>
+                        <div className={`text-center flex items-center justify-center gap-1 ${shipping.steps[2].isCompleted ? 'text-[#4ade80] font-bold' : ''}`}>
+                          <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                          <span className="truncate">3. Em Rota</span>
+                        </div>
+                        <div className={`text-center flex items-center justify-center gap-1 ${shipping.steps[3].isCompleted ? 'text-[#4ade80] font-bold' : ''}`}>
+                          <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                          <span className="truncate">4. Rota Local</span>
+                        </div>
+                        <div className={`text-right flex items-center justify-end gap-1 ${shipping.steps[4].isCompleted ? 'text-[#4ade80] font-black' : ''}`}>
+                          <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                          <span className="truncate">5. Entregue (7d)</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-
-                  {/* Visual 5-Checkpoints Progress Tracker */}
-                  <div className="relative pt-1 pb-1">
-                    <div className="w-full h-2 rounded-full bg-black/60 border border-white/10 overflow-hidden relative">
-                      <div 
-                        className={`h-full rounded-full transition-all duration-700 ${
-                          shipping.isDelivered 
-                            ? 'bg-gradient-to-r from-emerald-500 via-green-400 to-[#22c55e] shadow-[0_0_12px_rgba(34,197,94,0.6)]' 
-                            : 'bg-gradient-to-r from-indigo-500 via-cyan-400 to-[#22c55e] shadow-[0_0_12px_rgba(6,182,212,0.5)]'
-                        }`}
-                        style={{ width: `${shipping.progressPercentage}%` }}
-                      />
-                    </div>
-
-                    {/* 5 checkpoints labels */}
-                    <div className="grid grid-cols-5 text-[10px] text-slate-400 font-medium mt-1.5 px-0.5">
-                      <div className={`text-left flex items-center gap-1 ${shipping.steps[0].isCompleted ? 'text-[#4ade80] font-bold' : ''}`}>
-                        <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                        <span className="truncate">1. Pedido</span>
-                      </div>
-                      <div className={`text-center flex items-center justify-center gap-1 ${shipping.steps[1].isCompleted ? 'text-[#4ade80] font-bold' : ''}`}>
-                        <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                        <span className="truncate">2. Despacho</span>
-                      </div>
-                      <div className={`text-center flex items-center justify-center gap-1 ${shipping.steps[2].isCompleted ? 'text-[#4ade80] font-bold' : ''}`}>
-                        <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                        <span className="truncate">3. Em Rota</span>
-                      </div>
-                      <div className={`text-center flex items-center justify-center gap-1 ${shipping.steps[3].isCompleted ? 'text-[#4ade80] font-bold' : ''}`}>
-                        <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                        <span className="truncate">4. Rota Local</span>
-                      </div>
-                      <div className={`text-right flex items-center justify-end gap-1 ${shipping.steps[4].isCompleted ? 'text-[#4ade80] font-black' : ''}`}>
-                        <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                        <span className="truncate">5. Entregue (7d)</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
             );
           })}

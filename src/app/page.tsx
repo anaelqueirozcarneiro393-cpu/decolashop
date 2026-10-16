@@ -38,6 +38,7 @@ export type ViewType =
   | 'catalogo' 
   | 'divulgacao-ia' 
   | 'divulgados'
+  | 'vendidos'
   | 'video-ia' 
   | 'conectar' 
   | 'video-aula' 
@@ -70,7 +71,7 @@ export default function AppContainer({ initialView = 'dashboard' }: { initialVie
       const rawPath = window.location.pathname.replace(/^\//, '').toLowerCase();
       const validViews = [
         'dashboard', 'financeiro', 'afiliados', 'catalogo', 'divulgacao-ia',
-        'divulgados', 'video-ia', 'conectar', 'video-aula', 'perfil', 'reembolso',
+        'divulgados', 'vendidos', 'video-ia', 'conectar', 'video-aula', 'perfil', 'reembolso',
         'minerador', 'detalhe', 'anuncio', 'meus-produtos', 'calculadora',
         'fornecedores', 'configuracoes'
       ];
@@ -315,6 +316,14 @@ export default function AppContainer({ initialView = 'dashboard' }: { initialVie
             {currentView === 'divulgados' && (
               <DivulgadosView 
                 onNavigate={navigateToView}
+                initialTab="divulgados"
+              />
+            )}
+
+            {currentView === 'vendidos' && (
+              <DivulgadosView 
+                onNavigate={navigateToView}
+                initialTab="vendidos"
               />
             )}
 

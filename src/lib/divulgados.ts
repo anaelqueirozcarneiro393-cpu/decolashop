@@ -772,12 +772,30 @@ export function generateMarketplacePublishData(channel: string, productName: str
     };
   }
 
-  if (normChannel === 'tiktok') {
+  if (normChannel === 'tiktok' || normChannel === 'tiktok_us') {
     const randId = Math.floor(10000000 + Math.random() * 90000000);
     return {
       marketplaceItemId: `TTS-${randId}`,
       marketplaceItemUrl: `https://www.tiktok.com/tag/${searchKeyword}`,
       channelLabel: 'TikTok Shop'
+    };
+  }
+
+  if (normChannel === 'shopify') {
+    const randId = Math.floor(10000000 + Math.random() * 90000000);
+    return {
+      marketplaceItemId: `SHPF-${randId}`,
+      marketplaceItemUrl: `https://www.google.com/search?q=${searchKeyword}+shopify`,
+      channelLabel: 'Shopify Global'
+    };
+  }
+
+  if (normChannel === 'amazon') {
+    const randId = Math.random().toString(36).substring(2, 10).toUpperCase();
+    return {
+      marketplaceItemId: `B0${randId}`,
+      marketplaceItemUrl: `https://www.amazon.com/s?k=${searchKeyword}`,
+      channelLabel: 'Amazon US'
     };
   }
 
