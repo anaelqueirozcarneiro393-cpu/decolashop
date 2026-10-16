@@ -239,7 +239,7 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
 
         if (isStoreConnected) {
           toast.success(
-            `🚀 Publicado na sua conta ${config.channelLabel}! Anúncio ${pubData.marketplaceItemId} ativo no seu painel de vendas.`,
+            `🚀 Publicado na sua loja "${storeInfo?.shopName || 'conectada'}" no ${config.channelLabel}! Anúncio ${pubData.marketplaceItemId} ativo no seu painel.`,
             { duration: 6000, icon: '✅' }
           );
         } else {

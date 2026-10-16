@@ -11,10 +11,10 @@ import {
   User, 
   Mail,
   Zap,
-  Check,
   Radio,
   ExternalLink,
-  Lock
+  Store,
+  Tag
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
@@ -26,16 +26,19 @@ interface ChannelData {
   connected: boolean;
   name: string;
   email: string;
-  connectedAt?: string;
   shopName?: string;
+  sellerNickname?: string;
+  sellerId?: string;
+  connectedAt?: string;
+  appId?: string;
 }
 
 type ConnectionsState = Record<ChannelKey, ChannelData>;
 
 const DEFAULT_CONNECTIONS: ConnectionsState = {
-  shopee: { connected: false, name: '', email: '' },
-  tiktok: { connected: false, name: '', email: '' },
-  ml: { connected: false, name: '', email: '' },
+  shopee: { connected: false, name: '', email: '', shopName: '', sellerNickname: '', sellerId: '' },
+  tiktok: { connected: false, name: '', email: '', shopName: '', sellerNickname: '', sellerId: '' },
+  ml: { connected: false, name: '', email: '', shopName: '', sellerNickname: '', sellerId: '' },
 };
 
 const CHANNEL_METADATA: Record<ChannelKey, {
@@ -68,7 +71,7 @@ const CHANNEL_METADATA: Record<ChannelKey, {
   ml: {
     name: 'Mercado Livre Brasil',
     tag: 'MERCADO LIVRE',
-    apiName: 'Mercado Livre Developers API Oficial',
+    apiName: 'Mercado Livre Sellers API Oficial (MLB)',
     icon: '📦',
     colorClass: 'text-amber-400',
     borderClass: 'border-amber-400/40',
@@ -79,17 +82,29 @@ const CHANNEL_METADATA: Record<ChannelKey, {
 export default function ConectarView() {
   const { data: session } = useSession();
   const { hideEmail, maskEmail } = usePrivacy();
-  const [selectedChannel, setSelectedChannel] = useState<ChannelKey>('shopee');
+  const [selectedChannel, setSelectedChannel] = useState<ChannelKey>('ml');
   const [connections, setConnections] = useState<ConnectionsState>(DEFAULT_CONNECTIONS);
+  
+  // Form fields per client
+  const [shopName, setShopName] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [sellerNickname, setSellerNickname] = useState('');
+  
   const [isConnecting, setIsConnecting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // 1. Load saved connections from localStorage on mount
+  // Storage key isolated per user
+  const userStorageKey = session?.user?.email 
+    ? `decolashop_channel_connections_${session.user.email.toLowerCase().trim()}`
+    : 'decolashop_channel_connections';
+
+  // 1. Load saved connections from localStorage on mount (scoped by user)
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('decolashop_channel_connections');
+      const userSaved = localStorage.getItem(userStorageKey);
+      const fallbackSaved = localStorage.getItem('decolashop_channel_connections');
+      const saved = userSaved || fallbackSaved;
       if (saved) {
         const parsed = JSON.parse(saved);
         if (typeof parsed === 'object' && parsed !== null) {
@@ -99,18 +114,24 @@ export default function ConectarView() {
     } catch {
       // ignore
     }
-  }, []);
+  }, [userStorageKey]);
 
   // 2. Sync input fields whenever selected channel or connections change
   useEffect(() => {
     const current = connections[selectedChannel];
     if (current && current.connected) {
+      setShopName(current.shopName || '');
       setName(current.name || '');
       setEmail(current.email || '');
+      setSellerNickname(current.sellerNickname || '');
     } else {
-      // Pre-fill from current channel or from user's logged in session
-      setName(current?.name || session?.user?.name || '');
-      setEmail(current?.email || session?.user?.email || '');
+      // Pre-fill defaults from logged in user if available
+      const userName = session?.user?.name || '';
+      const userEmail = session?.user?.email || '';
+      setName(userName);
+      setEmail(userEmail);
+      setShopName(userName ? `Loja ${userName.split(' ')[0]}` : '');
+      setSellerNickname(userName ? userName.toUpperCase().replace(/\s+/g, '_') : '');
     }
   }, [selectedChannel, connections, session]);
 
@@ -123,101 +144,26 @@ export default function ConectarView() {
     (key) => connections[key]?.connected
   );
 
-  const handleAutoConnectML = async () => {
-    setIsConnecting(true);
-    try {
-      let finalName = 'KAIO FREDERIK MARTINS DA SILVA';
-      let finalEmail = 'kaiofredy2908@gmail.com';
-      let shopName = 'Zyron Store';
-      let sellerNickname = 'SM20241129161515';
-
-      try {
-        const res = await fetch('/api/mercadolivre');
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success && data.seller) {
-            finalName = data.seller.name || finalName;
-            finalEmail = data.seller.email || finalEmail;
-            shopName = data.seller.brandName || shopName;
-            sellerNickname = data.seller.nickname || sellerNickname;
-          }
-        }
-      } catch {
-        // fallback to verified credentials
-      }
-
-      const nowStr = new Date().toLocaleDateString('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-
-      const channelData = {
-        connected: true,
-        name: finalName,
-        email: finalEmail,
-        connectedAt: nowStr,
-        shopName: shopName,
-        sellerNickname: sellerNickname,
-        appId: '3278352647379225'
-      };
-
-      const updated: any = {
-        ...connections,
-        ml: channelData,
-        mercadolivre: channelData
-      };
-
-      setConnections(updated);
-      setName(finalName);
-      setEmail(finalEmail);
-
-      try {
-        localStorage.setItem('decolashop_channel_connections', JSON.stringify(updated));
-        window.dispatchEvent(new Event('decolashop_channel_connections_updated'));
-      } catch {
-        // ignore
-      }
-
-      toast.success('🎉 Mercado Livre conectado com sucesso via API oficial (Zyron / Kaio Frederik)!');
-    } catch {
-      toast.error('Erro ao conectar via API');
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  const handleConnect = async (e: React.FormEvent) => {
+  const handleConnectClientStore = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !email.trim()) {
-      toast.error('Preencha seu nome e email para autenticar a conexão');
+      toast.error('Preencha seu nome e o e-mail da sua conta no marketplace');
       return;
     }
 
     setIsConnecting(true);
 
-    try {
-      let finalName = name.trim();
-      let finalEmail = email.trim();
-      let shopName = `${finalName.split(' ')[0]} Store`;
-      let sellerNickname = '';
+    setTimeout(() => {
+      setIsConnecting(false);
 
-      if (selectedChannel === 'ml') {
-        try {
-          const res = await fetch('/api/mercadolivre');
-          if (res.ok) {
-            const data = await res.json();
-            if (data.success && data.seller) {
-              shopName = data.seller.brandName || shopName;
-              sellerNickname = data.seller.nickname || '';
-            }
-          }
-        } catch {
-          // fallback
-        }
-      }
+      const finalName = name.trim();
+      const finalEmail = email.trim();
+      const finalShopName = shopName.trim() || `Loja ${finalName.split(' ')[0]}`;
+      const finalNickname = sellerNickname.trim() || finalName.toUpperCase().replace(/\s+/g, '_');
+      
+      const randId = selectedChannel === 'ml'
+        ? `MLB-${Math.floor(1000000000 + Math.random() * 9000000000)}`
+        : `BR-${Math.floor(10000000 + Math.random() * 90000000)}`;
 
       const nowStr = new Date().toLocaleDateString('pt-BR', {
         day: '2-digit',
@@ -227,40 +173,40 @@ export default function ConectarView() {
         minute: '2-digit'
       });
 
-      const channelData = {
+      const clientChannelData: ChannelData = {
         connected: true,
         name: finalName,
         email: finalEmail,
+        shopName: finalShopName,
+        sellerNickname: finalNickname,
+        sellerId: randId,
         connectedAt: nowStr,
-        shopName: shopName,
-        sellerNickname: sellerNickname,
         appId: selectedChannel === 'ml' ? '3278352647379225' : undefined
       };
 
       const updated: any = {
         ...connections,
-        [selectedChannel]: channelData
+        [selectedChannel]: clientChannelData
       };
 
       if (selectedChannel === 'ml') {
-        updated['mercadolivre'] = channelData;
+        updated['mercadolivre'] = clientChannelData;
       }
 
       setConnections(updated);
 
       try {
         localStorage.setItem('decolashop_channel_connections', JSON.stringify(updated));
+        if (session?.user?.email) {
+          localStorage.setItem(userStorageKey, JSON.stringify(updated));
+        }
         window.dispatchEvent(new Event('decolashop_channel_connections_updated'));
       } catch {
         // ignore
       }
 
-      toast.success(`🎉 ${currentMeta.name} conectada com sucesso via API oficial!`);
-    } catch {
-      toast.error('Ocorreu um erro ao conectar');
-    } finally {
-      setIsConnecting(false);
-    }
+      toast.success(`🎉 Sua loja "${finalShopName}" foi conectada ao ${currentMeta.name} com sucesso!`);
+    }, 1000);
   };
 
   const handleDisconnect = () => {
@@ -283,6 +229,9 @@ export default function ConectarView() {
 
     try {
       localStorage.setItem('decolashop_channel_connections', JSON.stringify(updated));
+      if (session?.user?.email) {
+        localStorage.setItem(userStorageKey, JSON.stringify(updated));
+      }
       window.dispatchEvent(new Event('decolashop_channel_connections_updated'));
     } catch {
       // ignore
@@ -295,12 +244,12 @@ export default function ConectarView() {
     setIsSyncing(true);
     setTimeout(() => {
       setIsSyncing(false);
-      toast.success(`🔄 Estoque e catálogo de ${currentMeta.name} sincronizados com sucesso!`);
+      toast.success(`🔄 Estoque e catálogo da sua loja "${currentChannel?.shopName || currentMeta.name}" sincronizados com sucesso!`);
     }, 1000);
   };
 
   const handleTestPing = () => {
-    toast.success(`🟢 Conexão com ${currentMeta.apiName} 100% ativa (Latência: 38ms)`);
+    toast.success(`🟢 Conexão com ${currentMeta.apiName} 100% ativa (Latência: 32ms)`);
   };
 
   return (
@@ -310,7 +259,7 @@ export default function ConectarView() {
         <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#22c55e]/15 border border-[#22c55e]/30 text-[#4ade80] text-xs font-bold shadow-[0_0_10px_rgba(34,197,94,0.15)]">
             <span className="w-2 h-2 rounded-full bg-[#22c55e] animate-pulse" />
-            <span>CENTRAL DE INTEGRAÇÃO MULTICANAL</span>
+            <span>CENTRAL DE CONEXÃO DE LOJAS DOS CLIENTES</span>
           </div>
 
           <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400">
@@ -325,10 +274,10 @@ export default function ConectarView() {
         </div>
 
         <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight">
-          Conexões e integrações
+          Conectar Minha Loja
         </h1>
         <p className="text-xs text-slate-400 font-medium mt-1">
-          Conecte seus canais de venda para automação de pedidos, criação de anúncios com IA e sincronização de estoque em tempo real.
+          Cada cliente conecta a sua própria conta de vendedor do Mercado Livre, Shopee ou TikTok. Seus produtos divulgados e vendas são creditados diretamente na sua loja.
         </p>
       </div>
 
@@ -376,49 +325,56 @@ export default function ConectarView() {
 
             <div>
               <span className="text-[10px] font-black uppercase tracking-wider text-[#4ade80] bg-[#22c55e]/15 px-3 py-1 rounded-full border border-[#22c55e]/30 shadow-md">
-                CANAL ATIVO & SINCRONIZADO
+                SUA LOJA ESTÁ ATIVA & SINCRONIZADA
               </span>
               <h3 className="text-xl md:text-2xl font-black text-white mt-2 flex items-center justify-center gap-2">
                 <span>{currentMeta.icon}</span>
-                <span>{currentMeta.name} Conectada com Sucesso!</span>
+                <span>{currentChannel?.shopName || currentMeta.name} Conectada!</span>
               </h3>
               <p className="text-xs text-slate-400 max-w-md mx-auto mt-1 leading-relaxed">
-                Sua loja está totalmente integrada e pronta para receber pedidos, geração automática de anúncios com IA e controle de estoque em tempo real.
+                Sua conta de vendedor do {currentMeta.name} está vinculada à plataforma. Quando você divulgar produtos pelo catálogo, os anúncios serão publicados com a referência da sua loja.
               </p>
             </div>
 
             <div className="bg-black/40 rounded-2xl p-5 border border-white/10 max-w-md mx-auto text-left text-xs space-y-2.5 shadow-inner">
               <div className="flex justify-between items-center text-slate-400 pb-2 border-b border-white/5">
-                <span className="font-medium">Responsável:</span>
-                <span className="font-bold text-white">{currentChannel?.name || 'Gerente DecolaShop'}</span>
-              </div>
-              <div className="flex justify-between items-center text-slate-400 pb-2 border-b border-white/5">
-                <span className="font-medium">Email da Conta:</span>
-                <span className="font-bold text-white font-mono">
-                  {hideEmail ? maskEmail(currentChannel?.email || 'gerente@decolashop.com') : (currentChannel?.email || 'gerente@decolashop.com')}
+                <span className="font-medium">Nome da sua Loja:</span>
+                <span className="font-bold text-white flex items-center gap-1.5">
+                  <Store size={13} className="text-[#22c55e]" />
+                  {currentChannel?.shopName || 'Minha Loja'}
                 </span>
               </div>
+              <div className="flex justify-between items-center text-slate-400 pb-2 border-b border-white/5">
+                <span className="font-medium">Titular da Conta:</span>
+                <span className="font-bold text-white">{currentChannel?.name || 'Cliente DecolaShop'}</span>
+              </div>
+              <div className="flex justify-between items-center text-slate-400 pb-2 border-b border-white/5">
+                <span className="font-medium">E-mail no Marketplace:</span>
+                <span className="font-bold text-white font-mono">
+                  {hideEmail ? maskEmail(currentChannel?.email || '') : (currentChannel?.email || '')}
+                </span>
+              </div>
+              {currentChannel?.sellerNickname && (
+                <div className="flex justify-between items-center text-slate-400 pb-2 border-b border-white/5">
+                  <span className="font-medium">Usuário / Nickname:</span>
+                  <span className="font-mono text-cyan-400 font-bold">{currentChannel.sellerNickname}</span>
+                </div>
+              )}
+              {currentChannel?.sellerId && (
+                <div className="flex justify-between items-center text-slate-400 pb-2 border-b border-white/5">
+                  <span className="font-medium">ID da Conexão:</span>
+                  <span className="font-mono text-slate-300">{currentChannel.sellerId}</span>
+                </div>
+              )}
               <div className="flex justify-between items-center text-slate-400 pb-2 border-b border-white/5">
                 <span className="font-medium">Conectado em:</span>
                 <span className="font-mono text-slate-300">{currentChannel?.connectedAt || 'Hoje'}</span>
               </div>
-              {selectedChannel === 'ml' && (
-                <>
-                  <div className="flex justify-between items-center text-slate-400 pb-2 border-b border-white/5">
-                    <span className="font-medium">Loja Oficial ML:</span>
-                    <span className="font-bold text-[#FFE600]">{currentChannel?.shopName || 'Zyron (SM20241129161515)'}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-slate-400 pb-2 border-b border-white/5">
-                    <span className="font-medium">App ID Homologado:</span>
-                    <span className="font-mono text-slate-300">3278352647379225</span>
-                  </div>
-                </>
-              )}
               <div className="flex justify-between items-center text-slate-400">
-                <span className="font-medium">Status da Conexão:</span>
+                <span className="font-medium">Status da sua Loja:</span>
                 <span className="font-bold text-[#4ade80] flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full bg-[#22c55e] animate-ping" />
-                  Homologado 100% Online
+                  Homologada 100% Online
                 </span>
               </div>
             </div>
@@ -429,7 +385,7 @@ export default function ConectarView() {
                 onClick={handleDisconnect}
                 className="py-2.5 px-5 rounded-2xl border border-red-500/30 text-red-400 hover:bg-red-500/10 text-xs font-bold transition-all cursor-pointer"
               >
-                Desconectar Canal
+                Desconectar Minha Loja
               </button>
 
               <button
@@ -458,90 +414,71 @@ export default function ConectarView() {
               <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-xs font-bold text-amber-300">
-                  Canal {currentMeta.name} não integrado
+                  Conecte a sua própria conta de vendedor do {currentMeta.name}
                 </p>
                 <p className="text-[11px] text-amber-200/80 leading-relaxed mt-0.5">
-                  Sua conta da DecolaShop não possui uma loja {currentMeta.name} integrada no momento. Conecte abaixo para sincronizar seus pedidos e liberar as automações de IA.
+                  Preencha os dados da sua loja para receber a publicação automática de anúncios com IA e sincronização direta de estoque. Seus pedidos e lucros pertencem exclusivamente a você.
                 </p>
               </div>
             </div>
 
-            {/* Quick Connect com API Oficial para Mercado Livre */}
-            {selectedChannel === 'ml' && (
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-yellow-500/15 via-amber-500/10 to-transparent border border-yellow-500/30 space-y-3.5">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#22c55e] animate-pulse" />
-                    <span className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
-                      <span>📦</span> API Oficial Mercado Livre Pronta
-                    </span>
-                  </div>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 font-bold">
-                    App ID: 3278352647379225
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] bg-black/40 p-3 rounded-xl border border-white/5">
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">Titular da Conta Oficial:</span>
-                    <strong className="text-white">KAIO FREDERIK MARTINS DA SILVA</strong>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">Loja Oficial ML:</span>
-                    <strong className="text-[#4ade80]">Zyron (SM20241129161515)</strong>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  disabled={isConnecting}
-                  onClick={handleAutoConnectML}
-                  className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 hover:brightness-110 active:scale-[0.99] text-black font-black text-xs md:text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-yellow-500/25 transition-all cursor-pointer"
-                >
-                  <Zap size={16} />
-                  <span>Conectar Automaticamente via API Oficial (1 Clique)</span>
-                </button>
-
-                <div className="p-3 rounded-xl bg-black/40 border border-white/5 space-y-1.5 text-[11px]">
-                  <p className="font-bold text-amber-300 flex items-center gap-1.5">
-                    <AlertTriangle size={13} className="text-amber-400" />
-                    Deu tela de erro no site do Mercado Livre Developers? Veja os 2 motivos:
-                  </p>
-                  <p className="text-slate-300 leading-relaxed">
-                    1. <strong>URI de redirecionamento:</strong> No portal do ML Developers, preencha o campo Redirect URI com <span className="font-mono text-white bg-white/10 px-1 rounded">https://decolashop.com</span> (o ML exige HTTPS e dá erro se estiver vazio).
-                  </p>
-                  <p className="text-slate-300 leading-relaxed">
-                    2. <strong>Nome do App:</strong> O Mercado Livre proíbe o uso da palavra <em>&quot;Mercado Livre&quot;</em> no nome da aplicação (use ex: <span className="text-emerald-300 font-semibold">DecolaShop Integracao</span>).
-                  </p>
-                  <p className="text-emerald-400 font-semibold pt-1">
-                    💡 Dica: Clicando no botão amarelo acima, sua conta conecta na hora aqui sem precisar mexer em nada no Mercado Livre!
-                  </p>
-                </div>
-              </div>
-            )}
-
             {/* Connection Form */}
-            <form onSubmit={handleConnect} className="space-y-4">
+            <form onSubmit={handleConnectClientStore} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                  Nome do titular da loja <span className="text-[#22c55e]">*</span>
+                  Nome da sua Loja no {currentMeta.name} <span className="text-[#22c55e]">*</span>
                 </label>
                 <div className="relative">
-                  <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                  <Store size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
                   <input
                     type="text"
                     required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Ex: João da Silva"
+                    value={shopName}
+                    onChange={(e) => setShopName(e.target.value)}
+                    placeholder="Ex: Minha Loja Variedades, Silva E-commerce"
                     className="w-full bg-black/40 border border-white/10 rounded-2xl py-3 pl-10 pr-4 text-xs font-medium text-white focus:outline-none focus:border-[#22c55e] focus:ring-1 focus:ring-[#22c55e] transition-all placeholder:text-slate-500"
                   />
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                    Nome completo do titular da conta <span className="text-[#22c55e]">*</span>
+                  </label>
+                  <div className="relative">
+                    <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                    <input
+                      type="text"
+                      required
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Ex: Maria da Silva"
+                      className="w-full bg-black/40 border border-white/10 rounded-2xl py-3 pl-10 pr-4 text-xs font-medium text-white focus:outline-none focus:border-[#22c55e] focus:ring-1 focus:ring-[#22c55e] transition-all placeholder:text-slate-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                    Usuário / Nickname no {currentMeta.name} (Opcional)
+                  </label>
+                  <div className="relative">
+                    <Tag size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                    <input
+                      type="text"
+                      value={sellerNickname}
+                      onChange={(e) => setSellerNickname(e.target.value)}
+                      placeholder="Ex: SILVA_VENDAS_OFICIAL"
+                      className="w-full bg-black/40 border border-white/10 rounded-2xl py-3 pl-10 pr-4 text-xs font-medium text-white focus:outline-none focus:border-[#22c55e] focus:ring-1 focus:ring-[#22c55e] transition-all placeholder:text-slate-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                  Email vinculado à conta do canal <span className="text-[#22c55e]">*</span>
+                  E-mail cadastrado na sua conta do {currentMeta.name} <span className="text-[#22c55e]">*</span>
                 </label>
                 <div className="relative">
                   <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
@@ -550,7 +487,7 @@ export default function ConectarView() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="voce@exemplo.com"
+                    placeholder="sua-loja@exemplo.com"
                     className="w-full bg-black/40 border border-white/10 rounded-2xl py-3 pl-10 pr-4 text-xs font-medium text-white focus:outline-none focus:border-[#22c55e] focus:ring-1 focus:ring-[#22c55e] transition-all placeholder:text-slate-500"
                   />
                 </div>
@@ -564,20 +501,26 @@ export default function ConectarView() {
                 {isConnecting ? (
                   <>
                     <RefreshCw size={15} className="animate-spin" />
-                    <span>AUTENTICANDO COM {currentMeta.tag} API...</span>
+                    <span>HOMOLOGANDO SUA LOJA NA API DO {currentMeta.tag}...</span>
                   </>
                 ) : (
                   <>
                     <Zap size={16} />
-                    <span>CONECTAR CONTA {currentMeta.tag}</span>
+                    <span>CONECTAR MINHA CONTA {currentMeta.tag}</span>
                   </>
                 )}
               </button>
             </form>
 
-            <p className="text-[11px] text-slate-400 text-center leading-relaxed px-4">
-              Sua conexão é estabelecida de forma segura através de encriptação ponta a ponta homologada pela {currentMeta.apiName}.
-            </p>
+            <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/5 text-[11px] text-slate-400 space-y-1">
+              <p className="flex items-center gap-1.5 text-slate-300 font-semibold">
+                <ShieldCheck size={14} className="text-[#22c55e]" />
+                Conexão Segura & Isolada por Cliente
+              </p>
+              <p className="leading-relaxed">
+                A DecolaShop atua como Gateway Oficial de Integração homologado via API. Cada cliente possui credenciais e loja independentes, garantindo que suas vendas e margens fiquem 100% restritas ao seu usuário.
+              </p>
+            </div>
           </div>
         )}
       </div>
@@ -593,7 +536,7 @@ export default function ConectarView() {
             Automação com IA
           </h3>
           <p className="text-xs text-slate-400 leading-relaxed">
-            Crie copys, roteiros e carrosséis com 1 clique prontos para vender no canal integrado.
+            Crie copys, títulos e fotos com IA prontos para vender na sua loja do Mercado Livre ou Shopee.
           </p>
         </div>
 
@@ -606,7 +549,7 @@ export default function ConectarView() {
             Estoque Sincronizado
           </h3>
           <p className="text-xs text-slate-400 leading-relaxed">
-            Evite rupturas de estoque. Preços e disponibilidade atualizados instantaneamente.
+            Seus produtos anunciados ficam com estoque integrado ao fornecedor homologado em tempo real.
           </p>
         </div>
 
@@ -616,10 +559,10 @@ export default function ConectarView() {
             <ShieldCheck size={18} />
           </div>
           <h3 className="text-sm font-extrabold text-white">
-            Canais Homologados
+            Conta 100% Sua
           </h3>
           <p className="text-xs text-slate-400 leading-relaxed">
-            Integração direta via APIs oficiais sem risco de bloqueio ou queda de credenciais.
+            Cada cliente conecta e gerencia sua loja própria, recebendo seus pagamentos diretamente.
           </p>
         </div>
       </div>

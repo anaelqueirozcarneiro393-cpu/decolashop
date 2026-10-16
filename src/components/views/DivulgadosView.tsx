@@ -1010,7 +1010,7 @@ export default function DivulgadosView({ onNavigate }: DivulgadosViewProps) {
 
                   <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-amber-500/20">
                     <div className="text-[11px] text-slate-400">
-                      Loja vinculada: <span className="font-semibold text-white">{selectedCampaign.storeAccountEmail || 'Conta Principal Conectada'}</span>
+                      Loja vinculada: <span className="font-semibold text-white">{selectedCampaign.storeAccountName ? `${selectedCampaign.storeAccountName} (${selectedCampaign.storeAccountEmail || 'Ativa'})` : (selectedCampaign.storeAccountEmail || 'Sua Loja Conectada')}</span>
                     </div>
                     <a
                       href={itemUrl}
