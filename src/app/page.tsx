@@ -145,6 +145,13 @@ export default function AppContainer({ initialView = 'dashboard' }: { initialVie
       if (rawPath && validViews.includes(rawPath as ViewType)) {
         setCurrentView(rawPath as ViewType);
       }
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+      if (code) {
+        window.location.href = `/api/mercadolivre/callback?code=${encodeURIComponent(code)}`;
+        return;
+      }
     }
 
     const seenOnboarding = localStorage.getItem('decolashop_seen_onboarding') || localStorage.getItem('apexfinder_seen_onboarding');

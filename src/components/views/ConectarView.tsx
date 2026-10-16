@@ -20,7 +20,7 @@ import { toast } from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
 import { usePrivacy } from '@/lib/privacyContext';
 
-type ChannelKey = 'shopee' | 'tiktok' | 'ml';
+type ChannelKey = 'shopee' | 'tiktok' | 'ml' | 'mercadolivre';
 
 interface ChannelData {
   connected: boolean;
@@ -33,15 +33,18 @@ interface ChannelData {
   appId?: string;
 }
 
-type ConnectionsState = Record<ChannelKey, ChannelData>;
+type ConnectionsState = Record<string, ChannelData>;
 
-const DEFAULT_CONNECTIONS: ConnectionsState = {
+const DEFAULT_CONNECTIONS: Record<string, ChannelData> = {
   shopee: { connected: false, name: '', email: '', shopName: '', sellerNickname: '', sellerId: '' },
   tiktok: { connected: false, name: '', email: '', shopName: '', sellerNickname: '', sellerId: '' },
   ml: { connected: false, name: '', email: '', shopName: '', sellerNickname: '', sellerId: '' },
+  mercadolivre: { connected: false, name: '', email: '', shopName: '', sellerNickname: '', sellerId: '' },
 };
 
-const CHANNEL_METADATA: Record<ChannelKey, {
+const DISPLAY_CHANNELS: ('ml' | 'shopee' | 'tiktok')[] = ['ml', 'shopee', 'tiktok'];
+
+const CHANNEL_METADATA: Record<string, {
   name: string;
   tag: string;
   apiName: string;
@@ -76,13 +79,22 @@ const CHANNEL_METADATA: Record<ChannelKey, {
     colorClass: 'text-amber-400',
     borderClass: 'border-amber-400/40',
     badgeBg: 'bg-amber-400/15 text-amber-300 border-amber-400/30'
+  },
+  mercadolivre: {
+    name: 'Mercado Livre Brasil',
+    tag: 'MERCADO LIVRE',
+    apiName: 'Mercado Livre Sellers API Oficial (MLB)',
+    icon: '📦',
+    colorClass: 'text-amber-400',
+    borderClass: 'border-amber-400/40',
+    badgeBg: 'bg-amber-400/15 text-amber-300 border-amber-400/30'
   }
 };
 
 export default function ConectarView() {
   const { data: session } = useSession();
   const { hideEmail, maskEmail } = usePrivacy();
-  const [selectedChannel, setSelectedChannel] = useState<ChannelKey>('ml');
+  const [selectedChannel, setSelectedChannel] = useState<'shopee' | 'tiktok' | 'ml'>('ml');
   const [connections, setConnections] = useState<ConnectionsState>(DEFAULT_CONNECTIONS);
   
   // Form fields per client
@@ -108,6 +120,8 @@ export default function ConectarView() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (typeof parsed === 'object' && parsed !== null) {
+          if (parsed.mercadolivre && !parsed.ml) parsed.ml = parsed.mercadolivre;
+          if (parsed.ml && !parsed.mercadolivre) parsed.mercadolivre = parsed.ml;
           setConnections(prev => ({ ...prev, ...parsed }));
         }
       }
@@ -118,7 +132,7 @@ export default function ConectarView() {
 
   // 2. Sync input fields whenever selected channel or connections change
   useEffect(() => {
-    const current = connections[selectedChannel];
+    const current = connections[selectedChannel] || (selectedChannel === 'ml' ? connections.mercadolivre : null);
     if (current && current.connected) {
       setShopName(current.shopName || '');
       setName(current.name || '');
@@ -142,6 +156,12 @@ export default function ConectarView() {
       const urlParams = new URLSearchParams(window.location.search);
       const isSuccess = urlParams.get('ml_connected') === 'success';
       const oAuthError = urlParams.get('error');
+      const code = urlParams.get('code');
+
+      if (code && !isSuccess) {
+        window.location.href = `/api/mercadolivre/callback?code=${encodeURIComponent(code)}`;
+        return;
+      }
 
       if (oAuthError) {
         toast.error(`Aviso da conexão: ${oAuthError}`);
@@ -197,13 +217,16 @@ export default function ConectarView() {
     } catch {}
   }, [session]);
 
-  const currentChannel = connections[selectedChannel];
+  const currentChannel = connections[selectedChannel] || 
+    (selectedChannel === 'ml' ? connections.mercadolivre : null) || 
+    DEFAULT_CONNECTIONS[selectedChannel] || 
+    DEFAULT_CONNECTIONS.ml;
   const isConnected = !!currentChannel?.connected;
-  const currentMeta = CHANNEL_METADATA[selectedChannel];
+  const currentMeta = CHANNEL_METADATA[selectedChannel] || CHANNEL_METADATA.ml;
 
   // Connected channels count and labels
-  const activeChannels = (Object.keys(connections) as ChannelKey[]).filter(
-    (key) => connections[key]?.connected
+  const activeChannels = DISPLAY_CHANNELS.filter(
+    (key) => connections[key]?.connected || (key === 'ml' && connections.mercadolivre?.connected)
   );
 
   const handleConnectClientStore = (e: React.FormEvent) => {
@@ -328,7 +351,7 @@ export default function ConectarView() {
             <Radio size={13} className={activeChannels.length > 0 ? "text-[#22c55e] animate-pulse" : "text-slate-500"} />
             <span>
               {activeChannels.length > 0 
-                ? `${activeChannels.length} canal(is) conectado(s): ${activeChannels.map(k => CHANNEL_METADATA[k].tag).join(', ')}`
+                ? `${activeChannels.length} canal(is) conectado(s): ${activeChannels.map(k => (CHANNEL_METADATA[k] || CHANNEL_METADATA.ml).tag).join(', ')}`
                 : 'Nenhum canal conectado no momento'
               }
             </span>
@@ -345,9 +368,9 @@ export default function ConectarView() {
 
       {/* Channel Tabs */}
       <div className="flex items-center gap-2 flex-wrap">
-        {(Object.keys(CHANNEL_METADATA) as ChannelKey[]).map((key) => {
-          const meta = CHANNEL_METADATA[key];
-          const isChanConnected = !!connections[key]?.connected;
+        {DISPLAY_CHANNELS.map((key) => {
+          const meta = CHANNEL_METADATA[key] || CHANNEL_METADATA.ml;
+          const isChanConnected = !!connections[key]?.connected || (key === 'ml' && !!connections.mercadolivre?.connected);
           const isSelected = selectedChannel === key;
 
           return (
