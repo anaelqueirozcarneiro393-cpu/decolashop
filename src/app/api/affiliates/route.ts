@@ -16,6 +16,8 @@ import {
   dbBindLead,
   dbGetLeadAffiliate,
   dbMarkCommissionPaid,
+  dbReassignSale,
+  dbRecalculateAllAffiliatesMetrics,
 } from '@/lib/affiliateDb';
 
 export const dynamic = 'force-dynamic';
@@ -235,29 +237,33 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, sale });
     }
 
-    // 6. Atribuição retroativa de usuário existente para um afiliado
-    if (action === 'attribute_past_user') {
-      const { customerEmail, affiliateCode, plan, totalAmount, customerName } = body;
-      if (!customerEmail || !affiliateCode) {
-        return NextResponse.json({ success: false, error: 'E-mail do cliente e código do afiliado são obrigatórios.' }, { status: 400 });
+    // 6. Atribuição / Reatribuição de venda de usuário para afiliado ou conversão em Venda Direta
+    if (action === 'reassign_sale' || action === 'attribute_past_user') {
+      const { saleId, customerEmail, affiliateCode, plan, totalAmount, customerName } = body;
+      if (!customerEmail) {
+        return NextResponse.json({ success: false, error: 'E-mail do cliente é obrigatório.' }, { status: 400 });
       }
 
-      const userPlan = (plan === 'monthly' ? 'monthly' : 'lifetime') as 'monthly' | 'lifetime';
-      const planBase = userPlan === 'monthly' ? 89.90 : 179.90;
-      const numTotal = Number(totalAmount) || planBase;
-
-      const sale = await dbRecordSale({
-        affiliateCode,
-        plan: userPlan,
-        planPrice: planBase,
-        bumps: [],
-        bumpPrices: Math.max(0, numTotal - planBase),
-        totalAmount: numTotal,
-        customerName: customerName || customerEmail.split('@')[0],
-        customerEmail: customerEmail.trim().toLowerCase(),
+      const result = await dbReassignSale({
+        saleId,
+        customerEmail,
+        newAffiliateCode: affiliateCode,
+        plan,
+        totalAmount,
+        customerName
       });
 
-      return NextResponse.json({ success: true, sale, message: 'Venda atribuída com sucesso ao afiliado no Supabase!' });
+      return NextResponse.json(result, { status: result.success ? 200 : 400 });
+    }
+
+    // 6.1 Recalcular métricas de todos os afiliados no Supabase
+    if (action === 'recalculate_metrics') {
+      await dbRecalculateAllAffiliatesMetrics();
+      const [affiliates, sales] = await Promise.all([
+        dbGetAffiliates(),
+        dbGetSales()
+      ]);
+      return NextResponse.json({ success: true, affiliates, sales });
     }
 
     // 7. Sincronização segura (nunca sobrescreve com vazio)

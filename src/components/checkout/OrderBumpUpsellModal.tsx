@@ -28,6 +28,7 @@ import {
   unlockOrderBumpsLocally, 
   OrderBumpItem 
 } from '@/lib/orderBumps';
+import { getAffiliateRef } from '@/lib/affiliateSystem';
 
 export default function OrderBumpUpsellModal() {
   const { data: session, status } = useSession();
@@ -150,6 +151,7 @@ export default function OrderBumpUpsellModal() {
           planPrice: 0,
           bumps: selectedBumps,
           total: totalPrice,
+          affiliateCode: getAffiliateRef() || undefined,
           customer: {
             name: session?.user?.name || 'Cliente DecolaShop',
             email: session?.user?.email || '',

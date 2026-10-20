@@ -82,6 +82,7 @@ export default function AfiliadosView() {
   const [payingAffiliate, setPayingAffiliate] = useState<Affiliate | null>(null);
   const [attributeModal, setAttributeModal] = useState<{
     isOpen: boolean;
+    saleId?: string;
     email: string;
     name: string;
     plan: 'monthly' | 'lifetime';
@@ -364,14 +365,22 @@ export default function AfiliadosView() {
     }
   };
 
-  const handleOpenAttributeModal = (user?: { email: string; name?: string; plan?: string }) => {
+  const handleOpenAttributeModal = (target?: {
+    saleId?: string;
+    email?: string;
+    name?: string;
+    plan?: string;
+    affiliateCode?: string;
+    amount?: number;
+  }) => {
     setAttributeModal({
       isOpen: true,
-      email: user?.email || '',
-      name: user?.name || '',
-      plan: (user?.plan === 'monthly' ? 'monthly' : 'lifetime'),
-      affiliateCode: affiliates[0]?.code || '',
-      amount: user?.plan === 'monthly' ? 89.90 : 179.90
+      saleId: target?.saleId,
+      email: target?.email || '',
+      name: target?.name || '',
+      plan: (target?.plan === 'monthly' ? 'monthly' : 'lifetime'),
+      affiliateCode: target?.affiliateCode !== undefined ? target.affiliateCode : (affiliates[0]?.code || '__direct__'),
+      amount: target?.amount !== undefined ? target.amount : (target?.plan === 'monthly' ? 89.90 : 179.90)
     });
   };
 
@@ -381,36 +390,36 @@ export default function AfiliadosView() {
       toast.error('Informe o e-mail do cliente');
       return;
     }
-    if (!attributeModal?.affiliateCode.trim()) {
-      toast.error('Selecione ou digite o código do afiliado');
-      return;
-    }
 
     try {
+      const isDirect = !attributeModal.affiliateCode || attributeModal.affiliateCode === '__direct__' || attributeModal.affiliateCode === 'none' || attributeModal.affiliateCode === 'direct';
       const res = await fetch('/api/affiliates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'attribute_past_user',
+          action: 'reassign_sale',
+          saleId: attributeModal.saleId,
           customerEmail: attributeModal.email.trim().toLowerCase(),
           customerName: attributeModal.name.trim(),
           plan: attributeModal.plan,
           totalAmount: attributeModal.amount,
-          affiliateCode: attributeModal.affiliateCode.trim().toLowerCase()
+          affiliateCode: isDirect ? '__direct__' : attributeModal.affiliateCode.trim().toLowerCase()
         })
       });
       const data = await res.json();
       if (data.success) {
-        toast.success(`🎉 Venda atribuída com sucesso ao afiliado ${attributeModal.affiliateCode.toUpperCase()}!`);
+        toast.success(data.message || (isDirect ? 'Venda convertida em Venda Direta da Plataforma!' : `🎉 Venda atribuída com sucesso!`));
         setAttributeModal(null);
-        syncAffiliatesFromServer().then(({ affiliates: affs, sales: sls, pendingTransactions: pts, paidUsers: pus }) => {
-          setAffiliates(affs);
-          setSales(sls);
-          setPendingTxs(pts || []);
-          if (pus) setPaidUsers(pus);
-        });
+        const fresh = await syncAffiliatesFromServer();
+        if (fresh) {
+          setAffiliates(fresh.affiliates);
+          setSales(fresh.sales);
+          setPendingTxs(fresh.pendingTransactions || []);
+          if (fresh.paidUsers) setPaidUsers(fresh.paidUsers);
+        }
+        loadData();
       } else {
-        toast.error(data.error || 'Erro ao atribuir venda');
+        toast.error(data.error || data.message || 'Erro ao atribuir venda');
       }
     } catch {
       toast.error('Erro de conexão ao atribuir venda');
@@ -986,7 +995,14 @@ export default function AfiliadosView() {
                           </td>
                           <td className="py-3 px-3 text-center">
                             <button
-                              onClick={() => handleOpenAttributeModal(u)}
+                              onClick={() => handleOpenAttributeModal({
+                                saleId: attributedSale?.id,
+                                email: u.email,
+                                name: u.name,
+                                plan: u.plan,
+                                affiliateCode: attributedSale?.affiliateCode || '',
+                                amount: attributedSale?.totalAmount || (u.plan === 'monthly' ? 89.90 : 179.90)
+                              })}
                               className="px-2.5 py-1 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 font-bold text-[11px] transition-colors inline-flex items-center gap-1 cursor-pointer"
                             >
                               <Sparkles size={12} />
@@ -1115,6 +1131,7 @@ export default function AfiliadosView() {
                   <th className="py-2.5 px-3 text-right">Total Pedido</th>
                   <th className="py-2.5 px-3 text-right">Comissão Afiliado</th>
                   <th className="py-2.5 px-3 text-center">Status</th>
+                  <th className="py-2.5 px-3 text-center">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -1195,6 +1212,25 @@ export default function AfiliadosView() {
                             <span>A Pagar</span>
                           </span>
                         )}
+                      </td>
+
+                      {/* Actions */}
+                      <td className="py-3 px-3 text-center">
+                        <button
+                          onClick={() => handleOpenAttributeModal({
+                            saleId: sale.id,
+                            email: sale.customerEmail,
+                            name: sale.customerName,
+                            plan: sale.plan,
+                            affiliateCode: sale.affiliateCode,
+                            amount: sale.totalAmount
+                          })}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 font-bold text-[11px] transition-colors cursor-pointer whitespace-nowrap"
+                          title="Alterar quem recebe a comissão ou marcar como venda direta da plataforma"
+                        >
+                          <Sparkles size={11} />
+                          <span>Mudar Afiliado</span>
+                        </button>
                       </td>
                     </tr>
                   );
@@ -1449,8 +1485,12 @@ export default function AfiliadosView() {
                 <Sparkles size={20} />
               </div>
               <div>
-                <h3 className="text-lg font-black text-white">Vincular Venda a Afiliado</h3>
-                <p className="text-xs text-slate-400">Atribui a venda e credita a comissão imediatamente</p>
+                <h3 className="text-lg font-black text-white">
+                  {attributeModal.saleId ? 'Alterar Afiliado da Venda' : 'Vincular Venda / Usuário a Afiliado'}
+                </h3>
+                <p className="text-xs text-slate-400">
+                  {attributeModal.saleId ? 'Reatribua quem receberá a comissão ou marque como venda direta da plataforma' : 'Atribui a venda e credita a comissão imediatamente'}
+                </p>
               </div>
             </div>
 
@@ -1513,47 +1553,43 @@ export default function AfiliadosView() {
 
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1">
-                  Afiliado que Receberá a Comissão
+                  Afiliado / Destino da Venda
                 </label>
-                {affiliates.length > 0 ? (
-                  <div className="space-y-2">
-                    <select
-                      value={attributeModal.affiliateCode}
-                      onChange={(e) => setAttributeModal({ ...attributeModal, affiliateCode: e.target.value })}
-                      className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-purple-500 font-mono"
-                    >
-                      {affiliates.map(a => (
-                        <option key={a.id} value={a.code}>
-                          {a.name} (?af={a.code}) - {a.commissionPercent}% comissão
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-[10px] text-slate-400">
-                      Ou digite um código de afiliado personalizado:
-                    </p>
-                    <input
-                      type="text"
-                      placeholder="Ex: kaio, higor, lucas"
-                      value={attributeModal.affiliateCode}
-                      onChange={(e) => setAttributeModal({ ...attributeModal, affiliateCode: e.target.value })}
-                      className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-mono"
-                    />
-                  </div>
-                ) : (
-                  <div>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Digite o código do afiliado (ex: kaio)"
-                      value={attributeModal.affiliateCode}
-                      onChange={(e) => setAttributeModal({ ...attributeModal, affiliateCode: e.target.value })}
-                      className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-mono"
-                    />
-                    <p className="text-[10px] text-slate-400 mt-1">
-                      O afiliado será criado e auto-provisionado com 50% de comissão caso ainda não exista.
-                    </p>
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <select
+                    value={attributeModal.affiliateCode}
+                    onChange={(e) => setAttributeModal({ ...attributeModal, affiliateCode: e.target.value })}
+                    className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-purple-500 font-mono"
+                  >
+                    <option value="__direct__">
+                      🚫 Venda Direta da Plataforma (0% comissão - Sem Afiliado)
+                    </option>
+                    {affiliates.map(a => (
+                      <option key={a.id} value={a.code}>
+                        {a.name} (?af={a.code}) - {a.commissionPercent}% comissão
+                      </option>
+                    ))}
+                  </select>
+
+                  {attributeModal.affiliateCode === '__direct__' ? (
+                    <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px] leading-relaxed">
+                      💡 <strong>Venda Direta da Plataforma:</strong> Esta venda será removida da contabilidade de afiliados e nenhuma comissão será repassada (100% lucro próprio da plataforma).
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-[10px] text-slate-400">
+                        Ou digite outro código de parceiro:
+                      </p>
+                      <input
+                        type="text"
+                        placeholder="Ex: kaio, higor, lucas"
+                        value={attributeModal.affiliateCode}
+                        onChange={(e) => setAttributeModal({ ...attributeModal, affiliateCode: e.target.value })}
+                        className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-mono"
+                      />
+                    </>
+                  )}
+                </div>
               </div>
 
               <div className="pt-2 flex items-center justify-end gap-2">
@@ -1566,9 +1602,9 @@ export default function AfiliadosView() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold text-xs shadow-lg shadow-purple-600/20"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold text-xs shadow-lg shadow-purple-600/20 cursor-pointer"
                 >
-                  Confirmar Atribuição
+                  {attributeModal.saleId ? 'Salvar Alteração de Afiliado' : 'Confirmar Vínculo'}
                 </button>
               </div>
             </form>

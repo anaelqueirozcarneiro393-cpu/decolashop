@@ -667,3 +667,242 @@ export async function dbMarkCommissionPaid(affiliateIdOrCode: string): Promise<b
     return false;
   }
 }
+
+/**
+ * 13. Recalcular todas as métricas de todos os afiliados no Supabase
+ * baseado estritamente nas vendas reais que estão na tabela verification_tokens (affiliate_sale:*)
+ */
+export async function dbRecalculateAllAffiliatesMetrics(): Promise<void> {
+  try {
+    const supabase = getSupabaseAdmin('next_auth');
+    const [rawAffiliates, rawSales] = await Promise.all([
+      dbGetAffiliates(),
+      dbGetSales()
+    ]);
+
+    for (const aff of rawAffiliates) {
+      if (!aff || !aff.code) continue;
+      const isKaio = aff.code.toLowerCase() === 'rwjncwiofw' || aff.code.toLowerCase() === 'kaio';
+      
+      const affSales = (rawSales || []).filter(s => {
+        if (!s || !s.affiliateCode) return false;
+        const c = s.affiliateCode.toLowerCase();
+        if (isKaio) {
+          return c === 'rwjncwiofw' || c === 'kaio';
+        }
+        return c === aff.code.toLowerCase();
+      });
+
+      const totalRev = affSales.reduce((acc, s) => acc + (s.totalAmount || 0), 0);
+      const count = affSales.length;
+      const pendingComm = affSales.filter(s => s.status !== 'paid_to_affiliate').reduce((acc, s) => acc + (s.commissionAmount || 0), 0);
+      const paidComm = affSales.filter(s => s.status === 'paid_to_affiliate').reduce((acc, s) => acc + (s.commissionAmount || 0), 0);
+
+      aff.totalRevenue = Number(totalRev.toFixed(2));
+      aff.totalSalesCount = count;
+      aff.pendingCommission = Number(pendingComm.toFixed(2));
+      aff.paidCommission = Number(paidComm.toFixed(2));
+
+      await dbSaveAffiliate(aff);
+
+      if (isKaio && aff.code === 'rwjncwiofw') {
+        await supabase.from('verification_tokens').delete().eq('identifier', 'affiliate:kaio');
+        await supabase.from('verification_tokens').insert({
+          identifier: 'affiliate:kaio',
+          token: JSON.stringify({
+            ...aff,
+            code: 'kaio',
+            name: 'kaio (alias)'
+          }),
+          expires: EXPIRY_FAR_FUTURE
+        });
+      }
+    }
+    console.log('[DB AFILIADOS] ✅ Métricas de todos os parceiros recalculadas com sucesso no Supabase.');
+  } catch (err) {
+    console.error('[DB AFILIADOS] Erro ao recalcular métricas de afiliados:', err);
+  }
+}
+
+export interface ReassignSaleParams {
+  saleId?: string;
+  customerEmail: string;
+  newAffiliateCode: string; // '__direct__', 'none', 'direct', '' or valid affiliate code
+  plan?: 'monthly' | 'lifetime';
+  totalAmount?: number;
+  customerName?: string;
+}
+
+/**
+ * 14. Reatribuir uma venda ou transformar em Venda Direta da Plataforma
+ */
+export async function dbReassignSale(params: ReassignSaleParams): Promise<{
+  success: boolean;
+  sale?: AffiliateSale | null;
+  message: string;
+}> {
+  try {
+    const supabase = getSupabaseAdmin('next_auth');
+    const cleanEmail = (params.customerEmail || '').toLowerCase().trim();
+    if (!cleanEmail) {
+      throw new Error('E-mail do cliente é obrigatório.');
+    }
+
+    const rawTargetCode = (params.newAffiliateCode || '').toLowerCase().trim();
+    const isDirect = !rawTargetCode || rawTargetCode === '__direct__' || rawTargetCode === 'none' || rawTargetCode === 'direct';
+
+    // 1. Localizar venda existente no Supabase
+    const { data: allSaleRows } = await supabase
+      .from('verification_tokens')
+      .select('identifier, token')
+      .like('identifier', 'affiliate_sale:%');
+
+    let matchedRow: { identifier: string; token: string } | null = null;
+    let existingSale: AffiliateSale | null = null;
+
+    for (const row of allSaleRows || []) {
+      try {
+        const s: AffiliateSale = JSON.parse(row.token);
+        // Correspondência por saleId se fornecido
+        if (params.saleId && (s.id === params.saleId || s.transactionId === params.saleId || row.identifier === `affiliate_sale:${params.saleId}`)) {
+          matchedRow = row;
+          existingSale = s;
+          break;
+        }
+        // Ou correspondência por e-mail do cliente
+        if (!matchedRow && s.customerEmail && s.customerEmail.toLowerCase().trim() === cleanEmail) {
+          matchedRow = row;
+          existingSale = s;
+        }
+      } catch {}
+    }
+
+    // CASO 1: Transformar em Venda Direta da Plataforma (Remover comissão)
+    if (isDirect) {
+      if (matchedRow) {
+        await supabase.from('verification_tokens').delete().eq('identifier', matchedRow.identifier);
+      }
+      // Remove o vínculo perpétuo de lead para não re-atribuir no futuro
+      await supabase.from('verification_tokens').delete().eq('identifier', `lead_affiliate:${cleanEmail}`);
+      await supabase.from('verification_tokens').delete().eq('identifier', `pending_pix_email:${cleanEmail}`);
+
+      // Recalcula métricas de todos os afiliados
+      await dbRecalculateAllAffiliatesMetrics();
+
+      return {
+        success: true,
+        sale: null,
+        message: 'Venda convertida em Venda Direta da Plataforma com sucesso! Nenhuma comissão será repassada.'
+      };
+    }
+
+    // CASO 2: Atribuir ou Transferir para um Afiliado
+    const cleanCode = rawTargetCode.replace(/[^a-z0-9_-]/g, '');
+    let affiliate = await dbGetAffiliateByCode(cleanCode);
+    const isKaio = cleanCode === 'rwjncwiofw' || cleanCode === 'kaio';
+
+    if (!affiliate) {
+      // Auto-cadastra se ainda não existir
+      affiliate = {
+        id: `af_${cleanCode}_${Date.now().toString(36)}`,
+        name: isKaio ? 'kaio' : `Afiliado ${cleanCode.toUpperCase()}`,
+        code: cleanCode,
+        email: isKaio ? 'kaiofredy2908@gmail.com' : '',
+        pixKey: isKaio ? '63992369341' : '',
+        pixKeyType: isKaio ? 'phone' : 'random',
+        commissionPercent: isKaio ? 100 : 50,
+        active: true,
+        createdAt: Date.now(),
+        totalRevenue: 0,
+        totalSalesCount: 0,
+        pendingCommission: 0,
+        paidCommission: 0,
+      };
+      await dbSaveAffiliate(affiliate);
+    }
+
+    const commissionPercent = affiliate.commissionPercent ?? (isKaio ? 100 : 50);
+
+    let finalSale: AffiliateSale;
+
+    if (existingSale && matchedRow) {
+      // Atualiza venda existente
+      const updatedTotalAmount = Number(params.totalAmount) || existingSale.totalAmount;
+      const commissionAmount = Number(((updatedTotalAmount * commissionPercent) / 100).toFixed(2));
+      const isSelfPurchase = affiliate.email ? cleanEmail === affiliate.email.toLowerCase().trim() : false;
+
+      finalSale = {
+        ...existingSale,
+        affiliateId: affiliate.id,
+        affiliateCode: affiliate.code,
+        affiliateName: affiliate.name,
+        commissionPercent,
+        commissionAmount,
+        isSelfPurchase,
+        totalAmount: updatedTotalAmount,
+        customerName: params.customerName || existingSale.customerName,
+        plan: params.plan || existingSale.plan
+      };
+
+      await supabase.from('verification_tokens').delete().eq('identifier', matchedRow.identifier);
+      await supabase.from('verification_tokens').insert({
+        identifier: matchedRow.identifier,
+        token: JSON.stringify(finalSale),
+        expires: EXPIRY_FAR_FUTURE
+      });
+    } else {
+      // Cria nova venda associada a este usuário
+      const plan = params.plan || 'lifetime';
+      const planPrice = plan === 'monthly' ? 89.90 : 179.90;
+      const totalAmount = Number(params.totalAmount) || planPrice;
+      const commissionAmount = Number(((totalAmount * commissionPercent) / 100).toFixed(2));
+      const isSelfPurchase = affiliate.email ? cleanEmail === affiliate.email.toLowerCase().trim() : false;
+      const saleId = `sale_af_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      const key = `affiliate_sale:${saleId}`;
+
+      finalSale = {
+        id: saleId,
+        affiliateId: affiliate.id,
+        affiliateCode: affiliate.code,
+        affiliateName: affiliate.name,
+        customerName: params.customerName || cleanEmail.split('@')[0],
+        customerEmail: cleanEmail,
+        plan,
+        planPrice,
+        bumps: [],
+        bumpPrices: Math.max(0, Number((totalAmount - planPrice).toFixed(2))),
+        totalAmount,
+        commissionPercent,
+        commissionAmount,
+        isSelfPurchase,
+        status: 'confirmed',
+        createdAt: Date.now()
+      };
+
+      await supabase.from('verification_tokens').insert({
+        identifier: key,
+        token: JSON.stringify(finalSale),
+        expires: EXPIRY_FAR_FUTURE
+      });
+    }
+
+    // Amarra o lead no novo afiliado
+    await dbBindLead(cleanEmail, affiliate.code);
+
+    // Recalcula métricas de todos os afiliados
+    await dbRecalculateAllAffiliatesMetrics();
+
+    return {
+      success: true,
+      sale: finalSale,
+      message: `Venda atribuída com sucesso ao afiliado ${affiliate.name} (${affiliate.code})!`
+    };
+  } catch (err: any) {
+    console.error('[DB AFILIADOS] Erro em dbReassignSale:', err);
+    return {
+      success: false,
+      message: err.message || 'Erro ao reatribuir venda de afiliado'
+    };
+  }
+}
+

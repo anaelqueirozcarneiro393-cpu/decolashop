@@ -282,17 +282,6 @@ export async function POST(req: Request) {
         } catch {}
       }
 
-      // AUTO-ATTRIBUTION: Se a venda é de assinatura/bump e não veio código, atribui ao afiliado ativo da loja (rwjncwiofw)
-      if (!affiliateCode) {
-        try {
-          const activeAffs = await dbGetAffiliates();
-          const rwj = activeAffs.find(a => a.code === 'rwjncwiofw');
-          if (rwj && rwj.active) {
-            affiliateCode = 'rwjncwiofw';
-          }
-        } catch {}
-      }
-
       if (affiliateCode && cleanEmail) {
         await dbBindLead(cleanEmail, affiliateCode).catch(() => {});
       }

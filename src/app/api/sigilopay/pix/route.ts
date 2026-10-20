@@ -131,25 +131,7 @@ export async function POST(req: Request) {
       } catch {}
     }
 
-    // AUTO-ATTRIBUTION: Se não veio código e não há lead amarrado, atribui ao afiliado ativo da loja (rwjncwiofw)
-    if (!effectiveAffiliateCode && !isTaxaAntecipacao) {
-      try {
-        const activeAffs = await dbGetAffiliates();
-        const rwj = activeAffs.find(a => a.code === 'rwjncwiofw');
-        if (rwj && rwj.active) {
-          effectiveAffiliateCode = 'rwjncwiofw';
-          console.log(`[AFILIADOS PIX AUTO-ATTRIBUTION] Código atribuído automaticamente ao afiliado rwjncwiofw`);
-        } else if (activeAffs && activeAffs.length > 0) {
-          const primary = activeAffs.find(a => a.active) || activeAffs[0];
-          if (primary && primary.code) {
-            effectiveAffiliateCode = primary.code;
-            console.log(`[AFILIADOS PIX AUTO-ATTRIBUTION] Código atribuído automaticamente ao afiliado ativo: ${primary.code}`);
-          }
-        }
-      } catch {}
-    }
-
-    // Se há um afiliado associado, vincula perpetuamente o lead no Supabase
+    // Se há um afiliado associado (explicitamente vindo da URL ou lead legítimo), vincula perpetuamente o lead no Supabase
     if (effectiveAffiliateCode && !isTaxaAntecipacao && customer?.email) {
       await dbBindLead(customer.email, effectiveAffiliateCode).catch(() => {});
     }
