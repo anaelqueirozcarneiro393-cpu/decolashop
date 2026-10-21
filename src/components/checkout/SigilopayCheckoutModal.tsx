@@ -234,7 +234,8 @@ export default function SigilopayCheckoutModal({
             name: name.trim(),
             email: email.trim().toLowerCase(),
             cpf: cpf.replace(/\D/g, ''),
-            phone: phone.replace(/\D/g, '') || '11999999999'
+            phone: phone.replace(/\D/g, '') || '11999999999',
+            password: password.trim()
           }
         })
       });
@@ -268,6 +269,77 @@ export default function SigilopayCheckoutModal({
     toast.success('Código Pix Copia e Cola copiado!');
     setTimeout(() => setCopied(false), 3000);
   };
+
+  // Polling automático a cada 3.5s para detectar pagamento Pix instantaneamente
+  useEffect(() => {
+    if (step !== 'pix' || !pixData?.transactionId || !isOpen) return;
+
+    let isPolling = true;
+    const interval = setInterval(async () => {
+      if (!isPolling) return;
+      try {
+        const confirmRes = await fetch('/api/sigilopay/confirm-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: email.trim().toLowerCase(),
+            name: name.trim(),
+            cpf: cpf.replace(/\D/g, ''),
+            phone: phone.replace(/\D/g, ''),
+            password: password,
+            plan: selectedPlan,
+            bumps: selectedBumps,
+            total: totalPrice,
+            transactionId: pixData?.transactionId,
+            affiliateCode: getAffiliateRef()
+          })
+        });
+
+        const confirmData = await confirmRes.json();
+        if (confirmData.success && isPolling) {
+          isPolling = false;
+          clearInterval(interval);
+
+          if (selectedBumps && selectedBumps.length > 0) {
+            unlockOrderBumpsLocally(selectedBumps);
+          }
+
+          const cleanUserEmail = email.trim().toLowerCase();
+          const cleanUserName = name.trim();
+          const cleanUserCpf = cpf.replace(/\D/g, '');
+          const cleanUserPhone = phone.replace(/\D/g, '');
+
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('decolashop_user_email', cleanUserEmail);
+            localStorage.setItem('decolashop_active_user_email', cleanUserEmail);
+            localStorage.setItem('decolashop_user_name', cleanUserName);
+            localStorage.setItem('decolashop_user_cpf', cleanUserCpf);
+            localStorage.setItem('decolashop_user_phone', cleanUserPhone);
+            localStorage.setItem('decolashop_user_plan', selectedPlan);
+            localStorage.setItem('decolashop_user_role', 'user');
+            localStorage.setItem('decolashop_logged_in', 'true');
+          }
+
+          try {
+            await signIn('credentials', {
+              email: cleanUserEmail,
+              password: password,
+              redirect: false
+            });
+          } catch {}
+
+          toast.success('🎉 Pagamento confirmado! Acesso VIP liberado com sucesso!');
+          setStep('success');
+          onSuccess?.();
+        }
+      } catch {}
+    }, 3500);
+
+    return () => {
+      isPolling = false;
+      clearInterval(interval);
+    };
+  }, [step, pixData?.transactionId, isOpen, email, name, cpf, phone, password, selectedPlan, selectedBumps, totalPrice, onSuccess]);
 
   // Immediate Account Activation and Auto-Login on "Já Paguei"
   const handleConfirmPayment = async () => {

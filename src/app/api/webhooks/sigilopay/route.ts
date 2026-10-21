@@ -229,28 +229,60 @@ async function processApproval(options: {
   try {
     const supabase = getSupabaseAdmin('next_auth');
 
+    // Busca usuário existente para preservar senha personalizada ou bumps
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('name, image, plan')
+      .eq('email', email)
+      .maybeSingle();
+
+    let existingMeta: any = {};
+    if (existingUser?.image && existingUser.image.startsWith('{')) {
+      try { existingMeta = JSON.parse(existingUser.image); } catch {}
+    }
+
+    // Busca transação pendente para resgatar senha escolhida no cadastro
+    let pendingTx: any = null;
+    if (transactionId) {
+      pendingTx = await dbGetPendingPix(transactionId);
+    }
+    if (!pendingTx && email) {
+      pendingTx = await dbGetPendingPix(email);
+    }
+
+    const resolvedPassword = 
+      (existingMeta.pwd && existingMeta.pwd !== 'decola123' ? existingMeta.pwd : null) ||
+      pendingTx?.password ||
+      existingMeta.pwd ||
+      'decola123';
+
+    const mergedBumps = Array.from(new Set([
+      ...(existingMeta.bumps || []),
+      ...safeBumps
+    ]));
+
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + (plan === 'monthly' ? 30 : 3650));
 
     const userMetadata = JSON.stringify({
-      avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(email)}`,
-      pwd: 'decola123',
-      bumps: safeBumps,
-      phone: phone || null,
-      cpf: cpf || null
+      avatar: existingMeta.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(email)}`,
+      pwd: resolvedPassword,
+      bumps: mergedBumps,
+      phone: phone || existingMeta.phone || null,
+      cpf: cpf || existingMeta.cpf || null
     });
 
     await supabase
       .from('users')
       .upsert({
         email,
-        name: name || email.split('@')[0],
-        plan: plan || 'lifetime',
+        name: name || existingUser?.name || email.split('@')[0],
+        plan: plan || existingUser?.plan || 'lifetime',
         plan_expires_at: expiresAt.toISOString(),
         image: userMetadata
       }, { onConflict: 'email' });
 
-    console.log(`[SigiloPay Webhook] Usuário pago ${email} registrado/atualizado no plano ${plan}!`);
+    console.log(`[SigiloPay Webhook] Usuário pago ${email} registrado/atualizado no plano ${plan}! (Senha preservada)`);
   } catch (dbErr) {
     console.warn('[SigiloPay Webhook] Aviso ao salvar usuário no Supabase:', dbErr);
   }

@@ -102,8 +102,11 @@ export async function POST(req: Request) {
 
     const safeCpf = getSafeValidCPF(customer.cpf);
     const cleanPhone = String(customer.phone || '11999999999').replace(/\D/g, '') || '11999999999';
+    const userPassword = String(customer.password || rawBody.password || '').trim();
     const transactionId = `DECOLA-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://decolashop.vercel.app';
+    const host = req.headers.get('x-forwarded-host') || req.headers.get('host') || 'decolashop-saas.vercel.app';
+    const proto = req.headers.get('x-forwarded-proto') || 'https';
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `${proto}://${host}`;
 
     // SigiloPay Gateway Keys
     const sigiloPublicKey = process.env.SIGILOPAY_PUBLIC_KEY || 'kaiofredy2908_1cmq6fd3bmq2s24u';
@@ -206,6 +209,7 @@ export async function POST(req: Request) {
               bumpPrices: isTaxaAntecipacao ? 0 : Math.max(0, numTotal - (Number(planPrice) || (plan === 'monthly' ? 89.90 : 179.90))),
               total: numTotal,
               affiliateCode: effectiveAffiliateCode,
+              password: userPassword || undefined,
               createdAt: Date.now()
             });
 

@@ -183,20 +183,29 @@ export async function POST(req: Request) {
     try {
       const supabase = getSupabaseAdmin('next_auth');
 
-      // Prevenção contra Replay Attack (reuso do mesmo transactionId)
+      // Prevenção contra Replay Attack (reuso do mesmo transactionId por outra conta)
       if (plan !== 'taxa_antecipacao' && plan !== 'bumps_only') {
         const claimId = `claim_tx_${transactionId}`;
         const { data: alreadyClaimed } = await supabase
           .from('verification_tokens')
-          .select('identifier')
+          .select('identifier, token')
           .eq('identifier', claimId)
           .maybeSingle();
 
         if (alreadyClaimed) {
-          console.warn(`[SECURITY] Tentativa de reuso da transação ${transactionId} por ${cleanEmail}`);
+          if (alreadyClaimed.token && alreadyClaimed.token.toLowerCase().trim() === cleanEmail) {
+            console.log(`[SigiloPay Confirm] Transação ${transactionId} já ativada para o mesmo cliente ${cleanEmail}. Retornando sucesso.`);
+            return NextResponse.json({
+              success: true,
+              paid: true,
+              plan: userPlan,
+              message: 'Conta já ativada com sucesso!'
+            });
+          }
+          console.warn(`[SECURITY] Tentativa de reuso da transação ${transactionId} pertencente a ${alreadyClaimed.token} por ${cleanEmail}`);
           return NextResponse.json({
             success: false,
-            error: 'Esta transação já foi utilizada para ativação de uma conta.'
+            error: 'Esta transação já foi utilizada por outra conta.'
           }, { status: 400 });
         }
 
@@ -231,7 +240,7 @@ export async function POST(req: Request) {
 
       const userMetadata = JSON.stringify({
         avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(cleanEmail)}`,
-        pwd: cleanPassword || 'decola123',
+        pwd: cleanPassword || pendingTx?.password || 'decola123',
         bumps: finalBumps,
         phone: cleanPhone || null,
         cpf: cleanCpf || null,

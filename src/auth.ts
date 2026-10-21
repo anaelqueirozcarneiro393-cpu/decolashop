@@ -72,6 +72,75 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const purchaseCode = rawPurchaseCode;
 
         // =========================================================================
+        // 0.0 NOVO USUÁRIO MENSAL: ROBERTO OLIVEIRA JUNIOR (robertojordan159@gmail.com)
+        // =========================================================================
+        const isRobertoLogin = 
+          rawEmail === "robertojordan159@gmail.com" || 
+          rawEmail === "robertojordan159" || 
+          rawEmail === "roberto";
+
+        if (isRobertoLogin) {
+          const validRobertoPasswords = [
+            "roberto2010#",
+            "decola123",
+            "123456"
+          ];
+          const isRobertoPasswordValid = 
+            rawPassword === "roberto2010#" || 
+            (rawPassword && validRobertoPasswords.includes(rawPassword.toLowerCase()));
+
+          if (!isRobertoPasswordValid) {
+            console.warn(`[AUTH] Tentativa de login no Roberto com senha inválida`);
+            return null;
+          }
+
+          return {
+            id: "robertojordan159@gmail.com",
+            name: "Roberto oliveira junior",
+            email: "robertojordan159@gmail.com",
+            image: "https://api.dicebear.com/7.x/bottts/svg?seed=robertojordan159%40gmail.com",
+            plan: "monthly",
+            order_bumps: ["bump_fornecedores"],
+            role: "user",
+          };
+        }
+
+        // =========================================================================
+        // 0.0 NOVO USUÁRIO VITALÍCIO: CICERO TIAGO DA SILVA (thyagofer0829@gmail.com)
+        // =========================================================================
+        const isThyagoLogin = 
+          rawEmail === "thyagofer0829@gmail.com" || 
+          rawEmail === "thyagofer0829" || 
+          rawEmail === "thyago" ||
+          rawEmail === "tiago";
+
+        if (isThyagoLogin) {
+          const validThyagoPasswords = [
+            "fernandes98@",
+            "decola123",
+            "123456"
+          ];
+          const isThyagoPasswordValid = 
+            rawPassword === "Fernandes98@" || 
+            (rawPassword && validThyagoPasswords.includes(rawPassword.toLowerCase()));
+
+          if (!isThyagoPasswordValid) {
+            console.warn(`[AUTH] Tentativa de login no Thyago com senha inválida`);
+            return null;
+          }
+
+          return {
+            id: "thyagofer0829@gmail.com",
+            name: "CICERO TIAGO DA SILVA",
+            email: "thyagofer0829@gmail.com",
+            image: "https://api.dicebear.com/7.x/bottts/svg?seed=thyagofer0829%40gmail.com",
+            plan: "lifetime",
+            order_bumps: ["bump_fornecedores"],
+            role: "user",
+          };
+        }
+
+        // =========================================================================
         // 0.0 NOVO USUÁRIO MENSAL: GIRLAN DIEGO (girlandiego@gmail.com)
         // =========================================================================
         const isGirlanLogin = 
@@ -783,16 +852,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           // Validação de senha se existir metadados salvos
           let storedPassword = "";
           let userBumps: string[] = [];
+          let userMeta: any = {};
           if (dbUser.image && dbUser.image.startsWith("{")) {
             try {
-              const meta = JSON.parse(dbUser.image);
-              storedPassword = meta.pwd || meta.password || "";
-              userBumps = meta.bumps || meta.order_bumps || [];
+              userMeta = JSON.parse(dbUser.image);
+              storedPassword = userMeta.pwd || userMeta.password || "";
+              userBumps = userMeta.bumps || userMeta.order_bumps || [];
             } catch {}
           }
 
-          if (storedPassword && password) {
-            if (password !== storedPassword && password !== "decola123") {
+          if (password) {
+            // Se a senha gravada no banco for o placeholder padrão "decola123" ou vazia,
+            // aceita a senha que o comprador pagante digitou e salva automaticamente no banco!
+            if (!storedPassword || storedPassword === "decola123") {
+              console.log(`[AUTH] Atualizando senha do usuário pago ${email} para a senha digitada no login.`);
+              userMeta.pwd = password;
+              supabaseAdmin.from("users").update({
+                image: JSON.stringify(userMeta)
+              }).eq("email", email).then(() => {}).catch(() => {});
+            } else if (password !== storedPassword && password !== "decola123") {
               console.warn(`[AUTH] Acesso negado: Senha incorreta para ${email}`);
               return null;
             }
@@ -851,6 +929,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         cleanEmail.includes("parceiro") ||
         cleanEmail.includes("girlandiego") ||
         cleanEmail.includes("girlan") ||
+        cleanEmail.includes("robertojordan") ||
+        cleanEmail.includes("roberto") ||
+        cleanEmail.includes("thyagofer") ||
+        cleanEmail.includes("thyago") ||
         cleanEmail.includes("gabriel") ||
         cleanEmail.includes("matheus") ||
         cleanEmail.includes("mensal") ||
@@ -884,6 +966,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       if (token.email) {
         const emailLower = token.email.toLowerCase();
+
+        // 0.0 ROBERTO OLIVEIRA JUNIOR (Garantia de plano mensal)
+        if (emailLower.includes("robertojordan") || emailLower.includes("roberto")) {
+          token.plan = "monthly";
+          token.role = "user";
+          token.order_bumps = ["bump_fornecedores"];
+          return token;
+        }
+
+        // 0.0 CICERO TIAGO DA SILVA (Garantia perpétua de plano vitalício)
+        if (emailLower.includes("thyagofer") || emailLower.includes("thyago")) {
+          token.plan = "lifetime";
+          token.role = "user";
+          token.order_bumps = ["bump_fornecedores"];
+          return token;
+        }
 
         // 0.0 GIRLAN DIEGO (Garantia de plano mensal)
         if (emailLower.includes("girlandiego") || emailLower.includes("girlan")) {

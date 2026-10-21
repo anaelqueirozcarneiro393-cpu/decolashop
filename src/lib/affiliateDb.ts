@@ -53,6 +53,7 @@ export interface PendingPixTransaction {
   bumpPrices?: number;
   total: number;
   affiliateCode?: string | null;
+  password?: string;
   createdAt: number;
 }
 
