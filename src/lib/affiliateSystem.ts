@@ -59,6 +59,7 @@ export interface PendingPixTransaction {
 const AFFILIATES_STORAGE_KEY = 'decolashop_affiliates_real_v3';
 const AFFILIATE_SALES_STORAGE_KEY = 'decolashop_affiliate_sales_real_v3';
 const PENDING_TXS_STORAGE_KEY = 'decolashop_affiliate_pending_txs_v3';
+const PAID_USERS_STORAGE_KEY = 'decolashop_paid_users_real_v3';
 const DELETED_AFFILIATES_KEY = 'decolashop_deleted_affiliates_real_v3';
 const AFFILIATE_REF_COOKIE = 'decolashop_af';
 const AFFILIATE_REF_STORAGE = 'decolashop_affiliate_ref';
@@ -366,6 +367,20 @@ export function getPendingPixTransactions(): PendingPixTransaction[] {
 }
 
 /**
+ * Get all registered paid users cached locally
+ */
+export function getPaidUsers(): any[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    purgeObsoleteAffiliateStorage();
+    const raw = localStorage.getItem(PAID_USERS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Synchronize affiliates, sales and pending PIX transactions from server API across devices
  */
 export async function syncAffiliatesFromServer(): Promise<{ affiliates: Affiliate[]; sales: AffiliateSale[]; pendingTransactions: PendingPixTransaction[]; paidUsers?: any[] }> {
@@ -473,18 +488,28 @@ export async function syncAffiliatesFromServer(): Promise<{ affiliates: Affiliat
       localStorage.setItem(AFFILIATES_STORAGE_KEY, nextRawAff);
       localStorage.setItem(AFFILIATE_SALES_STORAGE_KEY, nextRawSales);
 
+      if (Array.isArray(data.paidUsers) && data.paidUsers.length > 0) {
+        localStorage.setItem(PAID_USERS_STORAGE_KEY, JSON.stringify(data.paidUsers));
+      }
+
       if (prevRawAff !== nextRawAff) {
         window.dispatchEvent(new Event('decolashop_affiliate_updated'));
       }
       if (prevRawSales !== nextRawSales) {
         window.dispatchEvent(new Event('decolashop_affiliate_sales_updated'));
       }
-      return { affiliates: mergedAffiliates, sales: serverSales, pendingTransactions: incomingPending, paidUsers: data.paidUsers || [] };
+
+      const cachedUsers = getPaidUsers();
+      const finalPaidUsers = (Array.isArray(data.paidUsers) && data.paidUsers.length > 0)
+        ? data.paidUsers
+        : cachedUsers;
+
+      return { affiliates: mergedAffiliates, sales: serverSales, pendingTransactions: incomingPending, paidUsers: finalPaidUsers };
     }
   } catch (e) {
     console.warn('Erro ao sincronizar afiliados do servidor:', e);
   }
-  return { affiliates: getAffiliates(), sales: getAffiliateSales(), pendingTransactions: getPendingPixTransactions(), paidUsers: [] };
+  return { affiliates: getAffiliates(), sales: getAffiliateSales(), pendingTransactions: getPendingPixTransactions(), paidUsers: getPaidUsers() };
 }
 
 /**

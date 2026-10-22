@@ -38,6 +38,7 @@ import {
   saveAffiliates, 
   getAffiliateSales, 
   getPendingPixTransactions,
+  getPaidUsers,
   addAffiliate, 
   updateAffiliate, 
   deleteAffiliate, 
@@ -72,7 +73,7 @@ export default function AfiliadosView() {
   const [affiliates, setAffiliates] = useState<Affiliate[]>(() => getAffiliates());
   const [sales, setSales] = useState<AffiliateSale[]>(() => getAffiliateSales());
   const [pendingTxs, setPendingTxs] = useState<PendingPixTransaction[]>(() => getPendingPixTransactions());
-  const [paidUsers, setPaidUsers] = useState<any[]>([]);
+  const [paidUsers, setPaidUsers] = useState<any[]>(() => getPaidUsers());
   const [searchTerm, setSearchTerm] = useState('');
   const [salesFilter, setSalesFilter] = useState<'all' | 'awaiting_pix' | 'pending' | 'paid' | 'self_purchase' | 'paid_users'>('all');
   
@@ -109,6 +110,7 @@ export default function AfiliadosView() {
     setAffiliates(getAffiliates());
     setSales(getAffiliateSales());
     setPendingTxs(getPendingPixTransactions());
+    setPaidUsers(getPaidUsers());
   };
 
   useEffect(() => {
@@ -136,7 +138,7 @@ export default function AfiliadosView() {
       setAffiliates(affs);
       setSales(sls);
       setPendingTxs(pts || []);
-      if (pus) setPaidUsers(pus);
+      if (Array.isArray(pus) && pus.length > 0) setPaidUsers(pus);
     });
 
     // 2. Real-time background polling every 3 seconds for instant updates across devices
@@ -145,7 +147,7 @@ export default function AfiliadosView() {
         setAffiliates(affs);
         setSales(sls);
         setPendingTxs(pts || []);
-        if (pus) setPaidUsers(pus);
+        if (Array.isArray(pus) && pus.length > 0) setPaidUsers(pus);
       });
     }, 3000);
 
@@ -231,6 +233,17 @@ export default function AfiliadosView() {
       (p.name && p.name.toLowerCase().includes(term))
     );
   }, [pendingTxs, searchTerm]);
+
+  // Filtered paid users
+  const filteredPaidUsers = useMemo(() => {
+    if (!searchTerm.trim()) return paidUsers;
+    const term = searchTerm.toLowerCase().trim();
+    return paidUsers.filter(u => 
+      (u.name && u.name.toLowerCase().includes(term)) ||
+      (u.email && u.email.toLowerCase().includes(term)) ||
+      (u.plan && u.plan.toLowerCase().includes(term))
+    );
+  }, [paidUsers, searchTerm]);
 
   // Handlers
   const handleCopyLink = (code: string) => {
@@ -943,10 +956,14 @@ export default function AfiliadosView() {
         )}
 
         {salesFilter === 'paid_users' ? (
-          paidUsers.length === 0 ? (
+          filteredPaidUsers.length === 0 ? (
             <div className="text-center py-10 text-slate-400 bg-black/20 rounded-xl border border-white/5 p-6">
               <Users size={28} className="mx-auto mb-2 opacity-40 text-cyan-400" />
-              <p className="text-xs font-bold text-slate-300">Nenhum cliente pago encontrado no banco de dados</p>
+              <p className="text-xs font-bold text-slate-300">
+                {paidUsers.length === 0 
+                  ? 'Nenhum cliente pago encontrado no banco de dados' 
+                  : `Nenhum cliente encontrado para "${searchTerm}"`}
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -967,7 +984,7 @@ export default function AfiliadosView() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
-                    {paidUsers.map((u) => {
+                    {filteredPaidUsers.map((u) => {
                       const attributedSale = sales.find(s => s.customerEmail.toLowerCase() === u.email.toLowerCase());
                       const isAttributed = !!attributedSale;
 

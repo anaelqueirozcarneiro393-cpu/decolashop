@@ -151,6 +151,11 @@ export async function GET() {
       sales,
       pendingTransactions,
       paidUsers
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Access-Control-Allow-Origin': '*'
+      }
     });
   } catch (err: any) {
     console.error('[API AFILIADOS] Erro em GET /api/affiliates:', err);
