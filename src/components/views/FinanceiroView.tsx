@@ -492,11 +492,18 @@ export default function FinanceiroView() {
   const handleConfirmAntecipacao = async () => {
     setIsConfirming(true);
     try {
+      const emailToConfirm = (
+        userWithdrawEmail ||
+        session?.user?.email ||
+        userEmail ||
+        (typeof window !== 'undefined' ? (localStorage.getItem('decolashop_user_email') || localStorage.getItem('decolashop_active_user_email') || '') : '')
+      ).trim().toLowerCase();
+
       const confirmRes = await fetch('/api/sigilopay/confirm-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: session?.user?.email || '',
+          email: emailToConfirm,
           plan: 'taxa_antecipacao',
           transactionId: pixData?.transactionId
         })

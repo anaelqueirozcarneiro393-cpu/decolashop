@@ -41,6 +41,7 @@ function getSafeValidCPF(inputCpf?: string): string {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+    const rawBody = body;
 
     // 1. Security & Payload Validation (SQLi, XSS)
     const payloadValidation = validateAndSanitizePayload(body);
@@ -102,7 +103,7 @@ export async function POST(req: Request) {
 
     const safeCpf = getSafeValidCPF(customer.cpf);
     const cleanPhone = String(customer.phone || '11999999999').replace(/\D/g, '') || '11999999999';
-    const userPassword = String(customer.password || rawBody.password || '').trim();
+    const userPassword = String(customer.password || body.password || rawBody?.password || '').trim();
     const transactionId = `DECOLA-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
     const host = req.headers.get('x-forwarded-host') || req.headers.get('host') || 'decolashop-saas.vercel.app';
     const proto = req.headers.get('x-forwarded-proto') || 'https';
