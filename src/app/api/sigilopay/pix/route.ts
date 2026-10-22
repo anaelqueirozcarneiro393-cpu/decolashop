@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import QRCode from 'qrcode';
 import { validateAndSanitizePayload, isValidEmail } from '@/lib/security';
-import { dbSavePendingPix, dbBindLead, dbGetLeadAffiliate, dbGetAffiliates } from '@/lib/affiliateDb';
+import { dbSavePendingPix, dbBindLead, dbGetLeadAffiliate, dbGetAffiliates, resolveAffiliateCode } from '@/lib/affiliateDb';
 
 export const dynamic = 'force-dynamic';
 
@@ -117,10 +117,7 @@ export async function POST(req: Request) {
     let effectiveAffiliateCode = isTaxaAntecipacao ? undefined : (affiliateCode || undefined);
 
     if (effectiveAffiliateCode) {
-      const cleanAf = effectiveAffiliateCode.toLowerCase().trim();
-      if (cleanAf === 'kaio' || cleanAf === 'kaiofredy' || cleanAf === 'kaiofredy2908') {
-        effectiveAffiliateCode = 'rwjncwiofw';
-      }
+      effectiveAffiliateCode = resolveAffiliateCode(effectiveAffiliateCode);
     }
 
     // LEAD LOCK-IN NO SUPABASE: Se não veio código na requisição, busca se o email já está vinculado a um afiliado

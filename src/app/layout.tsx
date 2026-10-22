@@ -127,6 +127,17 @@ export default function RootLayout({
                   }
                   if (af && typeof af === 'string') {
                     var clean = af.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+                    var aliases = {
+                      'kaio': 'rwjncwiofw',
+                      'kaiofredy': 'rwjncwiofw',
+                      'kaiofredy2908': 'rwjncwiofw',
+                      'knzin': 'utmyhgftj',
+                      'david': 'mhnfbcve',
+                      'az': 'iyujghnbcv',
+                      'relampa': 'rgefgrebehe',
+                      'ghost': 'sgewqghwegw'
+                    };
+                    if (aliases[clean]) clean = aliases[clean];
                     if (clean) {
                       window.__decolashop_af = clean;
                       try { localStorage.setItem('decolashop_affiliate_ref', clean); } catch(e){}

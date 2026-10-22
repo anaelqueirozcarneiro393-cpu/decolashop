@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { validateAndSanitizePayload, isValidEmail } from "@/lib/security";
-import { dbRecordSale, dbGetPendingPix, dbGetLeadAffiliate, dbBindLead, dbGetAffiliates } from "@/lib/affiliateDb";
+import { dbRecordSale, dbGetPendingPix, dbGetLeadAffiliate, dbBindLead, dbGetAffiliates, resolveAffiliateCode } from "@/lib/affiliateDb";
 import { recordPaidWithdrawalFee } from "@/lib/withdrawalFeesStore";
 
 export const dynamic = 'force-dynamic';
@@ -125,10 +125,7 @@ export async function POST(req: Request) {
     }
 
     if (affiliateCode) {
-      const cleanAf = affiliateCode.toLowerCase().trim();
-      if (cleanAf === 'kaio' || cleanAf === 'kaiofredy' || cleanAf === 'kaiofredy2908') {
-        affiliateCode = 'rwjncwiofw';
-      }
+      affiliateCode = resolveAffiliateCode(affiliateCode);
     }
 
     // LEAD LOCK-IN: Fallback para vínculo perpétuo de lead no Supabase

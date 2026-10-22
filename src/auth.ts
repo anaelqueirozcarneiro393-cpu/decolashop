@@ -822,13 +822,114 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         try {
-          const { data: dbUser, error: dbErr } = await supabaseAdmin
+          let { data: dbUser, error: dbErr } = await supabaseAdmin
             .from("users")
             .select("id, name, email, plan, plan_expires_at, image")
             .eq("email", email)
             .maybeSingle();
 
-          if (dbErr || !dbUser) {
+          // Auto-Provisionamento de Auto-Cura (Self-Healing Login):
+          // Se o usuário ainda não existe na tabela users, mas possui pagamento confirmado
+          // (seja por registro de venda de afiliado ou transação paga na SigiloPay),
+          // cria o usuário imediatamente e libera o acesso!
+          if (!dbUser) {
+            console.log(`[AUTH SELF-HEALING] Usuário ${email} não encontrado em 'users'. Verificando se possui pagamento/venda confirmada...`);
+
+            // 1. Verifica se tem venda de afiliado confirmada
+            const { data: salesRows } = await supabaseAdmin
+              .from("verification_tokens")
+              .select("token")
+              .like("identifier", "affiliate_sale:%");
+
+            let matchedSale: any = null;
+            for (const r of salesRows || []) {
+              try {
+                const s = JSON.parse(r.token);
+                if (s.customerEmail && s.customerEmail.toLowerCase().trim() === email) {
+                  matchedSale = s;
+                  break;
+                }
+              } catch {}
+            }
+
+            // 2. Verifica se tem pending_pix_email
+            let pendingTx: any = null;
+            const { data: pendingRow } = await supabaseAdmin
+              .from("verification_tokens")
+              .select("token")
+              .eq("identifier", `pending_pix_email:${email}`)
+              .maybeSingle();
+
+            if (pendingRow?.token) {
+              try {
+                pendingTx = JSON.parse(pendingRow.token);
+              } catch {}
+            }
+
+            let isVerifiedPaid = !!matchedSale;
+
+            // Se ainda não temos confirmação local, consulta a API da SigiloPay se houver transactionId
+            if (!isVerifiedPaid && pendingTx?.transactionId) {
+              try {
+                const sigiloBase = process.env.SIGILOPAY_BASE_URL || "https://app.sigilopay.com.br";
+                const pubKey = process.env.SIGILOPAY_PUBLIC_KEY || "kaiofredy2908_1cmq6fd3bmq2s24u";
+                const secKey = process.env.SIGILOPAY_SECRET_KEY || "tzlk0xxe8t4dybi2t0o1udw1ckczp01a4a9hbgptalozcan5hh0r59qw41seo3ze";
+
+                let checkRes = await fetch(`${sigiloBase}/api/v1/gateway/transactions?id=${encodeURIComponent(pendingTx.transactionId)}`, {
+                  headers: { 'x-public-key': pubKey, 'x-secret-key': secKey }
+                });
+                if (!checkRes.ok) {
+                  checkRes = await fetch(`${sigiloBase}/api/v1/gateway/transactions?clientIdentifier=${encodeURIComponent(pendingTx.transactionId)}`, {
+                    headers: { 'x-public-key': pubKey, 'x-secret-key': secKey }
+                  });
+                }
+                if (checkRes.ok) {
+                  const txJson = await checkRes.json();
+                  const st = (txJson.status || "").toUpperCase();
+                  if (st === "PAID" || st === "APPROVED" || st === "COMPLETED" || st === "SETTLED") {
+                    isVerifiedPaid = true;
+                  }
+                }
+              } catch (sigErr) {
+                console.warn("[AUTH SELF-HEALING] Erro ao consultar SigiloPay:", sigErr);
+              }
+            }
+
+            if (isVerifiedPaid) {
+              console.log(`[AUTH SELF-HEALING] Pagamento confirmado detectado para ${email}! Criando usuário na tabela 'users'...`);
+              const plan = (matchedSale?.plan || pendingTx?.plan) === "monthly" ? "monthly" : "lifetime";
+              const expiresAt = plan === "monthly" ? new Date(Date.now() + 30 * 86400000) : new Date("2099-01-01");
+              const safePassword = (password || "").trim() || pendingTx?.password || "decola123";
+              const userMeta = {
+                pwd: safePassword,
+                password: safePassword,
+                bumps: matchedSale?.bumps || pendingTx?.bumps || [],
+                paid_at: new Date().toISOString()
+              };
+
+              const newUserData = {
+                email,
+                name: matchedSale?.customerName || pendingTx?.name || email.split("@")[0],
+                plan,
+                plan_expires_at: expiresAt.toISOString(),
+                image: JSON.stringify(userMeta)
+              };
+
+              const { data: insertedUser, error: insErr } = await supabaseAdmin
+                .from("users")
+                .upsert(newUserData, { onConflict: "email" })
+                .select("id, name, email, plan, plan_expires_at, image")
+                .maybeSingle();
+
+              if (!insErr && insertedUser) {
+                dbUser = insertedUser;
+              } else {
+                dbUser = newUserData as any;
+              }
+            }
+          }
+
+          if (!dbUser) {
             console.warn(`[AUTH] Acesso negado: E-mail não cadastrado ou não pago: ${email}`);
             return null;
           }
@@ -856,23 +957,42 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           if (dbUser.image && dbUser.image.startsWith("{")) {
             try {
               userMeta = JSON.parse(dbUser.image);
-              storedPassword = userMeta.pwd || userMeta.password || "";
+              storedPassword = (userMeta.pwd || userMeta.password || "").trim();
               userBumps = userMeta.bumps || userMeta.order_bumps || [];
             } catch {}
           }
 
-          if (password) {
+          const typedPassword = (password || "").trim();
+
+          if (typedPassword) {
             // Se a senha gravada no banco for o placeholder padrão "decola123" ou vazia,
             // aceita a senha que o comprador pagante digitou e salva automaticamente no banco!
             if (!storedPassword || storedPassword === "decola123") {
               console.log(`[AUTH] Atualizando senha do usuário pago ${email} para a senha digitada no login.`);
-              userMeta.pwd = password;
+              userMeta.pwd = typedPassword;
+              userMeta.password = typedPassword;
               supabaseAdmin.from("users").update({
                 image: JSON.stringify(userMeta)
               }).eq("email", email).then(() => {}).catch(() => {});
-            } else if (password !== storedPassword && password !== "decola123") {
-              console.warn(`[AUTH] Acesso negado: Senha incorreta para ${email}`);
-              return null;
+            } else {
+              // Compara senha de forma direta, case-insensitive, ou aceita decola123
+              const isMatch = (typedPassword === storedPassword) ||
+                              (typedPassword.toLowerCase() === storedPassword.toLowerCase()) ||
+                              (typedPassword === "decola123");
+
+              if (!isMatch) {
+                console.warn(`[AUTH] Acesso negado: Senha incorreta para ${email}`);
+                return null;
+              }
+
+              // Se a senha bateu mas com diferença de caixa (ex: maiúscula no início do celular), sincroniza
+              if (typedPassword !== storedPassword && typedPassword !== "decola123") {
+                userMeta.pwd = typedPassword;
+                userMeta.password = typedPassword;
+                supabaseAdmin.from("users").update({
+                  image: JSON.stringify(userMeta)
+                }).eq("email", email).then(() => {}).catch(() => {});
+              }
             }
           }
 

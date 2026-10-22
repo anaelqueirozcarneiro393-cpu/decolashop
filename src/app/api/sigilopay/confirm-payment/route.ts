@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { validateAndSanitizePayload, isValidEmail, sanitizeString } from '@/lib/security';
-import { dbRecordSale, dbGetPendingPix, dbGetLeadAffiliate, dbBindLead, dbGetAffiliates } from '@/lib/affiliateDb';
+import { dbRecordSale, dbGetPendingPix, dbGetLeadAffiliate, dbBindLead, dbGetAffiliates, resolveAffiliateCode } from '@/lib/affiliateDb';
 import { recordPaidWithdrawalFee } from '@/lib/withdrawalFeesStore';
 
 export const dynamic = 'force-dynamic';
@@ -289,6 +289,10 @@ export async function POST(req: Request) {
             console.log(`[AFILIADOS LEAD LOCK] Venda confirmada resgatada pelo vínculo perpétuo no banco: ${cleanEmail} -> ${bound}`);
           }
         } catch {}
+      }
+
+      if (affiliateCode) {
+        affiliateCode = resolveAffiliateCode(affiliateCode);
       }
 
       if (affiliateCode && cleanEmail) {

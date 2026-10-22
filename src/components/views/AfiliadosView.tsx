@@ -373,13 +373,16 @@ export default function AfiliadosView() {
     affiliateCode?: string;
     amount?: number;
   }) => {
+    let initialCode = (target?.affiliateCode || '').trim();
+    if (!initialCode) initialCode = '__direct__';
+
     setAttributeModal({
       isOpen: true,
       saleId: target?.saleId,
       email: target?.email || '',
       name: target?.name || '',
       plan: (target?.plan === 'monthly' ? 'monthly' : 'lifetime'),
-      affiliateCode: target?.affiliateCode !== undefined ? target.affiliateCode : (affiliates[0]?.code || '__direct__'),
+      affiliateCode: initialCode,
       amount: target?.amount !== undefined ? target.amount : (target?.plan === 'monthly' ? 89.90 : 179.90)
     });
   };
@@ -1557,8 +1560,19 @@ export default function AfiliadosView() {
                 </label>
                 <div className="space-y-2">
                   <select
-                    value={attributeModal.affiliateCode}
-                    onChange={(e) => setAttributeModal({ ...attributeModal, affiliateCode: e.target.value })}
+                    value={
+                      attributeModal.affiliateCode === '__direct__' || affiliates.some(a => a.code.toLowerCase() === attributeModal.affiliateCode.toLowerCase())
+                        ? attributeModal.affiliateCode
+                        : '__custom__'
+                    }
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '__custom__') {
+                        setAttributeModal({ ...attributeModal, affiliateCode: '' });
+                      } else {
+                        setAttributeModal({ ...attributeModal, affiliateCode: val });
+                      }
+                    }}
                     className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-purple-500 font-mono"
                   >
                     <option value="__direct__">
@@ -1566,29 +1580,33 @@ export default function AfiliadosView() {
                     </option>
                     {affiliates.map(a => (
                       <option key={a.id} value={a.code}>
-                        {a.name} (?af={a.code}) - {a.commissionPercent}% comissão
+                        👤 {a.name} ({a.code}) - {a.commissionPercent}% comissão
                       </option>
                     ))}
+                    <option value="__custom__">
+                      ✏️ Digitar outro código ou apelido manualmente...
+                    </option>
                   </select>
 
                   {attributeModal.affiliateCode === '__direct__' ? (
                     <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px] leading-relaxed">
                       💡 <strong>Venda Direta da Plataforma:</strong> Esta venda será removida da contabilidade de afiliados e nenhuma comissão será repassada (100% lucro próprio da plataforma).
                     </div>
-                  ) : (
-                    <>
+                  ) : (!affiliates.some(a => a.code.toLowerCase() === attributeModal.affiliateCode.toLowerCase())) ? (
+                    <div className="space-y-1">
                       <p className="text-[10px] text-slate-400">
-                        Ou digite outro código de parceiro:
+                        Digite o apelido ou código do parceiro (ex: knzin, david, kaio, az):
                       </p>
                       <input
                         type="text"
-                        placeholder="Ex: kaio, higor, lucas"
+                        placeholder="Ex: knzin, david, kaio"
                         value={attributeModal.affiliateCode}
                         onChange={(e) => setAttributeModal({ ...attributeModal, affiliateCode: e.target.value })}
                         className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-mono"
+                        autoFocus
                       />
-                    </>
-                  )}
+                    </div>
+                  ) : null}
                 </div>
               </div>
 

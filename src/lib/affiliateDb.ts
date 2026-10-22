@@ -149,7 +149,14 @@ export async function dbSaveAffiliate(affiliate: Affiliate): Promise<boolean> {
 }
 
 export const AFFILIATE_CODE_ALIASES: Record<string, string> = {
-  'kaio': 'rwjncwiofw'
+  'kaio': 'rwjncwiofw',
+  'kaiofredy': 'rwjncwiofw',
+  'kaiofredy2908': 'rwjncwiofw',
+  'knzin': 'utmyhgftj',
+  'david': 'mhnfbcve',
+  'az': 'iyujghnbcv',
+  'relampa': 'rgefgrebehe',
+  'ghost': 'sgewqghwegw'
 };
 
 export function resolveAffiliateCode(code: string): string {
@@ -158,18 +165,22 @@ export function resolveAffiliateCode(code: string): string {
 }
 
 /**
- * 3. Buscar um afiliado específico pelo código
+ * 3. Buscar um afiliado específico pelo código, alias ou nome
  */
 export async function dbGetAffiliateByCode(code: string): Promise<Affiliate | null> {
   try {
-    const cleanCode = resolveAffiliateCode(code);
-    if (!cleanCode) return null;
+    if (!code) return null;
+    const clean = code.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    if (!clean) return null;
 
+    const resolvedCode = AFFILIATE_CODE_ALIASES[clean] || clean;
     const supabase = getSupabaseAdmin('next_auth');
+
+    // 1. Tenta por identificador direto no Supabase
     const { data } = await supabase
       .from('verification_tokens')
       .select('token')
-      .eq('identifier', `affiliate:${cleanCode}`)
+      .eq('identifier', `affiliate:${resolvedCode}`)
       .maybeSingle();
 
     if (data?.token) {
@@ -177,6 +188,18 @@ export async function dbGetAffiliateByCode(code: string): Promise<Affiliate | nu
         return JSON.parse(data.token);
       } catch {}
     }
+
+    // 2. Busca abrangente por código, apelido, nome ou email
+    const all = await dbGetAffiliates();
+    const found = all.find(a => 
+      a.code.toLowerCase() === resolvedCode ||
+      a.code.toLowerCase() === clean ||
+      a.name.toLowerCase().trim() === clean ||
+      (a.email && a.email.toLowerCase().trim() === clean) ||
+      a.id.toLowerCase() === clean
+    );
+    if (found) return found;
+
     return null;
   } catch {
     return null;
@@ -752,36 +775,35 @@ export async function dbReassignSale(params: ReassignSaleParams): Promise<{
     const rawTargetCode = (params.newAffiliateCode || '').toLowerCase().trim();
     const isDirect = !rawTargetCode || rawTargetCode === '__direct__' || rawTargetCode === 'none' || rawTargetCode === 'direct';
 
-    // 1. Localizar venda existente no Supabase
+    // 1. Localizar venda(s) existente(s) no Supabase (incluindo possíveis duplicatas)
     const { data: allSaleRows } = await supabase
       .from('verification_tokens')
       .select('identifier, token')
       .like('identifier', 'affiliate_sale:%');
 
-    let matchedRow: { identifier: string; token: string } | null = null;
-    let existingSale: AffiliateSale | null = null;
+    const matchingRows: { identifier: string; sale: AffiliateSale }[] = [];
 
     for (const row of allSaleRows || []) {
       try {
         const s: AffiliateSale = JSON.parse(row.token);
-        // Correspondência por saleId se fornecido
         if (params.saleId && (s.id === params.saleId || s.transactionId === params.saleId || row.identifier === `affiliate_sale:${params.saleId}`)) {
-          matchedRow = row;
-          existingSale = s;
-          break;
+          matchingRows.push({ identifier: row.identifier, sale: s });
+          continue;
         }
-        // Ou correspondência por e-mail do cliente
-        if (!matchedRow && s.customerEmail && s.customerEmail.toLowerCase().trim() === cleanEmail) {
-          matchedRow = row;
-          existingSale = s;
+        if (s.customerEmail && s.customerEmail.toLowerCase().trim() === cleanEmail) {
+          matchingRows.push({ identifier: row.identifier, sale: s });
         }
       } catch {}
     }
 
+    const matchedRow = matchingRows[0] || null;
+    const existingSale = matchingRows[0]?.sale || null;
+
     // CASO 1: Transformar em Venda Direta da Plataforma (Remover comissão)
     if (isDirect) {
-      if (matchedRow) {
-        await supabase.from('verification_tokens').delete().eq('identifier', matchedRow.identifier);
+      // Remove todas as ocorrências desta venda (evita qualquer duplicata persistente)
+      for (const m of matchingRows) {
+        await supabase.from('verification_tokens').delete().eq('identifier', m.identifier);
       }
       // Remove o vínculo perpétuo de lead para não re-atribuir no futuro
       await supabase.from('verification_tokens').delete().eq('identifier', `lead_affiliate:${cleanEmail}`);
@@ -800,33 +822,25 @@ export async function dbReassignSale(params: ReassignSaleParams): Promise<{
     // CASO 2: Atribuir ou Transferir para um Afiliado
     const cleanCode = rawTargetCode.replace(/[^a-z0-9_-]/g, '');
     let affiliate = await dbGetAffiliateByCode(cleanCode);
-    const isKaio = cleanCode === 'rwjncwiofw' || cleanCode === 'kaio';
 
     if (!affiliate) {
-      // Auto-cadastra se ainda não existir
-      affiliate = {
-        id: `af_${cleanCode}_${Date.now().toString(36)}`,
-        name: isKaio ? 'kaio' : `Afiliado ${cleanCode.toUpperCase()}`,
-        code: cleanCode,
-        email: isKaio ? 'kaiofredy2908@gmail.com' : '',
-        pixKey: isKaio ? '63992369341' : '',
-        pixKeyType: isKaio ? 'phone' : 'random',
-        commissionPercent: isKaio ? 100 : 50,
-        active: true,
-        createdAt: Date.now(),
-        totalRevenue: 0,
-        totalSalesCount: 0,
-        pendingCommission: 0,
-        paidCommission: 0,
+      return {
+        success: false,
+        message: `Afiliado "${rawTargetCode}" não encontrado. Escolha um dos afiliados cadastrados.`
       };
-      await dbSaveAffiliate(affiliate);
     }
 
+    const isKaio = affiliate.code === 'rwjncwiofw' || affiliate.code === 'kaio';
     const commissionPercent = affiliate.commissionPercent ?? (isKaio ? 100 : 50);
 
     let finalSale: AffiliateSale;
 
     if (existingSale && matchedRow) {
+      // Se houver mais de uma linha da mesma venda, exclui as duplicatas
+      for (let i = 1; i < matchingRows.length; i++) {
+        await supabase.from('verification_tokens').delete().eq('identifier', matchingRows[i].identifier);
+      }
+
       // Atualiza venda existente
       const updatedTotalAmount = Number(params.totalAmount) || existingSale.totalAmount;
       const commissionAmount = Number(((updatedTotalAmount * commissionPercent) / 100).toFixed(2));

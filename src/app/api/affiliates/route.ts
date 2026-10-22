@@ -18,6 +18,7 @@ import {
   dbMarkCommissionPaid,
   dbReassignSale,
   dbRecalculateAllAffiliatesMetrics,
+  resolveAffiliateCode,
 } from '@/lib/affiliateDb';
 
 export const dynamic = 'force-dynamic';
@@ -104,7 +105,10 @@ export async function GET() {
       .map(aff => {
         const isKaio = aff.code?.toLowerCase() === 'rwjncwiofw';
         const commissionPercent = isKaio ? 100 : (aff.commissionPercent || 50);
-        const affSales = sales.filter(s => s.affiliateCode?.toLowerCase() === aff.code?.toLowerCase());
+        const affSales = sales.filter(s => {
+          const c = resolveAffiliateCode(s.affiliateCode || '').toLowerCase();
+          return c === aff.code.toLowerCase();
+        });
         return {
           ...aff,
           commissionPercent,

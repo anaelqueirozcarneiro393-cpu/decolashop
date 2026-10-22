@@ -154,7 +154,14 @@ function setDurableCookie(name: string, value: string, days = 365) {
 }
 
 export const AFFILIATE_CODE_ALIASES: Record<string, string> = {
-  'kaio': 'rwjncwiofw'
+  'kaio': 'rwjncwiofw',
+  'kaiofredy': 'rwjncwiofw',
+  'kaiofredy2908': 'rwjncwiofw',
+  'knzin': 'utmyhgftj',
+  'david': 'mhnfbcve',
+  'az': 'iyujghnbcv',
+  'relampa': 'rgefgrebehe',
+  'ghost': 'sgewqghwegw',
 };
 
 export function resolveAffiliateCode(code: string): string {
@@ -240,7 +247,7 @@ export function getAffiliateRef(): string | null {
     // 3. localStorage
     const fromStorage = localStorage.getItem(AFFILIATE_REF_STORAGE);
     if (fromStorage && fromStorage.trim()) {
-      const clean = fromStorage.trim().toLowerCase();
+      const clean = resolveAffiliateCode(fromStorage.trim());
       (window as any).__decolashop_af = clean;
       return clean;
     }
@@ -248,7 +255,7 @@ export function getAffiliateRef(): string | null {
     // 4. sessionStorage
     const fromSession = sessionStorage.getItem(AFFILIATE_REF_STORAGE);
     if (fromSession && fromSession.trim()) {
-      const clean = fromSession.trim().toLowerCase();
+      const clean = resolveAffiliateCode(fromSession.trim());
       (window as any).__decolashop_af = clean;
       return clean;
     }
@@ -256,7 +263,7 @@ export function getAffiliateRef(): string | null {
     // 5. Cookie
     const fromCookie = getCookie(AFFILIATE_REF_COOKIE);
     if (fromCookie && fromCookie.trim()) {
-      const clean = fromCookie.trim().toLowerCase();
+      const clean = resolveAffiliateCode(fromCookie.trim());
       (window as any).__decolashop_af = clean;
       // Self-heal localStorage
       try { localStorage.setItem(AFFILIATE_REF_STORAGE, clean); } catch {}
@@ -315,7 +322,7 @@ export function getAffiliates(): Affiliate[] {
       return filtered.map(aff => {
         const isKaio = aff.code?.toLowerCase() === 'rwjncwiofw' || aff.code?.toLowerCase() === 'kaio';
         const commissionPercent = isKaio ? 100 : (aff.commissionPercent || 50);
-        const affSales = realSales.filter(s => s.affiliateCode?.toLowerCase() === aff.code?.toLowerCase());
+        const affSales = realSales.filter(s => resolveAffiliateCode(s.affiliateCode || '').toLowerCase() === aff.code?.toLowerCase());
         const totalRev = Number(affSales.reduce((acc, s) => acc + (s.totalAmount || 0), 0).toFixed(2));
         const pendingComm = Number(affSales.filter(s => s.status !== 'paid_to_affiliate').reduce((acc, s) => acc + (s.commissionAmount || 0), 0).toFixed(2));
         const paidComm = Number(affSales.filter(s => s.status === 'paid_to_affiliate').reduce((acc, s) => acc + (s.commissionAmount || 0), 0).toFixed(2));
@@ -444,7 +451,7 @@ export async function syncAffiliatesFromServer(): Promise<{ affiliates: Affiliat
       });
 
       const mergedAffiliates = Array.from(affiliatesMap.values()).map(aff => {
-        const affSales = serverSales.filter(s => s.affiliateCode?.toLowerCase() === aff.code?.toLowerCase());
+        const affSales = serverSales.filter(s => resolveAffiliateCode(s.affiliateCode || '').toLowerCase() === aff.code?.toLowerCase());
         const totalRev = Number(affSales.reduce((acc, s) => acc + (s.totalAmount || 0), 0).toFixed(2));
         const pendingComm = Number(affSales.filter(s => s.status !== 'paid_to_affiliate').reduce((acc, s) => acc + (s.commissionAmount || 0), 0).toFixed(2));
         const paidComm = Number(affSales.filter(s => s.status === 'paid_to_affiliate').reduce((acc, s) => acc + (s.commissionAmount || 0), 0).toFixed(2));

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { resolveAffiliateCode } from '@/lib/affiliateDb';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,10 +8,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ code: st
   const rawCode = resolvedParams?.code || '';
   const cleanCode = rawCode.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
 
-  let targetCode = cleanCode;
-  if (cleanCode === 'kaio' || cleanCode === 'kaiofredy' || cleanCode === 'kaiofredy2908') {
-    targetCode = 'rwjncwiofw';
-  }
+  const targetCode = resolveAffiliateCode(cleanCode);
 
   const host = req.headers.get('host') || 'decolashop.com.br';
   const proto = req.headers.get('x-forwarded-proto') || 'https';
