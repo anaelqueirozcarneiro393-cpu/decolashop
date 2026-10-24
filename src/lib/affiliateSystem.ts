@@ -852,9 +852,8 @@ export function recordAffiliateSale(params: {
  * Generate shareable affiliate link
  */
 export function getAffiliateLink(code: string): string {
-  if (typeof window !== 'undefined') {
-    const origin = window.location.origin;
-    return `${origin}/?af=${encodeURIComponent(code)}`;
+  if (typeof window !== 'undefined' && window.location.origin) {
+    return `${window.location.origin}/?af=${encodeURIComponent(code)}`;
   }
-  return `https://decolashop.com.br/?af=${encodeURIComponent(code)}`;
+  return `https://decolashop-saas.vercel.app/?af=${encodeURIComponent(code)}`;
 }
