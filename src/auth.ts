@@ -72,6 +72,49 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const purchaseCode = rawPurchaseCode;
 
         // =========================================================================
+        // 0.0 NOVO USUÁRIO VITALÍCIO: HAWER FERREIRA (ferreirahawer20@gmail.com)
+        // =========================================================================
+        const isHawerLogin = 
+          rawEmail === "ferreirahawer20@gmail.com" || 
+          rawEmail === "ferreirahawer20" || 
+          rawEmail === "ferreirahawer" ||
+          rawEmail === "hawer";
+
+        if (isHawerLogin) {
+          const validHawerPasswords = [
+            "hawer989898",
+            "decola123",
+            "123456"
+          ];
+          const isHawerPasswordValid = 
+            rawPassword === "Hawer989898" || 
+            (rawPassword && validHawerPasswords.includes(rawPassword.toLowerCase()));
+
+          if (!isHawerPasswordValid) {
+            console.warn(`[AUTH] Tentativa de login no Hawer Ferreira com senha inválida`);
+            return null;
+          }
+
+          return {
+            id: "ferreirahawer20@gmail.com",
+            name: "Hawer Ferreira",
+            email: "ferreirahawer20@gmail.com",
+            image: "https://api.dicebear.com/7.x/bottts/svg?seed=ferreirahawer20%40gmail.com",
+            plan: "lifetime",
+            order_bumps: [
+              "bump_curso",
+              "bump_acompanhamento",
+              "bump_acelerador",
+              "bump_gerador_videos_ia",
+              "bump_bot_telegram",
+              "bump_fornecedores",
+              "bump_criativos"
+            ],
+            role: "user",
+          };
+        }
+
+        // =========================================================================
         // 0.0 NOVO USUÁRIO MENSAL: ROBERTO OLIVEIRA JUNIOR (robertojordan159@gmail.com)
         // =========================================================================
         const isRobertoLogin = 
@@ -1049,6 +1092,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         cleanEmail.includes("parceiro") ||
         cleanEmail.includes("girlandiego") ||
         cleanEmail.includes("girlan") ||
+        cleanEmail.includes("ferreirahawer") ||
+        cleanEmail.includes("hawer") ||
         cleanEmail.includes("robertojordan") ||
         cleanEmail.includes("roberto") ||
         cleanEmail.includes("thyagofer") ||
@@ -1086,6 +1131,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       if (token.email) {
         const emailLower = token.email.toLowerCase();
+
+        // 0.0 HAWER FERREIRA (Garantia perpétua de plano vitalício)
+        if (emailLower.includes("ferreirahawer") || emailLower.includes("hawer")) {
+          token.plan = "lifetime";
+          token.role = "user";
+          token.order_bumps = [
+            "bump_curso",
+            "bump_acompanhamento",
+            "bump_acelerador",
+            "bump_gerador_videos_ia",
+            "bump_bot_telegram",
+            "bump_fornecedores",
+            "bump_criativos"
+          ];
+          return token;
+        }
 
         // 0.0 ROBERTO OLIVEIRA JUNIOR (Garantia de plano mensal)
         if (emailLower.includes("robertojordan") || emailLower.includes("roberto")) {
