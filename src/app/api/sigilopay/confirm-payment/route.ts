@@ -163,8 +163,8 @@ export async function POST(req: Request) {
         plan: 'taxa_antecipacao'
       });
     }
-    const cleanCpf = cpf ? String(cpf).replace(/\D/g, '') : null;
-    const cleanPhone = phone ? String(phone).replace(/\D/g, '') : null;
+    const cleanCpf = cpf ? String(cpf).trim() : null;
+    const cleanPhone = phone ? String(phone).trim() : null;
     const cleanPassword = sanitizeString(password || '');
     let userPlan = plan === 'monthly' ? 'monthly' : 'lifetime';
     if (paidAmount > 0) {

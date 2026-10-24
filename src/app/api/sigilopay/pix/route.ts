@@ -102,7 +102,10 @@ export async function POST(req: Request) {
     }
 
     const safeCpf = getSafeValidCPF(customer.cpf);
-    const cleanPhone = String(customer.phone || '11999999999').replace(/\D/g, '') || '11999999999';
+    const rawPhone = String(customer.phone || '').trim();
+    const cleanPhone = rawPhone.replace(/\D/g, '') || '11999999999';
+    // Para o gateway SigiloPay, garante formato 10-11 dígitos para evitar rejeição 422
+    const gatewayPhone = (cleanPhone.length >= 10 && cleanPhone.length <= 11) ? cleanPhone : '11999999999';
     const userPassword = String(customer.password || body.password || rawBody?.password || '').trim();
     const transactionId = `DECOLA-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
     const host = req.headers.get('x-forwarded-host') || req.headers.get('host') || 'decolashop-saas.vercel.app';
@@ -155,7 +158,7 @@ export async function POST(req: Request) {
             client: {
               name: customer.name || 'Cliente DecolaShop',
               email: customer.email,
-              phone: cleanPhone,
+              phone: gatewayPhone,
               document: safeCpf
             },
             webhookUrl: `${siteUrl}/api/webhooks/sigilopay`,
@@ -165,7 +168,8 @@ export async function POST(req: Request) {
               planPrice: isTaxaAntecipacao ? numTotal : planPrice,
               bumps: isTaxaAntecipacao ? [] : bumps,
               affiliateCode: effectiveAffiliateCode,
-              platform: 'DecolaShop SaaS'
+              platform: 'DecolaShop SaaS',
+              customerPhone: rawPhone || cleanPhone
             }
           })
         });
@@ -200,7 +204,7 @@ export async function POST(req: Request) {
               email: customer.email.toLowerCase().trim(),
               name: customer.name || 'Cliente DecolaShop',
               cpf: safeCpf,
-              phone: cleanPhone,
+              phone: rawPhone || cleanPhone,
               plan: plan || 'lifetime',
               planPrice: isTaxaAntecipacao ? numTotal : (Number(planPrice) || (plan === 'monthly' ? 89.90 : 179.90)),
               bumps: isTaxaAntecipacao ? [] : (bumps || []),

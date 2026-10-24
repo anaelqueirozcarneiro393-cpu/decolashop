@@ -112,6 +112,8 @@ export default function SigilopayCheckoutModal({
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [cpf, setCpf] = useState('');
+  const [isInternational, setIsInternational] = useState(false);
+  const [isNoCpf, setIsNoCpf] = useState(false);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   
@@ -166,8 +168,12 @@ export default function SigilopayCheckoutModal({
     );
   };
 
-  // Format CPF helper
+  // Format CPF helper (Suporta CPF e Documento Internacional)
   const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isNoCpf) {
+      setCpf(e.target.value.slice(0, 25));
+      return;
+    }
     const raw = e.target.value.replace(/\D/g, '').slice(0, 11);
     let formatted = raw;
     if (raw.length > 9) {
@@ -180,18 +186,64 @@ export default function SigilopayCheckoutModal({
     setCpf(formatted);
   };
 
-  // Format Phone helper
+  // Format Phone helper (Suporta Brasil e Internacional)
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/\D/g, '').slice(0, 11);
-    let formatted = raw;
-    if (raw.length > 10) {
-      formatted = `(${raw.slice(0, 2)}) ${raw.slice(2, 7)}-${raw.slice(7)}`;
-    } else if (raw.length > 6) {
-      formatted = `(${raw.slice(0, 2)}) ${raw.slice(2, 6)}-${raw.slice(6)}`;
-    } else if (raw.length > 2) {
-      formatted = `(${raw.slice(0, 2)}) ${raw.slice(2)}`;
+    const val = e.target.value;
+
+    // Se começar com '+' ou já estiver no modo internacional
+    if (val.startsWith('+') || isInternational) {
+      if (!isInternational && val.startsWith('+')) {
+        setIsInternational(true);
+      }
+      let cleaned = val.replace(/[^\d+() -]/g, '');
+      if (cleaned.startsWith('+')) {
+        cleaned = '+' + cleaned.slice(1).replace(/\+/g, '');
+      }
+      setPhone(cleaned.slice(0, 22));
+      return;
+    }
+
+    const digitsOnly = val.replace(/\D/g, '');
+
+    // Se digitar mais de 11 dígitos, é internacional
+    if (digitsOnly.length > 11) {
+      setIsInternational(true);
+      setPhone('+' + digitsOnly.slice(0, 18));
+      return;
+    }
+
+    // Formatação padrão brasileira (XX) XXXXX-XXXX
+    let formatted = digitsOnly;
+    if (digitsOnly.length > 10) {
+      formatted = `(${digitsOnly.slice(0, 2)}) ${digitsOnly.slice(2, 7)}-${digitsOnly.slice(7, 11)}`;
+    } else if (digitsOnly.length > 6) {
+      formatted = `(${digitsOnly.slice(0, 2)}) ${digitsOnly.slice(2, 6)}-${digitsOnly.slice(6)}`;
+    } else if (digitsOnly.length > 2) {
+      formatted = `(${digitsOnly.slice(0, 2)}) ${digitsOnly.slice(2)}`;
     }
     setPhone(formatted);
+  };
+
+  const toggleInternationalPhone = () => {
+    const next = !isInternational;
+    setIsInternational(next);
+    if (next) {
+      if (!phone.startsWith('+')) {
+        const clean = phone.replace(/\D/g, '');
+        setPhone(clean ? `+${clean}` : '+');
+      }
+    } else {
+      const clean = phone.replace(/\D/g, '').slice(0, 11);
+      let formatted = clean;
+      if (clean.length > 10) {
+        formatted = `(${clean.slice(0, 2)}) ${clean.slice(2, 7)}-${clean.slice(7, 11)}`;
+      } else if (clean.length > 6) {
+        formatted = `(${clean.slice(0, 2)}) ${clean.slice(2, 6)}-${clean.slice(6)}`;
+      } else if (clean.length > 2) {
+        formatted = `(${clean.slice(0, 2)}) ${clean.slice(2)}`;
+      }
+      setPhone(formatted);
+    }
   };
 
   const handleGeneratePix = async (e: React.FormEvent) => {
@@ -201,12 +253,20 @@ export default function SigilopayCheckoutModal({
       toast.error('Informe seu nome completo');
       return;
     }
+    if (!phone.trim() || phone.replace(/\D/g, '').length < 7) {
+      toast.error('Informe seu número de WhatsApp / telefone');
+      return;
+    }
     if (!email.trim() || !email.includes('@')) {
       toast.error('Informe um e-mail válido para liberação da conta');
       return;
     }
-    if (!isValidCPF(cpf)) {
-      toast.error('CPF inválido. Verifique os números digitados.');
+    if (!isNoCpf && !isValidCPF(cpf)) {
+      toast.error('CPF inválido. Se você mora no exterior e não possui CPF, clique em "Não tenho CPF".');
+      return;
+    }
+    if (isNoCpf && !cpf.trim()) {
+      toast.error('Informe seu passaporte ou documento de identificação');
       return;
     }
     if (!password || password.length < 6) {
@@ -233,8 +293,8 @@ export default function SigilopayCheckoutModal({
           customer: {
             name: name.trim(),
             email: email.trim().toLowerCase(),
-            cpf: cpf.replace(/\D/g, ''),
-            phone: phone.replace(/\D/g, '') || '11999999999',
+            cpf: isNoCpf ? (cpf.trim() || 'EXTERIOR') : cpf.replace(/\D/g, ''),
+            phone: phone.trim(),
             password: password.trim()
           }
         })
@@ -306,8 +366,8 @@ export default function SigilopayCheckoutModal({
 
           const cleanUserEmail = email.trim().toLowerCase();
           const cleanUserName = name.trim();
-          const cleanUserCpf = cpf.replace(/\D/g, '');
-          const cleanUserPhone = phone.replace(/\D/g, '');
+          const cleanUserCpf = isNoCpf ? (cpf.trim() || 'EXTERIOR') : cpf.replace(/\D/g, '');
+          const cleanUserPhone = phone.trim();
 
           if (typeof window !== 'undefined') {
             localStorage.setItem('decolashop_user_email', cleanUserEmail);
@@ -353,8 +413,8 @@ export default function SigilopayCheckoutModal({
         body: JSON.stringify({
           email: email.trim().toLowerCase(),
           name: name.trim(),
-          cpf: cpf.replace(/\D/g, ''),
-          phone: phone.replace(/\D/g, ''),
+          cpf: isNoCpf ? (cpf.trim() || 'EXTERIOR') : cpf.replace(/\D/g, ''),
+          phone: phone.trim(),
           password: password,
           plan: selectedPlan,
           bumps: selectedBumps,
@@ -381,8 +441,8 @@ export default function SigilopayCheckoutModal({
 
         const cleanUserEmail = email.trim().toLowerCase();
         const cleanUserName = name.trim();
-        const cleanUserCpf = cpf.replace(/\D/g, '');
-        const cleanUserPhone = phone.replace(/\D/g, '');
+        const cleanUserCpf = isNoCpf ? (cpf.trim() || 'EXTERIOR') : cpf.replace(/\D/g, '');
+        const cleanUserPhone = phone.trim();
 
         if (typeof window !== 'undefined') {
           localStorage.setItem('decolashop_user_email', cleanUserEmail);
@@ -516,13 +576,23 @@ export default function SigilopayCheckoutModal({
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-bold text-slate-300 block mb-0.5">WhatsApp</label>
+                    <div className="flex items-center justify-between mb-0.5">
+                      <label className="text-[10px] font-bold text-slate-300 block">WhatsApp / Tel</label>
+                      <button
+                        type="button"
+                        onClick={toggleInternationalPhone}
+                        className="text-[9px] text-[#4ade80] hover:underline flex items-center gap-0.5 cursor-pointer font-bold transition-colors"
+                        title="Alternar entre número brasileiro e internacional"
+                      >
+                        {isInternational ? '🇧🇷 Brasil' : '🌍 Outro País'}
+                      </button>
+                    </div>
                     <input
                       type="tel"
                       required
                       value={phone}
                       onChange={handlePhoneChange}
-                      placeholder="(11) 99999-9999"
+                      placeholder={isInternational ? "+351 912 345 678 ou +1 ..." : "(11) 99999-9999"}
                       className="w-full bg-[#111726] border border-white/15 rounded-lg py-1.5 px-2.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-[#22c55e]"
                     />
                   </div>
@@ -547,13 +617,33 @@ export default function SigilopayCheckoutModal({
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-bold text-slate-300 block mb-0.5">CPF (Válido)</label>
+                    <div className="flex items-center justify-between mb-0.5">
+                      <label className="text-[10px] font-bold text-slate-300 block">
+                        {isNoCpf ? 'Passaporte / Doc' : 'CPF (Válido)'}
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = !isNoCpf;
+                          setIsNoCpf(next);
+                          if (next && !cpf) {
+                            setCpf('EXTERIOR');
+                          } else if (!next && cpf === 'EXTERIOR') {
+                            setCpf('');
+                          }
+                        }}
+                        className="text-[9px] text-slate-400 hover:text-[#4ade80] hover:underline cursor-pointer transition-colors"
+                        title="Se você mora fora e não tem CPF brasileiro"
+                      >
+                        {isNoCpf ? 'Tenho CPF' : 'Não tenho CPF'}
+                      </button>
+                    </div>
                     <input
                       type="text"
                       required
                       value={cpf}
                       onChange={handleCpfChange}
-                      placeholder="000.000.000-00"
+                      placeholder={isNoCpf ? "Passaporte ou doc exterior" : "000.000.000-00"}
                       className="w-full bg-[#111726] border border-white/15 rounded-lg py-1.5 px-2.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-[#22c55e]"
                     />
                   </div>
