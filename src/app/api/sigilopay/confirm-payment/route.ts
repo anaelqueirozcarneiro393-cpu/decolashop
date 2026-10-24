@@ -166,8 +166,9 @@ export async function POST(req: Request) {
     const cleanCpf = cpf ? String(cpf).trim() : null;
     const cleanPhone = phone ? String(phone).trim() : null;
     const cleanPassword = sanitizeString(password || '');
+    const isBumpsOnly = effectivePlan === 'bumps_only';
     let userPlan = plan === 'monthly' ? 'monthly' : 'lifetime';
-    if (paidAmount > 0) {
+    if (!isBumpsOnly && paidAmount > 0) {
       if (paidAmount <= 130) {
         userPlan = 'monthly';
       } else if (paidAmount >= 160) {
@@ -301,7 +302,8 @@ export async function POST(req: Request) {
 
       if (affiliateCode) {
         try {
-          const planBase = userPlan === 'monthly' ? 89.90 : 179.90;
+          const salePlan = isBumpsOnly ? 'bumps_only' : (userPlan === 'monthly' ? 'monthly' : 'lifetime');
+          const planBase = isBumpsOnly ? 0 : (userPlan === 'monthly' ? 89.90 : 179.90);
           const finalBumps = (safeBumps && safeBumps.length > 0) ? safeBumps : (pendingTx?.bumps || []);
           const totalAmount = 
             Number(txData.amount || txData.chargeAmount) || 
@@ -312,10 +314,10 @@ export async function POST(req: Request) {
 
           await dbRecordSale({
             affiliateCode,
-            plan: userPlan as 'lifetime' | 'monthly',
+            plan: salePlan as any,
             planPrice: planBase,
             bumps: finalBumps,
-            bumpPrices: Math.max(0, Number((totalAmount - planBase).toFixed(2))),
+            bumpPrices: isBumpsOnly ? totalAmount : Math.max(0, Number((totalAmount - planBase).toFixed(2))),
             totalAmount,
             customerName: cleanName,
             customerEmail: cleanEmail,

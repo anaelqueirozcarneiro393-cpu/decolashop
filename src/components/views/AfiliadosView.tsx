@@ -1191,7 +1191,11 @@ export default function AfiliadosView() {
                       {/* Purchased Items (Plan + Bumps) */}
                       <td className="py-3 px-3">
                         <div className="font-bold text-white text-xs">
-                          {sale.plan === 'lifetime' ? '💎 Plano Vitalício (R$ 179,90)' : '⚡ Plano Mensal (R$ 89,90)'}
+                          {sale.plan === 'lifetime' 
+                            ? '💎 Plano Vitalício (R$ 179,90)' 
+                            : (sale.plan === 'bumps_only' || sale.planPrice === 0 || (!sale.planPrice && sale.totalAmount < 89.9) || (sale.totalAmount === 99.8 && sale.bumps?.length === 2))
+                              ? '🚀 Upgrade de Ferramentas (Upsell)' 
+                              : '⚡ Plano Mensal (R$ 89,90)'}
                         </div>
                         {sale.bumps && sale.bumps.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1">

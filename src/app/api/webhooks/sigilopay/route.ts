@@ -77,7 +77,7 @@ export async function POST(req: Request) {
 
     // Detect plan strictly: if paid amount <= 130, it is 100% monthly (R$ 89,90)
     let plan = body.metadata?.plan || pendingLocal?.plan;
-    if (gatewayAmount > 0) {
+    if (plan !== 'bumps_only' && plan !== 'taxa_antecipacao' && gatewayAmount > 0) {
       if (gatewayAmount <= 130) {
         plan = 'monthly';
       } else if (gatewayAmount >= 160) {
@@ -287,15 +287,16 @@ async function processApproval(options: {
   // 2. REGISTRO 100% GARANTIDO DA COMISSÃO DO AFILIADO NO BANCO SUPABASE
   if (affiliateCode && plan !== 'taxa_antecipacao') {
     try {
-      const userPlan = (plan === 'monthly' ? 'monthly' : 'lifetime') as 'monthly' | 'lifetime';
-      const planBase = userPlan === 'monthly' ? 89.90 : 179.90;
+      const isBumpsOnly = plan === 'bumps_only';
+      const userPlan = (isBumpsOnly ? 'bumps_only' : (plan === 'monthly' ? 'monthly' : 'lifetime')) as 'monthly' | 'lifetime';
+      const planBase = isBumpsOnly ? 0 : (userPlan === 'monthly' ? 89.90 : 179.90);
       const totalAmount = Number(total) || planBase;
       const sale = await dbRecordSale({
         affiliateCode,
         plan: userPlan,
         planPrice: planBase,
         bumps: safeBumps,
-        bumpPrices: Math.max(0, totalAmount - planBase),
+        bumpPrices: isBumpsOnly ? totalAmount : Math.max(0, totalAmount - planBase),
         totalAmount,
         customerName: name || email.split('@')[0],
         customerEmail: email,
