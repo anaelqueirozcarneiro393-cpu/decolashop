@@ -243,7 +243,7 @@ async function processApproval(options: {
     // Busca usuário existente para preservar senha personalizada ou bumps
     const { data: existingUser } = await supabase
       .from('users')
-      .select('name, image, plan')
+      .select('name, image, plan, plan_expires_at')
       .eq('email', email)
       .maybeSingle();
 
@@ -272,8 +272,17 @@ async function processApproval(options: {
       ...safeBumps
     ]));
 
+    // Nunca rebaixa o plano: comprar um bump não tira o mensal/vitalício de quem já tem
+    const PLAN_RANK: Record<string, number> = { free: 0, bumps_only: 1, monthly: 2, lifetime: 3 };
+    const existingPlan = existingUser?.plan || 'free';
+    const keepExisting = (PLAN_RANK[existingPlan] ?? 0) > (PLAN_RANK[plan] ?? 0);
+    const finalPlan = keepExisting ? existingPlan : plan;
+
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + (plan === 'monthly' ? 30 : 3650));
+    expiresAt.setDate(expiresAt.getDate() + (finalPlan === 'monthly' ? 30 : 3650));
+    const finalExpiresAt = keepExisting && existingUser?.plan_expires_at
+      ? existingUser.plan_expires_at
+      : expiresAt.toISOString();
 
     const userMetadata = JSON.stringify({
       avatar: existingMeta.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(email)}`,
@@ -288,14 +297,14 @@ async function processApproval(options: {
       .upsert({
         email,
         name: name || existingUser?.name || email.split('@')[0],
-        plan: plan || existingUser?.plan || 'lifetime',
-        plan_expires_at: expiresAt.toISOString(),
+        plan: finalPlan,
+        plan_expires_at: finalExpiresAt,
         image: userMetadata
       }, { onConflict: 'email' });
 
     if (upsertErr) throw upsertErr;
 
-    console.log(`[SigiloPay Webhook] Usuário pago ${email} registrado/atualizado no plano ${plan}! (Senha preservada)`);
+    console.log(`[SigiloPay Webhook] Usuário pago ${email} registrado/atualizado no plano ${finalPlan}! (Senha preservada)`);
   } catch (dbErr) {
     console.warn('[SigiloPay Webhook] Aviso ao salvar usuário no Supabase:', dbErr);
   }

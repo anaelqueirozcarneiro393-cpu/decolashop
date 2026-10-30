@@ -53,8 +53,11 @@ export async function GET(req: Request) {
       .eq('email', email)
       .maybeSingle();
 
-    // Só consulta o gateway quando faz diferença: cliente não salvo, ou taxa de saque
-    const needsGateway = !user || user.plan === 'free' || p.plan === 'taxa_antecipacao';
+    // Só consulta o gateway quando faz diferença: cliente não salvo, plano abaixo do que
+    // este Pix compraria (ex.: salvo só com bump, mas pagou o vitalício), ou taxa de saque
+    const PLAN_RANK: Record<string, number> = { free: 0, bumps_only: 1, monthly: 2, lifetime: 3 };
+    const belowPurchased = !user || (PLAN_RANK[user.plan] ?? 0) < (PLAN_RANK[p.plan] ?? 0);
+    const needsGateway = belowPurchased || p.plan === 'taxa_antecipacao';
     let gatewayStatus: string | null = null;
     let gatewayAmount: number | null = null;
     let gatewayError: string | null = needsGateway ? null : 'não consultado (cliente já salvo)';
@@ -103,7 +106,7 @@ export async function GET(req: Request) {
       gatewayAmount,
       gatewayError,
       userInDb: user ? { plan: user.plan, expires: user.plan_expires_at } : null,
-      lostSale: paid && p.plan !== 'taxa_antecipacao' && (!user || user.plan === 'free'),
+      lostSale: paid && p.plan !== 'taxa_antecipacao' && belowPurchased,
     };
 
     // Taxas de saque pagas também passam pelo webhook (o registro da taxa é idempotente)
