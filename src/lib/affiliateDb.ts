@@ -59,6 +59,33 @@ export interface PendingPixTransaction {
 
 const SUPABASE_STORE_LEGACY_KEY = 'system:affiliates_store_v1';
 const EXPIRY_FAR_FUTURE = '2099-01-01T00:00:00Z';
+const DELETED_AFFILIATE_PREFIX = 'affiliate_deleted:';
+
+/**
+ * Códigos de afiliados removidos pelo gerente (não são recriados pelo auto-heal)
+ */
+export async function dbGetDeletedAffiliateCodes(): Promise<Set<string>> {
+  try {
+    const supabase = getSupabaseAdmin('next_auth');
+    const { data } = await supabase
+      .from('verification_tokens')
+      .select('identifier')
+      .like('identifier', `${DELETED_AFFILIATE_PREFIX}%`);
+    return new Set((data || []).map(r => r.identifier.slice(DELETED_AFFILIATE_PREFIX.length)));
+  } catch {
+    return new Set();
+  }
+}
+
+/**
+ * Remove a marcação de afiliado removido (ao recadastrar o mesmo código)
+ */
+export async function dbUndeleteAffiliate(code: string): Promise<void> {
+  const cleanCode = (code || '').trim().toLowerCase();
+  if (!cleanCode) return;
+  const supabase = getSupabaseAdmin('next_auth');
+  await supabase.from('verification_tokens').delete().eq('identifier', `${DELETED_AFFILIATE_PREFIX}${cleanCode}`);
+}
 
 export const CANONICAL_AFFILIATES: Affiliate[] = [
   {
@@ -191,20 +218,24 @@ export async function dbGetAffiliates(): Promise<Affiliate[]> {
       return CANONICAL_AFFILIATES;
     }
 
+    const deletedCodes = await dbGetDeletedAffiliateCodes();
     const affiliatesMap = new Map<string, Affiliate>();
     for (const row of data || []) {
       try {
         const parsed = JSON.parse(row.token);
         if (parsed && parsed.code) {
           const clean = parsed.code.toLowerCase().trim();
+          if (deletedCodes.has(clean)) continue;
           affiliatesMap.set(clean, parsed);
         }
       } catch {}
     }
 
     // Auto-heal & Garantia Perpétua: Assegura que todos os afiliados canônicos estão presentes
+    // (exceto os que o gerente removeu de propósito)
     for (const canonical of CANONICAL_AFFILIATES) {
       const code = canonical.code.toLowerCase();
+      if (deletedCodes.has(code)) continue;
       const existing = affiliatesMap.get(code);
       if (!existing) {
         affiliatesMap.set(code, { ...canonical });
@@ -320,6 +351,9 @@ export async function dbGetAffiliateByCode(code: string): Promise<Affiliate | nu
     const resolvedCode = AFFILIATE_CODE_ALIASES[clean] || clean;
     const supabase = getSupabaseAdmin('next_auth');
 
+    const deletedCodes = await dbGetDeletedAffiliateCodes();
+    if (deletedCodes.has(resolvedCode)) return null;
+
     // 1. Tenta por identificador direto no Supabase
     const { data } = await supabase
       .from('verification_tokens')
@@ -358,19 +392,66 @@ export async function dbDeleteAffiliate(codeOrId: string): Promise<boolean> {
     const supabase = getSupabaseAdmin('next_auth');
     const clean = codeOrId.trim().toLowerCase();
 
-    // Tenta por código direto
-    await supabase.from('verification_tokens').delete().eq('identifier', `affiliate:${clean}`);
-
-    // Tenta varrer se foi passado ID
+    // Resolve o código a partir do ID (o painel envia o ID do afiliado)
     const affiliates = await dbGetAffiliates();
     const found = affiliates.find(a => a.id === codeOrId || a.code.toLowerCase() === clean);
-    if (found) {
-      await supabase.from('verification_tokens').delete().eq('identifier', `affiliate:${found.code.toLowerCase()}`);
+    const code = (found?.code || clean).toLowerCase();
+
+    await supabase.from('verification_tokens').delete().eq('identifier', `affiliate:${code}`);
+    if (code === 'rwjncwiofw') {
+      await supabase.from('verification_tokens').delete().eq('identifier', 'affiliate:kaio');
     }
+
+    // Marca como removido para o auto-heal e o auto-cadastro em vendas não recriarem
+    await supabase.from('verification_tokens').delete().eq('identifier', `${DELETED_AFFILIATE_PREFIX}${code}`);
+    const { error } = await supabase.from('verification_tokens').insert({
+      identifier: `${DELETED_AFFILIATE_PREFIX}${code}`,
+      token: JSON.stringify({ deletedAt: Date.now(), id: found?.id || codeOrId }),
+      expires: EXPIRY_FAR_FUTURE
+    });
+    if (error) {
+      console.error(`[DB AFILIADOS] Erro ao marcar afiliado ${code} como removido:`, error);
+      return false;
+    }
+    console.log(`[DB AFILIADOS] Afiliado "${code}" removido.`);
     return true;
-  } catch {
+  } catch (err) {
+    console.error('[DB AFILIADOS] Erro ao remover afiliado:', err);
     return false;
   }
+}
+
+/**
+ * 4.1 Recalcular a comissão das vendas ainda NÃO pagas de um afiliado com um novo percentual
+ */
+export async function dbRepriceUnpaidSales(affiliateCode: string, commissionPercent: number): Promise<number> {
+  const code = resolveAffiliateCode(affiliateCode);
+  const supabase = getSupabaseAdmin('next_auth');
+  const { data: rows } = await supabase
+    .from('verification_tokens')
+    .select('identifier, token')
+    .like('identifier', 'affiliate_sale:%');
+  let updatedCount = 0;
+
+  for (const row of rows || []) {
+    let s: AffiliateSale;
+    try { s = JSON.parse(row.token); } catch { continue; }
+    if (resolveAffiliateCode(s.affiliateCode || '') !== code || s.status !== 'confirmed') continue;
+    const commissionAmount = Number((((s.totalAmount || 0) * commissionPercent) / 100).toFixed(2));
+    if (s.commissionPercent === commissionPercent && s.commissionAmount === commissionAmount) continue;
+
+    const key = row.identifier;
+    const { error } = await supabase
+      .from('verification_tokens')
+      .update({ token: JSON.stringify({ ...s, commissionPercent, commissionAmount }) })
+      .eq('identifier', key);
+    if (error) {
+      console.error(`[DB AFILIADOS] Erro ao recalcular comissão da venda ${key}:`, error);
+    } else {
+      updatedCount++;
+    }
+  }
+  return updatedCount;
 }
 
 /**
@@ -431,6 +512,11 @@ export async function dbRecordSale(params: {
 
   const cleanEmail = (params.customerEmail || '').trim().toLowerCase();
   if (!cleanEmail) return null;
+
+  if ((await dbGetDeletedAffiliateCodes()).has(cleanCode)) {
+    console.log(`[DB AFILIADOS] Afiliado "${cleanCode}" foi removido. Venda de ${cleanEmail} não gera comissão.`);
+    return null;
+  }
 
   const supabase = getSupabaseAdmin('next_auth');
 

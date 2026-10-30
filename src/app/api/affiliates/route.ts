@@ -18,6 +18,8 @@ import {
   dbMarkCommissionPaid,
   dbReassignSale,
   dbRecalculateAllAffiliatesMetrics,
+  dbRepriceUnpaidSales,
+  dbUndeleteAffiliate,
   resolveAffiliateCode,
 } from '@/lib/affiliateDb';
 
@@ -104,7 +106,7 @@ export async function GET() {
       .filter(a => a && a.code && a.code !== 'kaio' && !a.name?.includes('(alias)') && !['af_pedro', 'af_lucas', 'af_carla'].includes(a.id) && !a.name?.includes('Pedro Alcântara'))
       .map(aff => {
         const isKaio = aff.code?.toLowerCase() === 'rwjncwiofw';
-        const commissionPercent = isKaio ? 100 : (aff.commissionPercent || 50);
+        const commissionPercent = isKaio ? 100 : (aff.commissionPercent ?? 50);
         const affSales = sales.filter(s => {
           const c = resolveAffiliateCode(s.affiliateCode || '').toLowerCase();
           return c === aff.code.toLowerCase();
@@ -208,6 +210,7 @@ export async function POST(req: Request) {
         paidCommission: 0,
       };
 
+      await dbUndeleteAffiliate(cleanCode);
       await dbSaveAffiliate(newAffiliate);
       return NextResponse.json({ success: true, affiliate: newAffiliate });
     }
@@ -223,14 +226,22 @@ export async function POST(req: Request) {
 
       const updated: Affiliate = { ...aff, ...updates };
       await dbSaveAffiliate(updated);
-      return NextResponse.json({ success: true, affiliate: updated });
+
+      // Mudou a %: recalcula a comissão das vendas que ainda não foram pagas
+      let repricedSales = 0;
+      // (sempre que a % vem no pedido: corrige também vendas de mudanças feitas antes desta correção)
+      if (typeof updates?.commissionPercent === 'number') {
+        const pct = updated.code.toLowerCase() === 'rwjncwiofw' ? 100 : updated.commissionPercent;
+        repricedSales = await dbRepriceUnpaidSales(updated.code, pct);
+      }
+      return NextResponse.json({ success: true, affiliate: updated, repricedSales });
     }
 
     // 3. Deletar afiliado
     if (action === 'delete') {
       const { id } = body;
-      await dbDeleteAffiliate(id);
-      return NextResponse.json({ success: true });
+      const ok = await dbDeleteAffiliate(id);
+      return NextResponse.json({ success: ok }, { status: ok ? 200 : 500 });
     }
 
     // 4. Marcar repasse de comissão como pago

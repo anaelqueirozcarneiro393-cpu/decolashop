@@ -432,9 +432,12 @@ export function getAffiliates(): Affiliate[] {
     purgeObsoleteAffiliateStorage();
 
     const affiliatesMap = new Map<string, Affiliate>();
-    DEFAULT_AFFILIATES.forEach(a => affiliatesMap.set(a.code.toLowerCase(), { ...a }));
-
     const raw = localStorage.getItem(AFFILIATES_STORAGE_KEY);
+    // Os padrões só servem enquanto nada veio do servidor; depois o servidor é a fonte
+    if (!raw) {
+      DEFAULT_AFFILIATES.forEach(a => affiliatesMap.set(a.code.toLowerCase(), { ...a }));
+    }
+
     if (raw) {
       try {
         const parsed = JSON.parse(raw);
@@ -448,11 +451,12 @@ export function getAffiliates(): Affiliate[] {
       } catch {}
     }
 
-    const filtered = Array.from(affiliatesMap.values());
+    const deletedIds = getDeletedAffiliateIds();
+    const filtered = Array.from(affiliatesMap.values()).filter(a => !deletedIds.has(a.id));
     const realSales = getAffiliateSales();
     return filtered.map(aff => {
       const isKaio = aff.code?.toLowerCase() === 'rwjncwiofw' || aff.code?.toLowerCase() === 'kaio';
-      const commissionPercent = isKaio ? 100 : (aff.commissionPercent || 50);
+      const commissionPercent = isKaio ? 100 : (aff.commissionPercent ?? 50);
       const affSales = realSales.filter(s => resolveAffiliateCode(s.affiliateCode || '').toLowerCase() === aff.code?.toLowerCase());
       const totalRev = Number(affSales.reduce((acc, s) => acc + (s.totalAmount || 0), 0).toFixed(2));
       const pendingComm = Number(affSales.filter(s => s.status !== 'paid_to_affiliate').reduce((acc, s) => acc + (s.commissionAmount || 0), 0).toFixed(2));
@@ -587,8 +591,7 @@ export async function syncAffiliatesFromServer(): Promise<{ affiliates: Affiliat
 
       // 3. Afiliados cadastrados no Supabase (com seed canônica garantida)
       const affiliatesMap = new Map<string, Affiliate>();
-      DEFAULT_AFFILIATES.forEach(a => affiliatesMap.set(a.code.toLowerCase(), { ...a }));
-
+      // O servidor já inclui os afiliados padrão (menos os removidos pelo gerente)
       (data.affiliates || []).forEach((serverAff: Affiliate) => {
         if (serverAff && serverAff.code && serverAff.code !== 'kaio' && !serverAff.name?.includes('(alias)')) {
           affiliatesMap.set(serverAff.code.toLowerCase(), serverAff);
@@ -817,6 +820,19 @@ export function updateAffiliate(id: string, updates: Partial<Affiliate>): Affili
 
   affiliates[index] = updatedAffiliate;
   saveAffiliates(affiliates);
+
+  // Mudou a %: recalcula na hora a comissão das vendas ainda não pagas (o servidor faz o mesmo)
+  if (updates.commissionPercent !== undefined) {
+    const code = updatedAffiliate.code.toLowerCase();
+    const pct = code === 'rwjncwiofw' ? 100 : updates.commissionPercent;
+    const sales = getAffiliateSales().map(s =>
+      resolveAffiliateCode(s.affiliateCode || '').toLowerCase() === code && s.status === 'confirmed'
+        ? { ...s, commissionPercent: pct, commissionAmount: Number((((s.totalAmount || 0) * pct) / 100).toFixed(2)) }
+        : s
+    );
+    saveAffiliateSales(sales);
+  }
+
   postAffiliatesApi({ action: 'update', id, updates });
   return updatedAffiliate;
 }
