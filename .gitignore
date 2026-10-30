@@ -44,3 +44,9 @@ next-env.d.ts
 
 .vercel
 .env*
+
+scripts/*.sql
+scripts/*.json
+scripts/test_*.js
+count_*.js
+scripts/verify_*.js

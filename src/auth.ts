@@ -25,14 +25,14 @@ function getSupabaseAdmin() {
   const supabaseUrl = 
     process.env.SUPABASE_URL || 
     process.env.NEXT_PUBLIC_SUPABASE_URL || 
-    'https://mxukkgweuanemcgwvwdk.supabase.co';
+    'https://chgttysabvuoxpujfuho.supabase.co';
 
   const supabaseKey = getValidServiceRoleKey();
 
   if (!supabaseUrl || !supabaseKey) return null;
 
   return createClient(supabaseUrl, supabaseKey, {
-    db: { schema: 'next_auth' }
+    db: { schema: 'public' }
   });
 }
 
