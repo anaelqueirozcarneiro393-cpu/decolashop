@@ -66,6 +66,17 @@ export async function GET() {
     ? { ok: false, error: `${(insErr || delErr)!.code ?? ''} ${(insErr || delErr)!.message}`.trim() }
     : { ok: true };
 
+  // Mesmo upsert usado pelo checkout, com um e-mail de teste que é apagado em seguida
+  const testEmail = `healthcheck-${Date.now()}@example.invalid`;
+  const { error: upErr } = await db.from('users').upsert(
+    { email: testEmail, name: 'healthcheck', plan: 'free', plan_expires_at: new Date().toISOString(), image: '{}' },
+    { onConflict: 'email' }
+  );
+  await db.from('users').delete().eq('email', testEmail);
+  sales.usersUpsertTest = upErr
+    ? { ok: false, error: `${upErr.code ?? ''} ${upErr.message}`.trim(), details: upErr.details, hint: upErr.hint }
+    : { ok: true };
+
   for (const prefix of ['affiliate', 'affiliate_sale', 'pending_pix', 'lead_affiliate']) {
     const { count, error } = await db.from('verification_tokens')
       .select('identifier', { count: 'exact', head: true }).like('identifier', `${prefix}:%`);
@@ -83,6 +94,7 @@ export async function GET() {
     warnings.push('Cliente admin está usando a chave PÚBLICA — gravações no servidor serão bloqueadas pelo RLS');
   }
   if (!(sales.usersPlanColumns as { ok: boolean }).ok) warnings.push('Tabela users sem colunas plan/plan_expires_at — clientes pagos não são salvos');
+  if (!(sales.usersUpsertTest as { ok: boolean }).ok) warnings.push('Falha ao gravar cliente em users — pagamentos aprovados não viram clientes');
   if (!(sales.writeTest as { ok: boolean }).ok) warnings.push('Falha ao gravar em verification_tokens — vendas e afiliados não são salvos');
   for (const [t, r] of Object.entries(publicAccess)) {
     if ((r as { rowsVisible?: boolean }).rowsVisible) warnings.push(`Tabela "${t}" está legível com a chave pública (vazamento de dados)`);
