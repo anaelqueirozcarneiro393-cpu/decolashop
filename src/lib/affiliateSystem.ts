@@ -93,12 +93,22 @@ if (typeof window !== 'undefined') {
   purgeObsoleteAffiliateStorage();
 }
 
+const PROTECTED_CANONICAL_KEYS = new Set(['rwjncwiofw', 'utmyhgftj', 'mhnfbcve', 'sgewqghwegw', 'rgefgrebehe', 'iyujghnbcv', 'wegqgqwgwq']);
+
 function getDeletedAffiliateIds(): Set<string> {
   if (typeof window === 'undefined') return new Set();
   try {
     purgeObsoleteAffiliateStorage();
     const raw = localStorage.getItem(DELETED_AFFILIATES_KEY);
-    return new Set(raw ? JSON.parse(raw) : []);
+    const parsed: string[] = raw ? JSON.parse(raw) : [];
+    const valid = parsed.filter(id => {
+      const lower = id.toLowerCase();
+      for (const p of PROTECTED_CANONICAL_KEYS) {
+        if (lower.includes(p)) return false;
+      }
+      return true;
+    });
+    return new Set(valid);
   } catch {
     return new Set();
   }
@@ -122,8 +132,120 @@ function removeDeletedAffiliateId(id: string) {
   } catch {}
 }
 
-// Clean real affiliate system - 100% real data only
-const DEFAULT_AFFILIATES: Affiliate[] = [];
+export const DEFAULT_AFFILIATES: Affiliate[] = [
+  {
+    id: 'af_rwjncwiofw_muzjd4ee',
+    name: 'kaio',
+    code: 'rwjncwiofw',
+    email: 'kaiofredy2908@gmail.com',
+    phone: '63992369341',
+    pixKey: '63992369341',
+    pixKeyType: 'phone',
+    commissionPercent: 100,
+    active: true,
+    createdAt: 1791463921286,
+    totalRevenue: 0,
+    totalSalesCount: 0,
+    pendingCommission: 0,
+    paidCommission: 0
+  },
+  {
+    id: 'af_utmyhgftj_muyaxd8p',
+    name: 'knzin',
+    code: 'utmyhgftj',
+    email: 'kaetrfjhdbnfgv@gmail.com',
+    phone: '6399887245',
+    pixKey: '6399887245',
+    pixKeyType: 'phone',
+    commissionPercent: 50,
+    active: true,
+    createdAt: 1791389288615,
+    totalRevenue: 0,
+    totalSalesCount: 0,
+    pendingCommission: 0,
+    paidCommission: 0
+  },
+  {
+    id: 'af_mhnfbcve_mv0gm2lf',
+    name: 'David',
+    code: 'mhnfbcve',
+    email: 'kwfwfww@gmail.com',
+    phone: '63993125382',
+    pixKey: '63993125382',
+    pixKeyType: 'phone',
+    commissionPercent: 50,
+    active: true,
+    createdAt: 1791519774518,
+    totalRevenue: 0,
+    totalSalesCount: 0,
+    pendingCommission: 0,
+    paidCommission: 0
+  },
+  {
+    id: 'af_sgewqghwegw_muykl3gs',
+    name: 'ghost',
+    code: 'sgewqghwegw',
+    email: 'wfgvwqvw8@gmail.com',
+    phone: '63 9108-4577',
+    pixKey: '63 9108-4577',
+    pixKeyType: 'phone',
+    commissionPercent: 50,
+    active: true,
+    createdAt: 1791405512609,
+    totalRevenue: 0,
+    totalSalesCount: 0,
+    pendingCommission: 0,
+    paidCommission: 0
+  },
+  {
+    id: 'af_rgefgrebehe_mv0cd7xb',
+    name: 'relampa',
+    code: 'rgefgrebehe',
+    email: 'egeegewa8@gmail.com',
+    phone: '61998562805',
+    pixKey: '61998562805',
+    pixKeyType: 'phone',
+    commissionPercent: 50,
+    active: true,
+    createdAt: 1791512642884,
+    totalRevenue: 0,
+    totalSalesCount: 0,
+    pendingCommission: 0,
+    paidCommission: 0
+  },
+  {
+    id: 'af_iyujghnbcv_mv29xkq2',
+    name: 'az',
+    code: 'iyujghnbcv',
+    email: '3qewgewqw@gmail.com',
+    phone: '',
+    pixKey: '3qewgewqw@gmail.com',
+    pixKeyType: 'email',
+    commissionPercent: 50,
+    active: true,
+    createdAt: 1791629831920,
+    totalRevenue: 0,
+    totalSalesCount: 0,
+    pendingCommission: 0,
+    paidCommission: 0
+  },
+  {
+    id: 'af_wegqgqwgwq_mvmwq6k8',
+    name: 'golpistas saldo inexistente',
+    code: 'wegqgqwgwq',
+    email: 'ferreirahawer20@gmail.com',
+    phone: '',
+    pixKey: '',
+    pixKeyType: 'random',
+    commissionPercent: 50,
+    active: true,
+    createdAt: 1792877098155,
+    totalRevenue: 0,
+    totalSalesCount: 0,
+    pendingCommission: 0,
+    paidCommission: 0
+  }
+];
 const DEFAULT_SALES: AffiliateSale[] = [];
 
 // Helper: Read cookie
@@ -305,41 +427,47 @@ export function clearAffiliateRef(): void {
  * Get all registered affiliates (100% real data, starts empty)
  */
 export function getAffiliates(): Affiliate[] {
-  if (typeof window === 'undefined') return [];
+  if (typeof window === 'undefined') return DEFAULT_AFFILIATES;
   try {
     purgeObsoleteAffiliateStorage();
 
+    const affiliatesMap = new Map<string, Affiliate>();
+    DEFAULT_AFFILIATES.forEach(a => affiliatesMap.set(a.code.toLowerCase(), { ...a }));
+
     const raw = localStorage.getItem(AFFILIATES_STORAGE_KEY);
-    if (!raw) {
-      return [];
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          parsed.forEach(a => {
+            if (a && a.code && a.code !== 'kaio' && !a.name?.includes('(alias)') && !['af_pedro', 'af_lucas', 'af_carla'].includes(a.id) && !a.name?.includes('Pedro Alcântara')) {
+              affiliatesMap.set(a.code.toLowerCase(), a);
+            }
+          });
+        }
+      } catch {}
     }
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      // 1. Purge any fake seed affiliates and aliases
-      const filtered = parsed.filter(a => a && a.code && a.code !== 'kaio' && !a.name?.includes('(alias)') && !['af_pedro', 'af_lucas', 'af_carla'].includes(a.id) && !a.name?.includes('Pedro Alcântara'));
-      
-      // 2. Recalcula métricas com precisão a partir das vendas reais confirmadas
-      const realSales = getAffiliateSales();
-      return filtered.map(aff => {
-        const isKaio = aff.code?.toLowerCase() === 'rwjncwiofw' || aff.code?.toLowerCase() === 'kaio';
-        const commissionPercent = isKaio ? 100 : (aff.commissionPercent || 50);
-        const affSales = realSales.filter(s => resolveAffiliateCode(s.affiliateCode || '').toLowerCase() === aff.code?.toLowerCase());
-        const totalRev = Number(affSales.reduce((acc, s) => acc + (s.totalAmount || 0), 0).toFixed(2));
-        const pendingComm = Number(affSales.filter(s => s.status !== 'paid_to_affiliate').reduce((acc, s) => acc + (s.commissionAmount || 0), 0).toFixed(2));
-        const paidComm = Number(affSales.filter(s => s.status === 'paid_to_affiliate').reduce((acc, s) => acc + (s.commissionAmount || 0), 0).toFixed(2));
-        return {
-          ...aff,
-          commissionPercent,
-          totalSalesCount: affSales.length,
-          totalRevenue: totalRev,
-          pendingCommission: pendingComm,
-          paidCommission: paidComm,
-        };
-      });
-    }
-    return [];
+
+    const filtered = Array.from(affiliatesMap.values());
+    const realSales = getAffiliateSales();
+    return filtered.map(aff => {
+      const isKaio = aff.code?.toLowerCase() === 'rwjncwiofw' || aff.code?.toLowerCase() === 'kaio';
+      const commissionPercent = isKaio ? 100 : (aff.commissionPercent || 50);
+      const affSales = realSales.filter(s => resolveAffiliateCode(s.affiliateCode || '').toLowerCase() === aff.code?.toLowerCase());
+      const totalRev = Number(affSales.reduce((acc, s) => acc + (s.totalAmount || 0), 0).toFixed(2));
+      const pendingComm = Number(affSales.filter(s => s.status !== 'paid_to_affiliate').reduce((acc, s) => acc + (s.commissionAmount || 0), 0).toFixed(2));
+      const paidComm = Number(affSales.filter(s => s.status === 'paid_to_affiliate').reduce((acc, s) => acc + (s.commissionAmount || 0), 0).toFixed(2));
+      return {
+        ...aff,
+        commissionPercent,
+        totalSalesCount: affSales.length,
+        totalRevenue: totalRev,
+        pendingCommission: pendingComm,
+        paidCommission: paidComm,
+      };
+    });
   } catch {
-    return [];
+    return DEFAULT_AFFILIATES;
   }
 }
 
@@ -457,9 +585,11 @@ export async function syncAffiliatesFromServer(): Promise<{ affiliates: Affiliat
         })
         .sort((a: AffiliateSale, b: AffiliateSale) => (b.createdAt || 0) - (a.createdAt || 0));
 
-      // 3. Afiliados cadastrados no Supabase
+      // 3. Afiliados cadastrados no Supabase (com seed canônica garantida)
       const affiliatesMap = new Map<string, Affiliate>();
-      data.affiliates.forEach((serverAff: Affiliate) => {
+      DEFAULT_AFFILIATES.forEach(a => affiliatesMap.set(a.code.toLowerCase(), { ...a }));
+
+      (data.affiliates || []).forEach((serverAff: Affiliate) => {
         if (serverAff && serverAff.code && serverAff.code !== 'kaio' && !serverAff.name?.includes('(alias)')) {
           affiliatesMap.set(serverAff.code.toLowerCase(), serverAff);
         }

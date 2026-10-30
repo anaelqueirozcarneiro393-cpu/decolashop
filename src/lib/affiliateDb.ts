@@ -60,6 +60,121 @@ export interface PendingPixTransaction {
 const SUPABASE_STORE_LEGACY_KEY = 'system:affiliates_store_v1';
 const EXPIRY_FAR_FUTURE = '2099-01-01T00:00:00Z';
 
+export const CANONICAL_AFFILIATES: Affiliate[] = [
+  {
+    id: 'af_rwjncwiofw_muzjd4ee',
+    name: 'kaio',
+    code: 'rwjncwiofw',
+    email: 'kaiofredy2908@gmail.com',
+    phone: '63992369341',
+    pixKey: '63992369341',
+    pixKeyType: 'phone',
+    commissionPercent: 100,
+    active: true,
+    createdAt: 1791463921286,
+    totalRevenue: 0,
+    totalSalesCount: 0,
+    pendingCommission: 0,
+    paidCommission: 0
+  },
+  {
+    id: 'af_utmyhgftj_muyaxd8p',
+    name: 'knzin',
+    code: 'utmyhgftj',
+    email: 'kaetrfjhdbnfgv@gmail.com',
+    phone: '6399887245',
+    pixKey: '6399887245',
+    pixKeyType: 'phone',
+    commissionPercent: 50,
+    active: true,
+    createdAt: 1791389288615,
+    totalRevenue: 0,
+    totalSalesCount: 0,
+    pendingCommission: 0,
+    paidCommission: 0
+  },
+  {
+    id: 'af_mhnfbcve_mv0gm2lf',
+    name: 'David',
+    code: 'mhnfbcve',
+    email: 'kwfwfww@gmail.com',
+    phone: '63993125382',
+    pixKey: '63993125382',
+    pixKeyType: 'phone',
+    commissionPercent: 50,
+    active: true,
+    createdAt: 1791519774518,
+    totalRevenue: 0,
+    totalSalesCount: 0,
+    pendingCommission: 0,
+    paidCommission: 0
+  },
+  {
+    id: 'af_sgewqghwegw_muykl3gs',
+    name: 'ghost',
+    code: 'sgewqghwegw',
+    email: 'wfgvwqvw8@gmail.com',
+    phone: '63 9108-4577',
+    pixKey: '63 9108-4577',
+    pixKeyType: 'phone',
+    commissionPercent: 50,
+    active: true,
+    createdAt: 1791405512609,
+    totalRevenue: 0,
+    totalSalesCount: 0,
+    pendingCommission: 0,
+    paidCommission: 0
+  },
+  {
+    id: 'af_rgefgrebehe_mv0cd7xb',
+    name: 'relampa',
+    code: 'rgefgrebehe',
+    email: 'egeegewa8@gmail.com',
+    phone: '61998562805',
+    pixKey: '61998562805',
+    pixKeyType: 'phone',
+    commissionPercent: 50,
+    active: true,
+    createdAt: 1791512642884,
+    totalRevenue: 0,
+    totalSalesCount: 0,
+    pendingCommission: 0,
+    paidCommission: 0
+  },
+  {
+    id: 'af_iyujghnbcv_mv29xkq2',
+    name: 'az',
+    code: 'iyujghnbcv',
+    email: '3qewgewqw@gmail.com',
+    phone: '',
+    pixKey: '3qewgewqw@gmail.com',
+    pixKeyType: 'email',
+    commissionPercent: 50,
+    active: true,
+    createdAt: 1791629831920,
+    totalRevenue: 0,
+    totalSalesCount: 0,
+    pendingCommission: 0,
+    paidCommission: 0
+  },
+  {
+    id: 'af_wegqgqwgwq_mvmwq6k8',
+    name: 'golpistas saldo inexistente',
+    code: 'wegqgqwgwq',
+    email: 'ferreirahawer20@gmail.com',
+    phone: '',
+    pixKey: '',
+    pixKeyType: 'random',
+    commissionPercent: 50,
+    active: true,
+    createdAt: 1792877098155,
+    totalRevenue: 0,
+    totalSalesCount: 0,
+    pendingCommission: 0,
+    paidCommission: 0
+  }
+];
+
 /**
  * 1. Obter todos os afiliados cadastrados diretamente do Supabase PostgreSQL
  */
@@ -73,21 +188,49 @@ export async function dbGetAffiliates(): Promise<Affiliate[]> {
 
     if (error) {
       console.error('[DB AFILIADOS] Erro ao buscar afiliados:', error);
-      return [];
+      return CANONICAL_AFFILIATES;
     }
 
-    const affiliates: Affiliate[] = [];
+    const affiliatesMap = new Map<string, Affiliate>();
     for (const row of data || []) {
       try {
         const parsed = JSON.parse(row.token);
         if (parsed && parsed.code) {
-          affiliates.push(parsed);
+          const clean = parsed.code.toLowerCase().trim();
+          affiliatesMap.set(clean, parsed);
         }
       } catch {}
     }
 
-    // Se a tabela granular ainda estiver vazia, tenta resgatar do legado para não perder nada
-    if (affiliates.length === 0) {
+    // Auto-heal & Garantia Perpétua: Assegura que todos os afiliados canônicos estão presentes
+    for (const canonical of CANONICAL_AFFILIATES) {
+      const code = canonical.code.toLowerCase();
+      const existing = affiliatesMap.get(code);
+      if (!existing) {
+        affiliatesMap.set(code, { ...canonical });
+        dbSaveAffiliate(canonical).catch(() => {});
+      } else {
+        // Se o afiliado veio com nome genérico "Afiliado MHNFBCVE", restaura o nome original correto
+        if ((existing.name === `Afiliado ${code.toUpperCase()}` || !existing.name) && canonical.name) {
+          existing.name = canonical.name;
+          if (!existing.email && canonical.email) existing.email = canonical.email;
+          if (!existing.phone && canonical.phone) existing.phone = canonical.phone;
+          if (!existing.pixKey && canonical.pixKey) {
+            existing.pixKey = canonical.pixKey;
+            existing.pixKeyType = canonical.pixKeyType;
+          }
+          dbSaveAffiliate(existing).catch(() => {});
+        }
+        // Kaio tem sempre 100% de comissão garantida
+        if (code === 'rwjncwiofw' && existing.commissionPercent !== 100) {
+          existing.commissionPercent = 100;
+          dbSaveAffiliate(existing).catch(() => {});
+        }
+      }
+    }
+
+    // Se a tabela ainda estiver vazia por qualquer motivo, tenta resgatar do legado
+    if (affiliatesMap.size === 0) {
       const { data: legacy } = await supabase
         .from('verification_tokens')
         .select('token')
@@ -100,17 +243,18 @@ export async function dbGetAffiliates(): Promise<Affiliate[]> {
           if (Array.isArray(parsedLegacy.affiliates) && parsedLegacy.affiliates.length > 0) {
             for (const a of parsedLegacy.affiliates) {
               await dbSaveAffiliate(a);
-              affiliates.push(a);
+              affiliatesMap.set(a.code.toLowerCase().trim(), a);
             }
           }
         } catch {}
       }
     }
 
+    const affiliates = Array.from(affiliatesMap.values());
     return affiliates.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   } catch (err) {
     console.error('[DB AFILIADOS] Exceção em dbGetAffiliates:', err);
-    return [];
+    return CANONICAL_AFFILIATES;
   }
 }
 

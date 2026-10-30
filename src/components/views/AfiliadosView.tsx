@@ -45,7 +45,8 @@ import {
   updateAffiliateCommission, 
   markCommissionPaid, 
   getAffiliateLink,
-  syncAffiliatesFromServer
+  syncAffiliatesFromServer,
+  resolveAffiliateCode
 } from '@/lib/affiliateSystem';
 
 const BUMP_NAMES: Record<string, string> = {
@@ -723,7 +724,7 @@ export default function AfiliadosView() {
                   const isPixCopied = copiedPix === aff.pixKey;
                   
                   // Métricas calculadas em tempo real sobre as vendas confirmadas
-                  const affSales = sales.filter(s => s.affiliateCode?.toLowerCase() === aff.code?.toLowerCase());
+                  const affSales = sales.filter(s => resolveAffiliateCode(s.affiliateCode || '').toLowerCase() === aff.code?.toLowerCase());
                   const realSalesCount = affSales.length;
                   const realRevenue = Number(affSales.reduce((acc, s) => acc + (s.totalAmount || 0), 0).toFixed(2));
                   const realPendingCommission = Number(affSales.filter(s => s.status !== 'paid_to_affiliate').reduce((acc, s) => acc + (s.commissionAmount || 0), 0).toFixed(2));
