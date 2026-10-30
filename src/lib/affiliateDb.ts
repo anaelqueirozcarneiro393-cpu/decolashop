@@ -423,6 +423,7 @@ export async function dbDeleteAffiliate(codeOrId: string): Promise<boolean> {
 
 /**
  * 4.1 Recalcular a comissão das vendas ainda NÃO pagas de um afiliado com um novo percentual
+ * (o painel conta como "a pagar" toda venda com status diferente de 'paid_to_affiliate')
  */
 export async function dbRepriceUnpaidSales(affiliateCode: string, commissionPercent: number): Promise<number> {
   const code = resolveAffiliateCode(affiliateCode);
@@ -436,7 +437,8 @@ export async function dbRepriceUnpaidSales(affiliateCode: string, commissionPerc
   for (const row of rows || []) {
     let s: AffiliateSale;
     try { s = JSON.parse(row.token); } catch { continue; }
-    if (resolveAffiliateCode(s.affiliateCode || '') !== code || s.status !== 'confirmed') continue;
+    // Mesmo critério do painel para "a pagar": tudo que ainda não foi pago ao afiliado
+    if (resolveAffiliateCode(s.affiliateCode || '') !== code || s.status === 'paid_to_affiliate') continue;
     const commissionAmount = Number((((s.totalAmount || 0) * commissionPercent) / 100).toFixed(2));
     if (s.commissionPercent === commissionPercent && s.commissionAmount === commissionAmount) continue;
 
