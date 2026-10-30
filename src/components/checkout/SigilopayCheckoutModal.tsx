@@ -34,14 +34,15 @@ export interface OrderBump {
   image: string;
 }
 
+// Preços exclusivos do checkout: dentro do app (src/lib/orderBumps.ts) os mesmos itens custam o preço riscado
 export const AVAILABLE_ORDER_BUMPS: OrderBump[] = [
   {
     id: 'bump_curso',
     tag: '🎓 20 AULAS',
     title: 'Curso Completo',
     shortDesc: 'Curso Completo com 20 aulas explicando de forma bem didática para você aprender absolutamente tudo sobre a ferramenta',
-    originalPrice: 37.54,
-    price: 29.90,
+    originalPrice: 29.90, // preço normal dentro do app
+    price: 9.90,
     image: '/images/bump-curso-completo.jpg',
   },
   {
@@ -49,8 +50,8 @@ export const AVAILABLE_ORDER_BUMPS: OrderBump[] = [
     tag: '⭐ SUPORTE 24H',
     title: 'Acompanhamento - 1 ano',
     shortDesc: 'Acompanhamento Completo por 1 especialista durante 1 ano - 24h',
-    originalPrice: 75.21,
-    price: 59.90,
+    originalPrice: 59.90, // preço normal dentro do app
+    price: 14.90,
     image: '/images/bump-acompanhamento-1ano.jpg',
   },
   {
@@ -58,8 +59,8 @@ export const AVAILABLE_ORDER_BUMPS: OrderBump[] = [
     tag: '🚀 IA DE ESCALA',
     title: 'Acelerador de Vendas',
     shortDesc: 'Conte com uma IA que acelerará suas vendas garantindo 30 vendas nas primeiras 48h!',
-    originalPrice: 50.10,
-    price: 39.90,
+    originalPrice: 39.90, // preço normal dentro do app
+    price: 19.90,
     image: '/images/bump-acelerador-vendas.jpg',
   }
 ];
@@ -167,6 +168,14 @@ export default function SigilopayCheckoutModal({
       prev.includes(bumpId) ? prev.filter(id => id !== bumpId) : [...prev, bumpId]
     );
   };
+
+  const formatBRL = (value: number) => `R$ ${value.toFixed(2).replace('.', ',')}`;
+  const discountPercent = (bump: OrderBump) => Math.round((1 - bump.price / bump.originalPrice) * 100);
+  const maxDiscount = Math.max(...AVAILABLE_ORDER_BUMPS.map(discountPercent));
+  const selectedExtrasCount = selectedBumps.filter(id => AVAILABLE_ORDER_BUMPS.some(b => b.id === id)).length;
+
+  // Atalho fixo ao lado do botão de pagar: o primeiro bump ainda não marcado (o Curso, o mais barato)
+  const quickBump = AVAILABLE_ORDER_BUMPS.find(b => !selectedBumps.includes(b.id)) || null;
 
   // Format CPF helper (Suporta CPF e Documento Internacional)
   const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -516,18 +525,18 @@ export default function SigilopayCheckoutModal({
                 <button
                   type="button"
                   onClick={() => setSelectedPlan('lifetime')}
-                  className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                  className={`relative p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
                     selectedPlan === 'lifetime'
                       ? 'bg-[#22c55e]/15 border-[#22c55e] shadow-sm shadow-[#22c55e]/20'
                       : 'bg-white/[0.02] border-white/10 hover:border-white/20'
                   }`}
                 >
+                  <span className="absolute -top-2 right-2 text-[8px] bg-[#22c55e] text-black font-black px-1.5 py-0.5 rounded-full uppercase whitespace-nowrap">
+                    Melhor custo
+                  </span>
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-black text-white flex items-center gap-1">
+                    <span className="text-[11px] font-black text-white flex items-center gap-1 whitespace-nowrap">
                       👑 Vitalício VIP
-                    </span>
-                    <span className="text-[9px] bg-[#22c55e] text-black font-black px-1.5 py-0.2 rounded-full uppercase">
-                      Popular
                     </span>
                   </div>
                   <div className="flex items-baseline gap-1 mt-0.5">
@@ -673,70 +682,82 @@ export default function SigilopayCheckoutModal({
                 </div>
               </div>
 
-              {/* ================= ULTRA-COMPACT ORDER BUMPS ================= */}
-              <div className="space-y-1.5 pb-1">
+              {/* ================= ORDER BUMPS ================= */}
+              <div className="space-y-2 pb-1">
                 <div className="flex items-center justify-between">
-                  <div className="text-[10px] font-black uppercase tracking-wider text-slate-300 flex items-center gap-1">
-                    <Flame size={12} className="text-amber-400" />
-                    <span>Turbine sua Operação (Order Bumps)</span>
+                  <div className="text-[11px] font-black uppercase tracking-wider text-white flex items-center gap-1">
+                    <Flame size={13} className="text-amber-400" />
+                    <span>Aproveite e adicione</span>
+                    <span className="text-slate-500 normal-case font-semibold tracking-normal">(opcional)</span>
                   </div>
-                  <span className="text-[9px] text-[#4ade80] font-black bg-[#22c55e]/15 px-1.5 py-0.5 rounded-full border border-[#22c55e]/30">
-                    Desconto de até 80%
+                  <span className="text-[10px] text-[#4ade80] font-black bg-[#22c55e]/15 px-2 py-0.5 rounded-full border border-[#22c55e]/30">
+                    Até {maxDiscount}% OFF
                   </span>
                 </div>
 
-                <div className="space-y-1.5">
-                  {AVAILABLE_ORDER_BUMPS.map((bump) => {
+                <div className="space-y-2">
+                  {AVAILABLE_ORDER_BUMPS.map((bump, idx) => {
                     const isSelected = selectedBumps.includes(bump.id);
                     return (
                       <div
                         key={bump.id}
+                        role="checkbox"
+                        aria-checked={isSelected}
+                        tabIndex={0}
                         onClick={() => toggleBump(bump.id)}
-                        className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2.5 ${
+                        onKeyDown={(e) => {
+                          if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggleBump(bump.id); }
+                        }}
+                        className={`relative p-3 rounded-xl border-2 cursor-pointer transition-all ${
                           isSelected
-                            ? 'bg-[#22c55e]/15 border-[#22c55e] shadow-md shadow-[#22c55e]/15'
-                            : 'bg-white/[0.02] border-white/10 hover:border-white/20 opacity-85'
+                            ? 'bg-[#22c55e]/10 border-[#22c55e] shadow-md shadow-[#22c55e]/15'
+                            : 'bg-white/[0.03] border-dashed border-amber-400/40 hover:border-amber-400/70'
                         }`}
                       >
-                        <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                          {/* Custom Checkbox */}
-                          <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
-                            isSelected ? 'bg-[#22c55e] border-[#22c55e]' : 'border-white/30 bg-black/40'
-                          }`}>
-                            {isSelected && <Check size={11} className="text-black stroke-[3]" />}
-                          </div>
+                        {idx === 0 && (
+                          <span className="absolute -top-2.5 left-3 text-[9px] font-black uppercase tracking-wider bg-amber-400 text-black px-2 py-0.5 rounded-full">
+                            Recomendado para iniciantes
+                          </span>
+                        )}
 
-                          {/* Bump Neon Icon Thumbnail */}
-                          <div className="w-10 h-10 rounded-lg overflow-hidden bg-black/50 border border-[#22c55e]/30 flex-shrink-0">
-                            <img
-                              src={bump.image}
-                              alt={bump.title}
-                              className="w-full h-full object-cover"
-                            />
+                        <div className="flex items-start gap-3">
+                          <div className="w-12 h-12 rounded-lg overflow-hidden bg-black/50 border border-[#22c55e]/30 flex-shrink-0">
+                            <img src={bump.image} alt={bump.title} className="w-full h-full object-cover" />
                           </div>
 
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5 mb-0.5">
-                              <span className="text-[8px] font-black px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 shrink-0">
-                                {bump.tag}
-                              </span>
-                              <h4 className="text-xs font-bold text-white truncate">
-                                {bump.title}
-                              </h4>
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <span className="inline-block text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 mb-0.5">
+                                  {bump.tag}
+                                </span>
+                                <h4 className="text-sm font-bold text-white leading-tight">{bump.title}</h4>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <span className="text-[10px] text-slate-500 line-through block leading-tight">
+                                  {formatBRL(bump.originalPrice)}
+                                </span>
+                                <span className="text-sm font-black text-[#4ade80] leading-tight">
+                                  + {formatBRL(bump.price)}
+                                </span>
+                              </div>
                             </div>
-                            <p className="text-[10px] text-slate-400 line-clamp-1 leading-tight">
+                            <p className="text-[11px] text-slate-400 leading-snug mt-1 line-clamp-2">
                               {bump.shortDesc}
                             </p>
                           </div>
                         </div>
 
-                        <div className="text-right shrink-0">
-                          <span className="text-[10px] text-red-500 font-bold line-through decoration-red-500 block">
-                            de R$ {bump.originalPrice.toFixed(2).replace('.', ',')}
-                          </span>
-                          <span className="text-xs font-black text-[#4ade80]">
-                            por R$ {bump.price.toFixed(2).replace('.', ',')}
-                          </span>
+                        <div className={`mt-2.5 flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-black transition-colors ${
+                          isSelected ? 'bg-[#22c55e] text-black' : 'bg-amber-400/10 text-amber-200'
+                        }`}>
+                          <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${
+                            isSelected ? 'bg-black/20 border-black/40' : 'border-amber-300/70 bg-black/30'
+                          }`}>
+                            {isSelected && <Check size={13} className="text-black stroke-[3.5]" />}
+                          </div>
+                          <span>{isSelected ? 'Adicionado ao seu pedido' : 'Sim, quero adicionar ao meu pedido'}</span>
+                          <span className="ml-auto text-[10px] font-black opacity-80">-{discountPercent(bump)}%</span>
                         </div>
                       </div>
                     );
@@ -747,10 +768,28 @@ export default function SigilopayCheckoutModal({
 
             {/* Docked Action Footer (Always 100% visible on mobile) */}
             <div className="shrink-0 p-3 sm:p-4 bg-[#090d17]/95 backdrop-blur-md border-t border-white/10 space-y-2 z-20 shadow-[0_-10px_20px_rgba(0,0,0,0.5)]">
+              {/* Bump de um toque, sempre visível mesmo sem rolar o formulário */}
+              {quickBump && (
+                <button
+                  type="button"
+                  onClick={() => toggleBump(quickBump.id)}
+                  className="w-full flex items-center gap-2.5 rounded-xl border-2 border-dashed border-amber-400/50 bg-amber-400/10 hover:bg-amber-400/15 px-3 py-2 text-left cursor-pointer transition-colors"
+                >
+                  <div className="w-5 h-5 rounded-md border-2 border-amber-300/80 bg-black/30 shrink-0" />
+                  <span className="flex-1 min-w-0 text-[11px] sm:text-xs text-amber-100 leading-tight">
+                    <strong className="text-white">Adicionar {quickBump.title}</strong>
+                    <span className="block text-[10px] text-amber-200/80 truncate">{quickBump.shortDesc}</span>
+                  </span>
+                  <span className="text-xs font-black text-[#4ade80] shrink-0">+ {formatBRL(quickBump.price)}</span>
+                </button>
+              )}
+
               <div className="flex items-center justify-between text-xs px-1">
-                <span className="text-slate-400 text-[11px]">Total com descontos:</span>
+                <span className="text-slate-400 text-[11px]">
+                  Total{selectedExtrasCount > 0 ? ` (plano + ${selectedExtrasCount} ${selectedExtrasCount === 1 ? 'extra' : 'extras'})` : ''}:
+                </span>
                 <span className="text-lg sm:text-xl font-black text-[#22c55e]">
-                  R$ {totalPrice.toFixed(2).replace('.', ',')}
+                  {formatBRL(totalPrice)}
                 </span>
               </div>
 
