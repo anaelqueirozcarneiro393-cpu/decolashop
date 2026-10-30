@@ -58,6 +58,10 @@ export async function GET() {
   }
 
   return NextResponse.json({
+    vercelEnv: process.env.VERCEL_ENV ?? null,
+    gitBranch: process.env.VERCEL_GIT_COMMIT_REF ?? null,
+    // Só os NOMES das variáveis (nunca os valores), pra achar erro de digitação
+    supabaseEnvNames: Object.keys(process.env).filter((k) => /SUPABASE|SERVICE/i.test(k)),
     url: SUPABASE_URL,
     adminKeyType,
     publicKeyType: describeKey(publicKey),
