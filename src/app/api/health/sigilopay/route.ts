@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { isManagerSession } from '@/lib/managerAuth';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { POST as processWebhook } from '@/app/api/webhooks/sigilopay/route';
 
@@ -17,6 +18,9 @@ function maskEmail(email: string): string {
 }
 
 export async function GET(req: Request) {
+  if (!(await isManagerSession())) {
+    return NextResponse.json({ ok: false, error: 'Acesso restrito à conta de Gerente.' }, { status: 403 });
+  }
   const reprocess = new URL(req.url).searchParams.get('reprocess') === '1';
   const publicKey = process.env.SIGILOPAY_PUBLIC_KEY;
   const secretKey = process.env.SIGILOPAY_SECRET_KEY;

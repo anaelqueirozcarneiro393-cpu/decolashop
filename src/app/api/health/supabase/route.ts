@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { isManagerSession } from '@/lib/managerAuth';
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, getValidServiceRoleKey } from '@/lib/supabaseAdmin';
 
@@ -28,6 +29,9 @@ async function checkTable(key: string, table: string) {
 }
 
 export async function GET() {
+  if (!(await isManagerSession())) {
+    return NextResponse.json({ ok: false, error: 'Acesso restrito à conta de Gerente.' }, { status: 403 });
+  }
   const adminKey = getValidServiceRoleKey();
   const publicKey =
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/auth';
+import { isManagerSession } from '@/lib/managerAuth';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import {
   Affiliate,
@@ -65,13 +65,7 @@ function isRealCustomer(email?: string | null): boolean {
   return true;
 }
 
-// Painel de afiliados: só gerente/admin logado (a sessão vem do NextAuth, não do corpo da requisição)
-async function isManagerSession(): Promise<boolean> {
-  const session = await auth();
-  const role = (session?.user as { role?: string } | undefined)?.role;
-  return role === 'gerente' || role === 'admin';
-}
-
+// Painel de afiliados: só gerente/admin logado
 function forbidden() {
   return NextResponse.json(
     { success: false, error: 'Acesso restrito à conta de Gerente.' },
