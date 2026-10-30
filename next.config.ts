@@ -5,7 +5,6 @@ const nextConfig: NextConfig = {
     AUTH_SECRET: process.env.AUTH_SECRET || "super_secret_session_key_decolashop_saas_2026",
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || "super_secret_session_key_decolashop_saas_2026",
     SUPABASE_URL: process.env.SUPABASE_URL || "https://chgttysabvuoxpujfuho.supabase.co",
-    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || "sb_publishable_MK3ImGrf9HccrQgGTKVhzQ_-BiCjb-_",
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || "https://chgttysabvuoxpujfuho.supabase.co",
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "sb_publishable_MK3ImGrf9HccrQgGTKVhzQ_-BiCjb-_",
     SIGILOPAY_PUBLIC_KEY: "kaiofredy2908_1cmq6fd3bmq2s24u",

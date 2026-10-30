@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { isManagerSession } from '@/lib/managerAuth';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import {
   Affiliate,
@@ -18,6 +19,8 @@ import {
   dbMarkCommissionPaid,
   dbReassignSale,
   dbRecalculateAllAffiliatesMetrics,
+  dbRepriceUnpaidSales,
+  dbUndeleteAffiliate,
   resolveAffiliateCode,
 } from '@/lib/affiliateDb';
 
@@ -62,7 +65,19 @@ function isRealCustomer(email?: string | null): boolean {
   return true;
 }
 
+// Painel de afiliados: só gerente/admin logado
+function forbidden() {
+  return NextResponse.json(
+    { success: false, error: 'Acesso restrito à conta de Gerente.' },
+    { status: 403 }
+  );
+}
+
+// Ações que o checkout do cliente usa sem login de gerente
+const PUBLIC_ACTIONS = new Set(['bind_lead']);
+
 export async function GET() {
+  if (!(await isManagerSession())) return forbidden();
   try {
     const [rawAffiliates, rawSales, pendingTransactions] = await Promise.all([
       dbGetAffiliates(),
@@ -104,7 +119,7 @@ export async function GET() {
       .filter(a => a && a.code && a.code !== 'kaio' && !a.name?.includes('(alias)') && !['af_pedro', 'af_lucas', 'af_carla'].includes(a.id) && !a.name?.includes('Pedro Alcântara'))
       .map(aff => {
         const isKaio = aff.code?.toLowerCase() === 'rwjncwiofw';
-        const commissionPercent = isKaio ? 100 : (aff.commissionPercent || 50);
+        const commissionPercent = isKaio ? 100 : (aff.commissionPercent ?? 50);
         const affSales = sales.filter(s => {
           const c = resolveAffiliateCode(s.affiliateCode || '').toLowerCase();
           return c === aff.code.toLowerCase();
@@ -123,11 +138,13 @@ export async function GET() {
     let paidUsers: any[] = [];
     try {
       const supabase = getSupabaseAdmin('next_auth');
-      const { data: users } = await supabase
+      const { data: users, error: usersErr } = await supabase
         .from('users')
         .select('id, name, email, plan, plan_expires_at')
         .in('plan', ['monthly', 'lifetime'])
         .order('id', { ascending: false });
+
+      if (usersErr) console.error('[API AFILIADOS] Erro ao carregar paidUsers:', usersErr);
 
       if (users) {
         paidUsers = users
@@ -153,8 +170,7 @@ export async function GET() {
       paidUsers
     }, {
       headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        'Access-Control-Allow-Origin': '*'
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate'
       }
     });
   } catch (err: any) {
@@ -174,6 +190,8 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const action = body.action;
+
+    if (!PUBLIC_ACTIONS.has(action) && !(await isManagerSession())) return forbidden();
 
     // 1. Criar novo afiliado
     if (action === 'create') {
@@ -206,6 +224,7 @@ export async function POST(req: Request) {
         paidCommission: 0,
       };
 
+      await dbUndeleteAffiliate(cleanCode);
       await dbSaveAffiliate(newAffiliate);
       return NextResponse.json({ success: true, affiliate: newAffiliate });
     }
@@ -221,14 +240,22 @@ export async function POST(req: Request) {
 
       const updated: Affiliate = { ...aff, ...updates };
       await dbSaveAffiliate(updated);
-      return NextResponse.json({ success: true, affiliate: updated });
+
+      // Mudou a %: recalcula a comissão das vendas que ainda não foram pagas
+      let repricedSales = 0;
+      // (sempre que a % vem no pedido: corrige também vendas de mudanças feitas antes desta correção)
+      if (typeof updates?.commissionPercent === 'number') {
+        const pct = updated.code.toLowerCase() === 'rwjncwiofw' ? 100 : updated.commissionPercent;
+        repricedSales = await dbRepriceUnpaidSales(updated.code, pct);
+      }
+      return NextResponse.json({ success: true, affiliate: updated, repricedSales });
     }
 
     // 3. Deletar afiliado
     if (action === 'delete') {
       const { id } = body;
-      await dbDeleteAffiliate(id);
-      return NextResponse.json({ success: true });
+      const ok = await dbDeleteAffiliate(id);
+      return NextResponse.json({ success: ok }, { status: ok ? 200 : 500 });
     }
 
     // 4. Marcar repasse de comissão como pago

@@ -177,6 +177,7 @@ export async function POST(req: Request) {
     } else if (pendingTx?.plan === 'monthly') {
       userPlan = 'monthly';
     }
+    const purchasedPlan = userPlan; // o que este Pix comprou (userPlan pode virar o plano mantido do cliente)
     const safeBumps = Array.isArray(bumps) 
       ? bumps.map((b: any) => sanitizeString(String(b)))
       : [];
@@ -236,27 +237,54 @@ export async function POST(req: Request) {
         planBase;
       const finalTxId = transactionId || pendingTx?.transactionId;
 
+      // Cliente já existente: preserva plano mais alto, validade, bumps, senha e dados
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('name, image, plan, plan_expires_at')
+        .eq('email', cleanEmail)
+        .maybeSingle();
+
+      let existingMeta: { avatar?: string; pwd?: string; bumps?: string[]; phone?: string; cpf?: string; createdAt?: number } = {};
+      if (existingUser?.image && existingUser.image.startsWith('{')) {
+        try { existingMeta = JSON.parse(existingUser.image); } catch {}
+      }
+
+      // Nunca rebaixa o plano, e comprar só bump não promove o assinante (ex.: mensal -> vitalício)
+      const PLAN_RANK: Record<string, number> = { free: 0, bumps_only: 1, monthly: 2, lifetime: 3 };
+      const existingPlan = existingUser?.plan || 'free';
+      const hasPaidPlan = existingPlan === 'monthly' || existingPlan === 'lifetime';
+      const keepExisting = hasPaidPlan && (isBumpsOnly || (PLAN_RANK[existingPlan] ?? 0) > (PLAN_RANK[userPlan] ?? 0));
+      if (keepExisting) userPlan = existingPlan;
+
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + (userPlan === 'monthly' ? 30 : 3650)); // 10 years for lifetime
+      const finalExpiresAt = keepExisting && existingUser?.plan_expires_at
+        ? existingUser.plan_expires_at
+        : expiresAt.toISOString();
 
       const userMetadata = JSON.stringify({
-        avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(cleanEmail)}`,
-        pwd: cleanPassword || pendingTx?.password || 'decola123',
-        bumps: finalBumps,
-        phone: cleanPhone || null,
-        cpf: cleanCpf || null,
-        createdAt: Date.now()
+        ...existingMeta,
+        avatar: existingMeta.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(cleanEmail)}`,
+        pwd:
+          (existingMeta.pwd && existingMeta.pwd !== 'decola123' ? existingMeta.pwd : null) ||
+          cleanPassword || pendingTx?.password || existingMeta.pwd || 'decola123',
+        bumps: Array.from(new Set([...(existingMeta.bumps || []), ...finalBumps])),
+        phone: cleanPhone || existingMeta.phone || null,
+        cpf: cleanCpf || existingMeta.cpf || null,
+        createdAt: existingMeta.createdAt || Date.now()
       });
 
-      await supabase
+      const { error: upsertErr } = await supabase
         .from('users')
         .upsert({
           email: cleanEmail,
-          name: cleanName,
+          name: name ? cleanName : (existingUser?.name || cleanName),
           plan: userPlan,
-          plan_expires_at: expiresAt.toISOString(),
+          plan_expires_at: finalExpiresAt,
           image: userMetadata
         }, { onConflict: 'email' });
+
+      if (upsertErr) throw upsertErr;
 
       console.log(`[SigiloPay Confirm] Usuário pago ${cleanEmail} registrado com sucesso no plano ${userPlan}!`);
     } catch (dbErr) {
@@ -302,8 +330,8 @@ export async function POST(req: Request) {
 
       if (affiliateCode) {
         try {
-          const salePlan = isBumpsOnly ? 'bumps_only' : (userPlan === 'monthly' ? 'monthly' : 'lifetime');
-          const planBase = isBumpsOnly ? 0 : (userPlan === 'monthly' ? 89.90 : 179.90);
+          const salePlan = isBumpsOnly ? 'bumps_only' : (purchasedPlan === 'monthly' ? 'monthly' : 'lifetime');
+          const planBase = isBumpsOnly ? 0 : (purchasedPlan === 'monthly' ? 89.90 : 179.90);
           const finalBumps = (safeBumps && safeBumps.length > 0) ? safeBumps : (pendingTx?.bumps || []);
           const totalAmount = 
             Number(txData.amount || txData.chargeAmount) || 

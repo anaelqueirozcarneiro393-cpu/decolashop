@@ -1,5 +1,7 @@
 'use client';
 
+import toast from 'react-hot-toast';
+
 export interface Affiliate {
   id: string;
   name: string;
@@ -93,22 +95,14 @@ if (typeof window !== 'undefined') {
   purgeObsoleteAffiliateStorage();
 }
 
-const PROTECTED_CANONICAL_KEYS = new Set(['rwjncwiofw', 'utmyhgftj', 'mhnfbcve', 'sgewqghwegw', 'rgefgrebehe', 'iyujghnbcv', 'wegqgqwgwq']);
-
 function getDeletedAffiliateIds(): Set<string> {
   if (typeof window === 'undefined') return new Set();
   try {
     purgeObsoleteAffiliateStorage();
     const raw = localStorage.getItem(DELETED_AFFILIATES_KEY);
     const parsed: string[] = raw ? JSON.parse(raw) : [];
-    const valid = parsed.filter(id => {
-      const lower = id.toLowerCase();
-      for (const p of PROTECTED_CANONICAL_KEYS) {
-        if (lower.includes(p)) return false;
-      }
-      return true;
-    });
-    return new Set(valid);
+    // O gerente pode remover qualquer afiliado, inclusive os padrão (o servidor também respeita)
+    return new Set(parsed);
   } catch {
     return new Set();
   }
@@ -432,9 +426,12 @@ export function getAffiliates(): Affiliate[] {
     purgeObsoleteAffiliateStorage();
 
     const affiliatesMap = new Map<string, Affiliate>();
-    DEFAULT_AFFILIATES.forEach(a => affiliatesMap.set(a.code.toLowerCase(), { ...a }));
-
     const raw = localStorage.getItem(AFFILIATES_STORAGE_KEY);
+    // Os padrões só servem enquanto nada veio do servidor; depois o servidor é a fonte
+    if (!raw) {
+      DEFAULT_AFFILIATES.forEach(a => affiliatesMap.set(a.code.toLowerCase(), { ...a }));
+    }
+
     if (raw) {
       try {
         const parsed = JSON.parse(raw);
@@ -448,11 +445,12 @@ export function getAffiliates(): Affiliate[] {
       } catch {}
     }
 
-    const filtered = Array.from(affiliatesMap.values());
+    const deletedIds = getDeletedAffiliateIds();
+    const filtered = Array.from(affiliatesMap.values()).filter(a => !deletedIds.has(a.id));
     const realSales = getAffiliateSales();
     return filtered.map(aff => {
       const isKaio = aff.code?.toLowerCase() === 'rwjncwiofw' || aff.code?.toLowerCase() === 'kaio';
-      const commissionPercent = isKaio ? 100 : (aff.commissionPercent || 50);
+      const commissionPercent = isKaio ? 100 : (aff.commissionPercent ?? 50);
       const affSales = realSales.filter(s => resolveAffiliateCode(s.affiliateCode || '').toLowerCase() === aff.code?.toLowerCase());
       const totalRev = Number(affSales.reduce((acc, s) => acc + (s.totalAmount || 0), 0).toFixed(2));
       const pendingComm = Number(affSales.filter(s => s.status !== 'paid_to_affiliate').reduce((acc, s) => acc + (s.commissionAmount || 0), 0).toFixed(2));
@@ -477,7 +475,16 @@ function postAffiliatesApi(payload: any) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
-  }).catch(() => {});
+  }).then(res => {
+    // Avisa quando o servidor não salvou (senão a tela mostra sucesso e o polling desfaz a mudança)
+    if (res.status === 403) {
+      toast.error('Sua sessão de gerente expirou. Faça login novamente para salvar as alterações.');
+    } else if (!res.ok) {
+      toast.error('Não foi possível salvar no servidor. Tente novamente.');
+    }
+  }).catch(() => {
+    toast.error('Sem conexão com o servidor. A alteração não foi salva.');
+  });
 }
 
 /**
@@ -524,17 +531,10 @@ export async function syncAffiliatesFromServer(): Promise<{ affiliates: Affiliat
       }
     } catch {}
 
-    // Fallback de alta disponibilidade para garantir que os dados apareçam imediatamente
-    if (!data || !data.success || !Array.isArray(data.affiliates) || (data.affiliates.length === 0 && (!data.paidUsers || data.paidUsers.length === 0))) {
-      try {
-        const fbRes = await fetch('https://decolashop-saas.vercel.app/api/affiliates', { cache: 'no-store' });
-        if (fbRes.ok) {
-          const fbData = await fbRes.json();
-          if (fbData && fbData.success && Array.isArray(fbData.affiliates) && fbData.affiliates.length > 0) {
-            data = fbData;
-          }
-        }
-      } catch {}
+    // Sem fallback para outro domínio: mostrar dados de outro deploy escondia erros (ex.: sessão
+    // de gerente expirada) e fazia exclusões/alterações parecerem não funcionar
+    if (!data?.success) {
+      console.warn('[Afiliados] Não foi possível carregar do servidor (sessão de gerente?). Mantendo dados locais.');
     }
 
     if (data && data.success && Array.isArray(data.affiliates)) {
@@ -587,15 +587,15 @@ export async function syncAffiliatesFromServer(): Promise<{ affiliates: Affiliat
 
       // 3. Afiliados cadastrados no Supabase (com seed canônica garantida)
       const affiliatesMap = new Map<string, Affiliate>();
-      DEFAULT_AFFILIATES.forEach(a => affiliatesMap.set(a.code.toLowerCase(), { ...a }));
-
+      // O servidor já inclui os afiliados padrão (menos os removidos pelo gerente)
       (data.affiliates || []).forEach((serverAff: Affiliate) => {
         if (serverAff && serverAff.code && serverAff.code !== 'kaio' && !serverAff.name?.includes('(alias)')) {
           affiliatesMap.set(serverAff.code.toLowerCase(), serverAff);
         }
       });
 
-      const mergedAffiliates = Array.from(affiliatesMap.values()).map(aff => {
+      const deletedIds = getDeletedAffiliateIds();
+      const mergedAffiliates = Array.from(affiliatesMap.values()).filter(aff => !deletedIds.has(aff.id)).map(aff => {
         const affSales = serverSales.filter(s => resolveAffiliateCode(s.affiliateCode || '').toLowerCase() === aff.code?.toLowerCase());
         const totalRev = Number(affSales.reduce((acc, s) => acc + (s.totalAmount || 0), 0).toFixed(2));
         const pendingComm = Number(affSales.filter(s => s.status !== 'paid_to_affiliate').reduce((acc, s) => acc + (s.commissionAmount || 0), 0).toFixed(2));
@@ -817,6 +817,19 @@ export function updateAffiliate(id: string, updates: Partial<Affiliate>): Affili
 
   affiliates[index] = updatedAffiliate;
   saveAffiliates(affiliates);
+
+  // Mudou a %: recalcula na hora a comissão das vendas ainda não pagas (o servidor faz o mesmo)
+  if (updates.commissionPercent !== undefined) {
+    const code = updatedAffiliate.code.toLowerCase();
+    const pct = code === 'rwjncwiofw' ? 100 : updates.commissionPercent;
+    const sales = getAffiliateSales().map(s =>
+      resolveAffiliateCode(s.affiliateCode || '').toLowerCase() === code && s.status !== 'paid_to_affiliate'
+        ? { ...s, commissionPercent: pct, commissionAmount: Number((((s.totalAmount || 0) * pct) / 100).toFixed(2)) }
+        : s
+    );
+    saveAffiliateSales(sales);
+  }
+
   postAffiliatesApi({ action: 'update', id, updates });
   return updatedAffiliate;
 }
@@ -834,13 +847,13 @@ export function updateAffiliateCommission(id: string, newPercent: number): boole
  * Delete affiliate
  */
 export function deleteAffiliate(id: string): boolean {
-  addDeletedAffiliateId(id);
+  // Lê a lista antes de marcar como removido (getAffiliates já esconde os removidos)
   const affiliates = getAffiliates();
-  const filtered = affiliates.filter(a => a.id !== id);
-  if (filtered.length === affiliates.length) return false;
-  saveAffiliates(filtered);
+  const exists = affiliates.some(a => a.id === id);
+  addDeletedAffiliateId(id);
+  saveAffiliates(affiliates.filter(a => a.id !== id));
   postAffiliatesApi({ action: 'delete', id });
-  return true;
+  return exists;
 }
 
 /**

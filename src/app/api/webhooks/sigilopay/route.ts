@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { getSupabaseAdmin, saveVerificationToken } from "@/lib/supabaseAdmin";
 import { validateAndSanitizePayload, isValidEmail } from "@/lib/security";
 import { dbRecordSale, dbGetPendingPix, dbGetLeadAffiliate, dbBindLead, dbGetAffiliates, resolveAffiliateCode } from "@/lib/affiliateDb";
 import { recordPaidWithdrawalFee } from "@/lib/withdrawalFeesStore";
@@ -20,6 +20,13 @@ export async function POST(req: Request) {
     const body = rawBody;
 
     console.log("🔥 [WEBHOOK SIGILOPAY RECEBIDO] 🔥", JSON.stringify(body, null, 2));
+
+    // Registro do último webhook recebido (lido por /api/health/supabase)
+    saveVerificationToken('system:last_sigilopay_webhook', JSON.stringify({
+      at: new Date().toISOString(),
+      status: body.status || body.event || body.type || body.data?.status || null,
+      transactionId: body.transactionId || body.id || body.data?.id || body.identifier || null
+    })).catch(() => {});
 
     // Extract customer & order details (SigiloPay payload structure)
     const client = body.client || body.customer || body.payer || body.data?.client || body.data?.customer || {};
@@ -50,18 +57,29 @@ export async function POST(req: Request) {
 
     // Direct gateway query if transactionId is available for 100% authoritative amounts
     let gatewayAmount = Number(body.amount || body.chargeAmount || body.value || body.data?.amount || body.data?.chargeAmount || body.transaction?.amount || 0);
-    if (transactionId) {
+    // Status confirmado direto na SigiloPay (o status do corpo do webhook não é confiável)
+    let gatewayStatus: string | null = null;
+    const idsToCheck = Array.from(new Set([transactionId, pendingLocal?.transactionId].filter(Boolean)));
+    for (const txId of idsToCheck) {
       try {
         const sigiloPublicKey = process.env.SIGILOPAY_PUBLIC_KEY || 'kaiofredy2908_1cmq6fd3bmq2s24u';
         const sigiloSecretKey = process.env.SIGILOPAY_SECRET_KEY || 'tzlk0xxe8t4dybi2t0o1udw1ckczp01a4a9hbgptalozcan5hh0r59qw41seo3ze';
         const sigiloBaseUrl = process.env.SIGILOPAY_BASE_URL || 'https://app.sigilopay.com.br';
-        const checkRes = await fetch(`${sigiloBaseUrl}/api/v1/gateway/transactions?id=${encodeURIComponent(transactionId)}`, {
+        const lookup = () => fetch(`${sigiloBaseUrl}/api/v1/gateway/transactions?id=${encodeURIComponent(txId as string)}`, {
           headers: { 'x-public-key': sigiloPublicKey, 'x-secret-key': sigiloSecretKey }
         });
+        let checkRes = await lookup();
+        if (checkRes.status === 429) {
+          // SigiloPay limitou as requisições: espera e tenta de novo antes de desistir
+          await new Promise((r) => setTimeout(r, 2000));
+          checkRes = await lookup();
+        }
         if (checkRes.ok) {
           const apiTx = await checkRes.json();
           const apiAmt = Number(apiTx.amount || apiTx.chargeAmount || 0);
           if (apiAmt > 0) gatewayAmount = apiAmt;
+          gatewayStatus = String(apiTx.status || '').toUpperCase() || (apiTx.payedAt ? 'PAID' : null);
+          if (gatewayStatus) break;
         }
       } catch {}
     }
@@ -149,14 +167,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Conta protegida" }, { status: 403 });
     }
 
-    const isApproved = 
-      status.includes("PAID") || 
-      status.includes("APPROVED") || 
-      status.includes("PAGO") || 
-      status.includes("CONFIRMED") ||
-      status.includes("COMPLETED");
+    // Só aprova com o status confirmado na SigiloPay; sem confirmação do gateway, não ativa nada
+    const isApproved = !!gatewayStatus && /PAID|APPROVED|PAGO|CONFIRMED|COMPLETED/.test(gatewayStatus);
 
-    console.log(`SigiloPay Webhook: Cliente ${email} - Status: ${status} (Aprovado: ${isApproved}) - Afiliado: ${affiliateCode || 'Nenhum'}`);
+    console.log(`SigiloPay Webhook: Cliente ${email} - Status webhook: ${status} / gateway: ${gatewayStatus ?? 'não confirmado'} (Aprovado: ${isApproved}) - Afiliado: ${affiliateCode || 'Nenhum'}`);
 
     const isTaxaAntecipacao = 
       plan === 'taxa_antecipacao' || 
@@ -229,7 +243,7 @@ async function processApproval(options: {
     // Busca usuário existente para preservar senha personalizada ou bumps
     const { data: existingUser } = await supabase
       .from('users')
-      .select('name, image, plan')
+      .select('name, image, plan, plan_expires_at')
       .eq('email', email)
       .maybeSingle();
 
@@ -258,8 +272,17 @@ async function processApproval(options: {
       ...safeBumps
     ]));
 
+    // Nunca rebaixa o plano: comprar um bump não tira o mensal/vitalício de quem já tem
+    const PLAN_RANK: Record<string, number> = { free: 0, bumps_only: 1, monthly: 2, lifetime: 3 };
+    const existingPlan = existingUser?.plan || 'free';
+    const keepExisting = (PLAN_RANK[existingPlan] ?? 0) > (PLAN_RANK[plan] ?? 0);
+    const finalPlan = keepExisting ? existingPlan : plan;
+
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + (plan === 'monthly' ? 30 : 3650));
+    expiresAt.setDate(expiresAt.getDate() + (finalPlan === 'monthly' ? 30 : 3650));
+    const finalExpiresAt = keepExisting && existingUser?.plan_expires_at
+      ? existingUser.plan_expires_at
+      : expiresAt.toISOString();
 
     const userMetadata = JSON.stringify({
       avatar: existingMeta.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(email)}`,
@@ -269,17 +292,19 @@ async function processApproval(options: {
       cpf: cpf || existingMeta.cpf || null
     });
 
-    await supabase
+    const { error: upsertErr } = await supabase
       .from('users')
       .upsert({
         email,
         name: name || existingUser?.name || email.split('@')[0],
-        plan: plan || existingUser?.plan || 'lifetime',
-        plan_expires_at: expiresAt.toISOString(),
+        plan: finalPlan,
+        plan_expires_at: finalExpiresAt,
         image: userMetadata
       }, { onConflict: 'email' });
 
-    console.log(`[SigiloPay Webhook] Usuário pago ${email} registrado/atualizado no plano ${plan}! (Senha preservada)`);
+    if (upsertErr) throw upsertErr;
+
+    console.log(`[SigiloPay Webhook] Usuário pago ${email} registrado/atualizado no plano ${finalPlan}! (Senha preservada)`);
   } catch (dbErr) {
     console.warn('[SigiloPay Webhook] Aviso ao salvar usuário no Supabase:', dbErr);
   }
