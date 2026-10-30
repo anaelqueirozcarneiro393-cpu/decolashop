@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { auth } from '@/auth';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import {
   Affiliate,
@@ -64,7 +65,25 @@ function isRealCustomer(email?: string | null): boolean {
   return true;
 }
 
+// Painel de afiliados: só gerente/admin logado (a sessão vem do NextAuth, não do corpo da requisição)
+async function isManagerSession(): Promise<boolean> {
+  const session = await auth();
+  const role = (session?.user as { role?: string } | undefined)?.role;
+  return role === 'gerente' || role === 'admin';
+}
+
+function forbidden() {
+  return NextResponse.json(
+    { success: false, error: 'Acesso restrito à conta de Gerente.' },
+    { status: 403 }
+  );
+}
+
+// Ações que o checkout do cliente usa sem login de gerente
+const PUBLIC_ACTIONS = new Set(['bind_lead']);
+
 export async function GET() {
+  if (!(await isManagerSession())) return forbidden();
   try {
     const [rawAffiliates, rawSales, pendingTransactions] = await Promise.all([
       dbGetAffiliates(),
@@ -157,8 +176,7 @@ export async function GET() {
       paidUsers
     }, {
       headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        'Access-Control-Allow-Origin': '*'
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate'
       }
     });
   } catch (err: any) {
@@ -178,6 +196,8 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const action = body.action;
+
+    if (!PUBLIC_ACTIONS.has(action) && !(await isManagerSession())) return forbidden();
 
     // 1. Criar novo afiliado
     if (action === 'create') {
