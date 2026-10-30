@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Rocket, 
   ShieldCheck, 
@@ -33,6 +33,19 @@ export default function LandingPageView() {
   const [loginPassword, setLoginPassword] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [showStickyCta, setShowStickyCta] = useState(false);
+
+  // Barra de compra fixa no celular depois que o visitante passa do topo da página
+  useEffect(() => {
+    const onScroll = () => setShowStickyCta(window.scrollY > 640);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const scrollToPlans = () => {
+    document.getElementById('planos')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,6 +115,18 @@ export default function LandingPageView() {
 
   const faqs = [
     {
+      q: "Quanto tempo demora para liberar meu acesso?",
+      a: "O acesso é liberado automaticamente assim que o banco confirma o Pix, normalmente em poucos segundos. Você entra no painel com o e-mail e a senha que escolheu no cadastro."
+    },
+    {
+      q: "O plano mensal renova sozinho?",
+      a: "Não. O pagamento é por Pix, então não existe cobrança automática no seu cartão. O mensal vale por 30 dias e você renova só se quiser continuar."
+    },
+    {
+      q: "Mensal ou Vitalício: qual vale mais a pena?",
+      a: "O Vitalício custa R$ 179,90 uma única vez, praticamente o mesmo que 2 meses do Mensal (R$ 179,80). Se você pretende usar a plataforma por mais de 2 meses, o Vitalício sai mais barato. Se quer só testar, comece pelo Mensal."
+    },
+    {
       q: "Preciso ter CNPJ para começar?",
       a: "Não! Mais de 85% dos nossos membros começam 100% no CPF. Você cadastra sua chave Pix para receber os lucros e pode abrir CNPJ MEI apenas quando estiver faturando alto, se quiser."
     },
@@ -157,15 +182,16 @@ export default function LandingPageView() {
           <div className="flex items-center gap-2.5 sm:gap-4">
             <button
               onClick={() => setIsLoginModalOpen(true)}
-              className="text-xs sm:text-sm font-bold text-slate-300 hover:text-white px-3 py-2 rounded-xl hover:bg-white/5 transition-colors"
+              className="whitespace-nowrap text-xs sm:text-sm font-bold text-slate-300 hover:text-white px-3 py-2 rounded-xl hover:bg-white/5 transition-colors"
             >
-              Já sou Membro
+              <span className="sm:hidden">Entrar</span>
+              <span className="hidden sm:inline">Já sou Membro</span>
             </button>
             <button
-              onClick={() => setSelectedPlanModal('monthly')}
-              className="px-4 sm:px-5 py-2.5 bg-[#22c55e] hover:bg-[#16a34a] text-black font-black text-xs sm:text-sm rounded-xl shadow-lg shadow-[#22c55e]/25 hover:shadow-xl hover:shadow-[#22c55e]/35 transition-all flex items-center gap-1.5 cursor-pointer"
+              onClick={scrollToPlans}
+              className="whitespace-nowrap px-4 sm:px-5 py-2.5 bg-[#22c55e] hover:bg-[#16a34a] text-black font-black text-xs sm:text-sm rounded-xl shadow-lg shadow-[#22c55e]/25 hover:shadow-xl hover:shadow-[#22c55e]/35 transition-all flex items-center gap-1.5 cursor-pointer"
             >
-              <span>Começar Agora</span>
+              <span>Ver Planos</span>
               <ArrowRight size={14} className="stroke-[3]" />
             </button>
           </div>
@@ -209,9 +235,14 @@ export default function LandingPageView() {
             className="w-full sm:w-auto px-6 py-4 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold text-sm rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             <Crown size={16} className="text-amber-400" />
-            <span>Ver Plano Vitalício VIP (Sem Mensalidade)</span>
+            <span>Vitalício VIP por R$ 179,90 (pague 1 vez)</span>
           </button>
         </div>
+
+        {/* Preço visível perto do botão: tira a dúvida "quanto custa?" antes do clique */}
+        <p className="text-xs sm:text-sm text-slate-400 -mt-4 mb-6">
+          A partir de <strong className="text-white">R$ 89,90</strong> • Pagamento via Pix • Acesso liberado na hora
+        </p>
 
         {/* Micro Trust Proofs */}
         <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-xs text-slate-400 font-medium">
@@ -227,6 +258,23 @@ export default function LandingPageView() {
             <Check size={16} className="text-[#22c55e]" />
             <span>Pode começar 100% no CPF</span>
           </div>
+        </div>
+
+        {/* Prova social real: membros pagantes na base (143 mensais + 49 vitalícios em 30/10/2026) */}
+        <div className="mt-8 inline-flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-white/[0.03] border border-white/10">
+          <div className="flex -space-x-2">
+            {['a', 'b', 'c', 'd'].map((seed) => (
+              <img
+                key={seed}
+                src={`https://api.dicebear.com/7.x/bottts/svg?seed=decola-${seed}`}
+                alt=""
+                className="w-7 h-7 rounded-full border-2 border-[#080c14] bg-[#111726]"
+              />
+            ))}
+          </div>
+          <span className="text-xs sm:text-sm text-slate-300">
+            <strong className="text-white">+190 membros</strong> já estão usando a DecolaShop
+          </span>
         </div>
       </section>
 
@@ -444,7 +492,7 @@ export default function LandingPageView() {
                   <span className="text-xs text-slate-400">/ mês</span>
                 </div>
                 <p className="text-xs text-slate-400 mt-1">
-                  Perfeito para quem quer começar com o menor valor e testar na prática.
+                  Perfeito para quem quer começar com o menor valor e testar na prática. Sem renovação automática.
                 </p>
               </div>
 
@@ -486,7 +534,7 @@ export default function LandingPageView() {
             
             {/* Badge Popular */}
             <div className="absolute -top-3.5 right-6 bg-[#22c55e] text-black text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-md">
-              👑 MAIS ESCOLHIDO • PAGUE 1 VEZ
+              👑 MELHOR CUSTO-BENEFÍCIO • PAGUE 1 VEZ
             </div>
 
             <div>
@@ -502,12 +550,16 @@ export default function LandingPageView() {
 
               <div className="mb-6">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-xs text-slate-400 line-through font-bold">R$ 297</span>
                   <span className="text-3xl sm:text-4xl font-black text-white">R$ 179,90</span>
+                  <span className="text-xs text-slate-400">pagamento único</span>
                 </div>
                 <p className="text-xs text-[#4ade80] font-semibold mt-1">
-                  Pagamento único. Acesso vitalício para sempre.
+                  O preço de 2 meses do Mensal, com acesso para sempre.
                 </p>
+                <div className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-bold text-amber-300 bg-amber-400/10 border border-amber-400/20 rounded-lg px-2.5 py-1">
+                  <DollarSign size={12} />
+                  <span>Economia de R$ 898,90 no primeiro ano vs. Mensal</span>
+                </div>
               </div>
 
               <ul className="space-y-3 text-xs text-slate-200 mb-8">
@@ -602,8 +654,39 @@ export default function LandingPageView() {
         </div>
       </section>
 
+      {/* ================= CTA FINAL ================= */}
+      <section className="py-14 sm:py-20 px-4 sm:px-6">
+        <div className="max-w-3xl mx-auto text-center bg-gradient-to-b from-[#111726] to-[#0d1624] border border-[#22c55e]/30 rounded-3xl p-8 sm:p-12 shadow-2xl shadow-[#22c55e]/10">
+          <h2 className="text-2xl sm:text-4xl font-black text-white mb-3">
+            Seu primeiro produto pode estar no ar hoje
+          </h2>
+          <p className="text-sm text-slate-400 max-w-xl mx-auto mb-8">
+            Acesso liberado na hora do Pix, catálogo de fornecedores de SP e anúncios prontos com IA. E se não for pra você, tem 7 dias de garantia.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <button
+              onClick={() => setSelectedPlanModal('lifetime')}
+              className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#16a34a] hover:to-[#15803d] text-black font-black text-base rounded-2xl shadow-xl shadow-[#22c55e]/30 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Crown size={18} />
+              <span>VITALÍCIO POR R$ 179,90</span>
+            </button>
+            <button
+              onClick={() => setSelectedPlanModal('monthly')}
+              className="w-full sm:w-auto px-6 py-4 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold text-sm rounded-2xl transition-all cursor-pointer"
+            >
+              Começar no Mensal (R$ 89,90)
+            </button>
+          </div>
+          <div className="flex items-center justify-center gap-1.5 text-xs text-slate-400 mt-5">
+            <Lock size={12} className="text-[#22c55e]" />
+            <span>Pagamento seguro via Pix</span>
+          </div>
+        </div>
+      </section>
+
       {/* ================= FOOTER ================= */}
-      <footer className="border-t border-white/5 py-10 px-4 text-center text-xs text-slate-500 space-y-4">
+      <footer className="border-t border-white/5 py-10 pb-28 md:pb-10 px-4 text-center text-xs text-slate-500 space-y-4">
         <div className="flex items-center justify-center gap-2">
           <div className="w-6 h-6 rounded-lg overflow-hidden bg-black">
             <img src="/images/decolashop-icon.jpg" alt="DecolaShop" className="w-full h-full object-cover" />
@@ -672,6 +755,27 @@ export default function LandingPageView() {
           </div>
         </div>
       )}
+
+      {/* ================= BARRA DE COMPRA FIXA (CELULAR) ================= */}
+      <div
+        className={`md:hidden fixed bottom-0 inset-x-0 z-30 px-4 pb-4 pt-3 bg-[#080c14]/95 backdrop-blur-xl border-t border-white/10 transition-transform duration-300 ${
+          showStickyCta && !selectedPlanModal && !isLoginModalOpen ? 'translate-y-0' : 'translate-y-full'
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] text-slate-400 leading-tight">Vitalício • pague 1 vez</p>
+            <p className="text-base font-black text-white leading-tight">R$ 179,90</p>
+          </div>
+          <button
+            onClick={() => setSelectedPlanModal('lifetime')}
+            className="px-5 py-3 bg-[#22c55e] hover:bg-[#16a34a] text-black font-black text-sm rounded-xl shadow-lg shadow-[#22c55e]/25 flex items-center gap-1.5 cursor-pointer"
+          >
+            <span>Garantir acesso</span>
+            <ArrowRight size={14} className="stroke-[3]" />
+          </button>
+        </div>
+      </div>
 
       {/* ================= MODAL DE CHECKOUT TRANSPARENTE ================= */}
       <SigilopayCheckoutModal
