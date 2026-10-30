@@ -47,12 +47,43 @@ export async function GET() {
     try { publicAccess[t] = await checkTable(publicKey, t); } catch (e) { publicAccess[t] = { ok: false, error: String(e) }; }
   }
 
+  // Vendas: colunas usadas pelo checkout, teste de gravação e contagem de registros
+  const db = createClient(SUPABASE_URL, adminKey, { auth: { persistSession: false } });
+  const sales: Record<string, unknown> = {};
+
+  const { error: colsErr } = await db.from('users').select('plan, plan_expires_at').limit(1);
+  sales.usersPlanColumns = colsErr ? { ok: false, error: `${colsErr.code ?? ''} ${colsErr.message}`.trim() } : { ok: true };
+
+  const { count: paidUsers, error: paidErr } = await db
+    .from('users').select('email', { count: 'exact', head: true }).in('plan', ['monthly', 'lifetime']);
+  sales.paidUsers = paidErr ? `erro: ${paidErr.message}` : paidUsers;
+
+  const testId = `healthcheck:${Date.now()}`;
+  const { error: insErr } = await db.from('verification_tokens')
+    .insert({ identifier: testId, token: 'ok', expires: new Date(Date.now() + 60000).toISOString() });
+  const { error: delErr } = await db.from('verification_tokens').delete().eq('identifier', testId);
+  sales.writeTest = insErr || delErr
+    ? { ok: false, error: `${(insErr || delErr)!.code ?? ''} ${(insErr || delErr)!.message}`.trim() }
+    : { ok: true };
+
+  for (const prefix of ['affiliate', 'affiliate_sale', 'pending_pix', 'lead_affiliate']) {
+    const { count, error } = await db.from('verification_tokens')
+      .select('identifier', { count: 'exact', head: true }).like('identifier', `${prefix}:%`);
+    sales[prefix] = error ? `erro: ${error.message}` : count;
+  }
+
+  const { data: lastHook } = await db.from('verification_tokens')
+    .select('token').eq('identifier', 'system:last_sigilopay_webhook').maybeSingle();
+  sales.lastWebhook = lastHook?.token ? JSON.parse(lastHook.token) : 'nenhum webhook recebido desde este deploy';
+
   const adminKeyType = describeKey(adminKey);
   const warnings: string[] = [];
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) warnings.push('SUPABASE_SERVICE_ROLE_KEY não definida no ambiente');
   if (adminKey.startsWith('sb_publishable_') || adminKey === publicKey) {
     warnings.push('Cliente admin está usando a chave PÚBLICA — gravações no servidor serão bloqueadas pelo RLS');
   }
+  if (!(sales.usersPlanColumns as { ok: boolean }).ok) warnings.push('Tabela users sem colunas plan/plan_expires_at — clientes pagos não são salvos');
+  if (!(sales.writeTest as { ok: boolean }).ok) warnings.push('Falha ao gravar em verification_tokens — vendas e afiliados não são salvos');
   for (const [t, r] of Object.entries(publicAccess)) {
     if ((r as { rowsVisible?: boolean }).rowsVisible) warnings.push(`Tabela "${t}" está legível com a chave pública (vazamento de dados)`);
   }
@@ -67,6 +98,7 @@ export async function GET() {
     publicKeyType: describeKey(publicKey),
     admin,
     publicAccess,
+    sales,
     warnings,
     healthy: warnings.length === 0 && Object.values(admin).every((r) => (r as { ok: boolean }).ok),
   });

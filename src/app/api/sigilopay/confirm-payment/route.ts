@@ -248,7 +248,7 @@ export async function POST(req: Request) {
         createdAt: Date.now()
       });
 
-      await supabase
+      const { error: upsertErr } = await supabase
         .from('users')
         .upsert({
           email: cleanEmail,
@@ -257,6 +257,8 @@ export async function POST(req: Request) {
           plan_expires_at: expiresAt.toISOString(),
           image: userMetadata
         }, { onConflict: 'email' });
+
+      if (upsertErr) throw upsertErr;
 
       console.log(`[SigiloPay Confirm] Usuário pago ${cleanEmail} registrado com sucesso no plano ${userPlan}!`);
     } catch (dbErr) {

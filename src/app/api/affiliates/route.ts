@@ -123,11 +123,13 @@ export async function GET() {
     let paidUsers: any[] = [];
     try {
       const supabase = getSupabaseAdmin('next_auth');
-      const { data: users } = await supabase
+      const { data: users, error: usersErr } = await supabase
         .from('users')
         .select('id, name, email, plan, plan_expires_at')
         .in('plan', ['monthly', 'lifetime'])
         .order('id', { ascending: false });
+
+      if (usersErr) console.error('[API AFILIADOS] Erro ao carregar paidUsers:', usersErr);
 
       if (users) {
         paidUsers = users

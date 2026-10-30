@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { getSupabaseAdmin, saveVerificationToken } from "@/lib/supabaseAdmin";
 import { validateAndSanitizePayload, isValidEmail } from "@/lib/security";
 import { dbRecordSale, dbGetPendingPix, dbGetLeadAffiliate, dbBindLead, dbGetAffiliates, resolveAffiliateCode } from "@/lib/affiliateDb";
 import { recordPaidWithdrawalFee } from "@/lib/withdrawalFeesStore";
@@ -20,6 +20,13 @@ export async function POST(req: Request) {
     const body = rawBody;
 
     console.log("🔥 [WEBHOOK SIGILOPAY RECEBIDO] 🔥", JSON.stringify(body, null, 2));
+
+    // Registro do último webhook recebido (lido por /api/health/supabase)
+    saveVerificationToken('system:last_sigilopay_webhook', JSON.stringify({
+      at: new Date().toISOString(),
+      status: body.status || body.event || body.type || body.data?.status || null,
+      transactionId: body.transactionId || body.id || body.data?.id || body.identifier || null
+    })).catch(() => {});
 
     // Extract customer & order details (SigiloPay payload structure)
     const client = body.client || body.customer || body.payer || body.data?.client || body.data?.customer || {};
@@ -269,7 +276,7 @@ async function processApproval(options: {
       cpf: cpf || existingMeta.cpf || null
     });
 
-    await supabase
+    const { error: upsertErr } = await supabase
       .from('users')
       .upsert({
         email,
@@ -278,6 +285,8 @@ async function processApproval(options: {
         plan_expires_at: expiresAt.toISOString(),
         image: userMetadata
       }, { onConflict: 'email' });
+
+    if (upsertErr) throw upsertErr;
 
     console.log(`[SigiloPay Webhook] Usuário pago ${email} registrado/atualizado no plano ${plan}! (Senha preservada)`);
   } catch (dbErr) {
