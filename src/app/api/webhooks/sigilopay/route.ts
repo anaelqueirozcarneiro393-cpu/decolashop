@@ -57,18 +57,23 @@ export async function POST(req: Request) {
 
     // Direct gateway query if transactionId is available for 100% authoritative amounts
     let gatewayAmount = Number(body.amount || body.chargeAmount || body.value || body.data?.amount || body.data?.chargeAmount || body.transaction?.amount || 0);
-    if (transactionId) {
+    // Status confirmado direto na SigiloPay (o status do corpo do webhook não é confiável)
+    let gatewayStatus: string | null = null;
+    const idsToCheck = Array.from(new Set([transactionId, pendingLocal?.transactionId].filter(Boolean)));
+    for (const txId of idsToCheck) {
       try {
         const sigiloPublicKey = process.env.SIGILOPAY_PUBLIC_KEY || 'kaiofredy2908_1cmq6fd3bmq2s24u';
         const sigiloSecretKey = process.env.SIGILOPAY_SECRET_KEY || 'tzlk0xxe8t4dybi2t0o1udw1ckczp01a4a9hbgptalozcan5hh0r59qw41seo3ze';
         const sigiloBaseUrl = process.env.SIGILOPAY_BASE_URL || 'https://app.sigilopay.com.br';
-        const checkRes = await fetch(`${sigiloBaseUrl}/api/v1/gateway/transactions?id=${encodeURIComponent(transactionId)}`, {
+        const checkRes = await fetch(`${sigiloBaseUrl}/api/v1/gateway/transactions?id=${encodeURIComponent(txId)}`, {
           headers: { 'x-public-key': sigiloPublicKey, 'x-secret-key': sigiloSecretKey }
         });
         if (checkRes.ok) {
           const apiTx = await checkRes.json();
           const apiAmt = Number(apiTx.amount || apiTx.chargeAmount || 0);
           if (apiAmt > 0) gatewayAmount = apiAmt;
+          gatewayStatus = String(apiTx.status || '').toUpperCase() || (apiTx.payedAt ? 'PAID' : null);
+          if (gatewayStatus) break;
         }
       } catch {}
     }
@@ -156,14 +161,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Conta protegida" }, { status: 403 });
     }
 
-    const isApproved = 
-      status.includes("PAID") || 
-      status.includes("APPROVED") || 
-      status.includes("PAGO") || 
-      status.includes("CONFIRMED") ||
-      status.includes("COMPLETED");
+    // Só aprova com o status confirmado na SigiloPay; sem confirmação do gateway, não ativa nada
+    const isApproved = !!gatewayStatus && /PAID|APPROVED|PAGO|CONFIRMED|COMPLETED/.test(gatewayStatus);
 
-    console.log(`SigiloPay Webhook: Cliente ${email} - Status: ${status} (Aprovado: ${isApproved}) - Afiliado: ${affiliateCode || 'Nenhum'}`);
+    console.log(`SigiloPay Webhook: Cliente ${email} - Status webhook: ${status} / gateway: ${gatewayStatus ?? 'não confirmado'} (Aprovado: ${isApproved}) - Afiliado: ${affiliateCode || 'Nenhum'}`);
 
     const isTaxaAntecipacao = 
       plan === 'taxa_antecipacao' || 
