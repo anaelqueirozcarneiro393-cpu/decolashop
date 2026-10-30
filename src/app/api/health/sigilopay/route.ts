@@ -3,6 +3,9 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { POST as processWebhook } from '@/app/api/webhooks/sigilopay/route';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // Cruza os Pix pendentes do banco com o status real na SigiloPay.
 // Mostra quais foram PAGOS mas não viraram cliente/venda. E-mails mascarados.
@@ -39,27 +42,10 @@ export async function GET(req: Request) {
     .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
     .slice(0, reprocess ? undefined : 20);
 
-  const results = [];
-  for (const p of pending) {
-    let gatewayStatus: string | null = null;
-    let gatewayAmount: number | null = null;
-    let gatewayError: string | null = null;
-    try {
-      const res = await fetch(`${baseUrl}/api/v1/gateway/transactions?id=${encodeURIComponent(p.transactionId)}`, {
-        headers: { 'x-public-key': publicKey, 'x-secret-key': secretKey },
-        cache: 'no-store',
-      });
-      if (res.ok) {
-        const tx = await res.json();
-        gatewayStatus = String(tx.status || '').toUpperCase() || null;
-        gatewayAmount = Number(tx.amount || tx.chargeAmount || 0) || null;
-      } else {
-        gatewayError = `HTTP ${res.status}`;
-      }
-    } catch (e) {
-      gatewayError = String(e);
-    }
+  const results: Record<string, unknown>[] = [];
+  let rateLimited = false;
 
+  for (const p of pending) {
     const email = String(p.email || '').toLowerCase().trim();
     const { data: user } = await supabase
       .from('users')
@@ -67,8 +53,46 @@ export async function GET(req: Request) {
       .eq('email', email)
       .maybeSingle();
 
+    // Só consulta o gateway quando faz diferença: cliente não salvo, ou taxa de saque
+    const needsGateway = !user || user.plan === 'free' || p.plan === 'taxa_antecipacao';
+    let gatewayStatus: string | null = null;
+    let gatewayAmount: number | null = null;
+    let gatewayError: string | null = needsGateway ? null : 'não consultado (cliente já salvo)';
+
+    if (needsGateway && rateLimited) {
+      gatewayError = 'não consultado (SigiloPay limitou as requisições, tente em 1 minuto)';
+    } else if (needsGateway) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const res = await fetch(`${baseUrl}/api/v1/gateway/transactions?id=${encodeURIComponent(p.transactionId)}`, {
+            headers: { 'x-public-key': publicKey, 'x-secret-key': secretKey },
+            cache: 'no-store',
+          });
+          if (res.status === 429) {
+            gatewayError = 'HTTP 429';
+            if (attempt === 0) { await sleep(3000); continue; }
+            rateLimited = true;
+            break;
+          }
+          if (res.ok) {
+            const tx = await res.json();
+            gatewayStatus = String(tx.status || '').toUpperCase() || null;
+            gatewayAmount = Number(tx.amount || tx.chargeAmount || 0) || null;
+            gatewayError = null;
+          } else {
+            gatewayError = `HTTP ${res.status}`;
+          }
+          break;
+        } catch (e) {
+          gatewayError = String(e);
+          break;
+        }
+      }
+      await sleep(700);
+    }
+
     const paid = !!gatewayStatus && /PAID|APPROVED|COMPLETED|CONFIRMED/.test(gatewayStatus);
-    results.push({
+    const result: Record<string, unknown> = {
       createdAt: new Date(p.createdAt).toISOString(),
       transactionId: p.transactionId,
       email: maskEmail(email),
@@ -80,11 +104,10 @@ export async function GET(req: Request) {
       gatewayError,
       userInDb: user ? { plan: user.plan, expires: user.plan_expires_at } : null,
       lostSale: paid && p.plan !== 'taxa_antecipacao' && (!user || user.plan === 'free'),
-    });
+    };
 
-    const last = results[results.length - 1] as Record<string, unknown>;
     // Taxas de saque pagas também passam pelo webhook (o registro da taxa é idempotente)
-    if (reprocess && paid && (last.lostSale || p.plan === 'taxa_antecipacao')) {
+    if (reprocess && paid && (result.lostSale || p.plan === 'taxa_antecipacao')) {
       const res = await processWebhook(new Request('http://internal/api/webhooks/sigilopay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -92,14 +115,17 @@ export async function GET(req: Request) {
       }));
       const out = await res.json().catch(() => ({}));
       const { data: after } = await supabase.from('users').select('plan').eq('email', email).maybeSingle();
-      last.reprocessed = { httpStatus: res.status, message: out.message || out.error || null, userPlanNow: after?.plan ?? null };
+      result.reprocessed = { httpStatus: res.status, message: out.message || out.error || null, userPlanNow: after?.plan ?? null };
     }
+
+    results.push(result);
   }
 
   return NextResponse.json({
     gateway: baseUrl,
     checked: results.length,
     reprocess,
+    rateLimited,
     paidNotSaved: results.filter((r) => r.lostSale).length,
     results,
   });

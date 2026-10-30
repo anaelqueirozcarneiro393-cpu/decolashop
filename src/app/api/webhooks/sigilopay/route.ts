@@ -65,9 +65,15 @@ export async function POST(req: Request) {
         const sigiloPublicKey = process.env.SIGILOPAY_PUBLIC_KEY || 'kaiofredy2908_1cmq6fd3bmq2s24u';
         const sigiloSecretKey = process.env.SIGILOPAY_SECRET_KEY || 'tzlk0xxe8t4dybi2t0o1udw1ckczp01a4a9hbgptalozcan5hh0r59qw41seo3ze';
         const sigiloBaseUrl = process.env.SIGILOPAY_BASE_URL || 'https://app.sigilopay.com.br';
-        const checkRes = await fetch(`${sigiloBaseUrl}/api/v1/gateway/transactions?id=${encodeURIComponent(txId)}`, {
+        const lookup = () => fetch(`${sigiloBaseUrl}/api/v1/gateway/transactions?id=${encodeURIComponent(txId as string)}`, {
           headers: { 'x-public-key': sigiloPublicKey, 'x-secret-key': sigiloSecretKey }
         });
+        let checkRes = await lookup();
+        if (checkRes.status === 429) {
+          // SigiloPay limitou as requisições: espera e tenta de novo antes de desistir
+          await new Promise((r) => setTimeout(r, 2000));
+          checkRes = await lookup();
+        }
         if (checkRes.ok) {
           const apiTx = await checkRes.json();
           const apiAmt = Number(apiTx.amount || apiTx.chargeAmount || 0);
