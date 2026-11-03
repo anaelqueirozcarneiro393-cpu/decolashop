@@ -167,8 +167,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Conta protegida" }, { status: 403 });
     }
 
-    // Só aprova com o status confirmado na SigiloPay; sem confirmação do gateway, não ativa nada
-    const isApproved = !!gatewayStatus && /PAID|APPROVED|PAGO|CONFIRMED|COMPLETED/.test(gatewayStatus);
+    // Aprova se o status do webhook indicar pagamento (PAID/APPROVED/PAGO/CONFIRMED) OU se confirmado na SigiloPay
+    const webhookStatusApproved = 
+      status.includes("PAID") || 
+      status.includes("APPROVED") || 
+      status.includes("PAGO") || 
+      status.includes("CONFIRMED") ||
+      status.includes("COMPLETED");
+    const gatewayApproved = !!gatewayStatus && /PAID|APPROVED|PAGO|CONFIRMED|COMPLETED/.test(gatewayStatus);
+    const isApproved = webhookStatusApproved || gatewayApproved;
 
     console.log(`SigiloPay Webhook: Cliente ${email} - Status webhook: ${status} / gateway: ${gatewayStatus ?? 'não confirmado'} (Aprovado: ${isApproved}) - Afiliado: ${affiliateCode || 'Nenhum'}`);
 

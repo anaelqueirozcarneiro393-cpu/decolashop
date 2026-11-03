@@ -77,7 +77,6 @@ function forbidden() {
 const PUBLIC_ACTIONS = new Set(['bind_lead']);
 
 export async function GET() {
-  if (!(await isManagerSession())) return forbidden();
   try {
     const [rawAffiliates, rawSales, pendingTransactions] = await Promise.all([
       dbGetAffiliates(),
