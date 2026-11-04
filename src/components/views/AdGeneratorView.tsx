@@ -96,22 +96,22 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
     }
     if (pct < 78) {
       return {
-        channel: 'WhatsApp Grupos VIP',
-        subtitle: 'Conectando link de afiliado DecolaShop com disparo automático...',
-        activeChannels: ['Kwai', 'Instagram', 'TikTok', 'WhatsApp']
+        channel: 'Meta Ads & Reels',
+        subtitle: 'Conectando criativos otimizados com link de afiliado DecolaShop...',
+        activeChannels: ['Kwai', 'Instagram', 'TikTok', 'YouTube']
       };
     }
     if (pct < 94) {
       return {
         channel: 'Google Shopping & Shopee',
         subtitle: 'Indexando produto nos motores de busca e feeds em alta...',
-        activeChannels: ['Kwai', 'Instagram', 'TikTok', 'WhatsApp', 'Facebook']
+        activeChannels: ['Kwai', 'Instagram', 'TikTok', 'YouTube', 'Facebook']
       };
     }
     return {
       channel: 'Rede Global de Tráfego',
       subtitle: 'Finalizando disparo e ativando robô de vendas...',
-      activeChannels: ['Kwai', 'Instagram', 'TikTok', 'WhatsApp', 'Facebook', 'Twitter']
+      activeChannels: ['Kwai', 'Instagram', 'TikTok', 'YouTube', 'Facebook', 'Twitter']
     };
   };
 
@@ -180,7 +180,7 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
           config.channelLabel,
           prodIsUsd ? 'Meta Ads (US)' : 'Meta Ads (Instagram & Facebook)',
           prodIsUsd ? 'Google Shopping Global' : 'Google Shopping',
-          prodIsUsd ? 'Shopify US' : 'WhatsApp Grupos VIP'
+          prodIsUsd ? 'Shopify US' : 'Meta Ads Feed'
         ];
 
         const targetingLocation = prodIsUsd 
@@ -480,7 +480,7 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
             <strong className="text-[#4ade80] font-extrabold">Kwai</strong>,{' '}
             <strong className="text-[#4ade80] font-extrabold">TikTok</strong>,{' '}
             <strong className="text-[#4ade80] font-extrabold">Facebook</strong>,{' '}
-            <strong className="text-[#4ade80] font-extrabold">WhatsApp</strong>,{' '}
+            <strong className="text-[#4ade80] font-extrabold">YouTube</strong>,{' '}
             <strong className="text-[#4ade80] font-extrabold">Instagram</strong> e{' '}
             <strong className="text-[#4ade80] font-extrabold">Twitter</strong>.
           </p>
@@ -572,7 +572,7 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {['Kwai', 'TikTok', 'Facebook', 'WhatsApp', 'Instagram', 'Twitter'].map((net) => (
+          {['Kwai', 'TikTok', 'Facebook', 'YouTube', 'Instagram', 'Twitter'].map((net) => (
             <div
               key={net}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-xs font-semibold text-slate-300"
@@ -650,7 +650,7 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
 
                 {/* Active Channels Grid */}
                 <div className="grid grid-cols-3 gap-1.5 mb-4">
-                  {['Kwai', 'TikTok', 'Meta Ads', 'WhatsApp', 'Instagram', 'Twitter'].map((net) => {
+                  {['Kwai', 'TikTok', 'Meta Ads', 'YouTube', 'Instagram', 'Twitter'].map((net) => {
                     const isPassed = currentStage.activeChannels.includes(net);
                     return (
                       <div

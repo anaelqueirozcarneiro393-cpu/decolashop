@@ -97,7 +97,7 @@ export const INITIAL_DIVULGADOS: DivulgadoCampaign[] = [
     status: 'active',
     // Criado há 2 dias
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
-    networks: ['Meta Ads (Instagram & Facebook)', 'TikTok Shop Ads', 'Google Shopping', 'WhatsApp Grupos VIP'],
+    networks: ['Meta Ads (Instagram & Facebook)', 'TikTok Shop Ads', 'Google Shopping', 'Tráfego Orgânico'],
     impressions: 2420,
     clicks: 165,
     salesCount: 6,
@@ -129,7 +129,7 @@ export const INITIAL_DIVULGADOS: DivulgadoCampaign[] = [
     status: 'active',
     // Criado há 4 dias
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 96).toISOString(),
-    networks: ['TikTok Shop Ads', 'Kwai Ads', 'Meta Ads (Instagram)', 'WhatsApp Grupos VIP'],
+    networks: ['TikTok Shop Ads', 'Kwai Ads', 'Meta Ads (Instagram)', 'Catálogo Decola Express'],
     impressions: 1840,
     clicks: 122,
     salesCount: 4,
@@ -193,7 +193,7 @@ export const INITIAL_DIVULGADOS: DivulgadoCampaign[] = [
     status: 'active',
     // Criado há 1 dia
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-    networks: ['Google Shopping', 'Facebook Ads', 'WhatsApp Grupos VIP'],
+    networks: ['Google Shopping', 'Facebook Ads', 'Redes Sociais Decola'],
     impressions: 1250,
     clicks: 86,
     salesCount: 3,
@@ -225,7 +225,7 @@ export const INITIAL_DIVULGADOS: DivulgadoCampaign[] = [
     status: 'active',
     // Criado há 8 dias (SUPEROU 7 DIAS -> ENTREGUE!)
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 8).toISOString(),
-    networks: ['TikTok Shop Ads', 'Instagram Reels Ads', 'WhatsApp Grupos VIP'],
+    networks: ['TikTok Shop Ads', 'Instagram Reels Ads', 'Tráfego Pago Parceiro'],
     impressions: 980,
     clicks: 64,
     salesCount: 2,

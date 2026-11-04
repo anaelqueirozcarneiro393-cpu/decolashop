@@ -117,7 +117,7 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
         isPublishedToStore: isStoreConnected,
         storeAccountEmail: storeInfo?.email,
         storeAccountName: storeInfo?.name || storeInfo?.shopName,
-        networks: [config.channelLabel, 'Google Shopping', 'Meta Ads', 'WhatsApp Grupos VIP'],
+        networks: [config.channelLabel, 'Google Shopping', 'Meta Ads', 'Tráfego Orgânico'],
         impressions: Math.floor(Math.random() * 1400) + 900,
         clicks: Math.floor(Math.random() * 85) + 45,
         salesCount: 0,

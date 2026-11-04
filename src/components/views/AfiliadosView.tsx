@@ -1367,7 +1367,7 @@ export default function AfiliadosView() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">WhatsApp / Telefone</label>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">Telefone de Contato</label>
                   <input
                     type="text"
                     placeholder="(11) 99999-9999"

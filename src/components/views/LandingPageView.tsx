@@ -347,7 +347,7 @@ export default function LandingPageView() {
             </div>
             <h3 className="text-lg font-black text-white mb-2">Venda Automática</h3>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Você pode vender conectando sua conta do Mercado Livre, Shopee, TikTok Shop ou direto pelo WhatsApp usando nossos roteiros e anúncios de IA.
+              Você pode vender conectando sua conta do Mercado Livre, Shopee, TikTok Shop ou em canais próprios usando nossos roteiros e anúncios de IA.
             </p>
           </div>
 

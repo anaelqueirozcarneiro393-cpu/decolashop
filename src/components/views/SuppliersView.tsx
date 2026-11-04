@@ -381,7 +381,7 @@ export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
                 </h3>
               </div>
               <p className="text-[11px] text-slate-300 mt-0.5">
-                WhatsApp direto de importadores do Brás, Santa Ifigênia e SC com despacho 24h sem risco de taxa de alfândega.
+                Acesso direto aos 50 maiores importadores do Brás, Santa Ifigênia e SC com despacho 24h sem risco de taxa de alfândega.
               </p>
             </div>
           </div>
@@ -469,7 +469,7 @@ export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
                 </span>
               </h2>
               <p className="text-[11px] text-slate-400 mt-0.5">
-                Contatos diretos de WhatsApp para dropshipping nacional e atacado com despacho em 24h.
+                Centros de distribuição homologados para dropshipping nacional e atacado com despacho em 24h.
               </p>
             </div>
 
@@ -494,7 +494,7 @@ export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
                   <div key={idx} className="bg-black/50 p-4 rounded-xl text-left border border-white/10">
                     <div className="font-bold text-white">{s.name}</div>
                     <div className="text-xs text-slate-400">{s.region} • {s.category}</div>
-                    <div className="text-xs text-[#22c55e] mt-2">WhatsApp: (11) 98421-••••</div>
+                    <div className="text-xs text-[#22c55e] mt-2">Canal Homologado: Despacho Expresso ••••</div>
                   </div>
                 ))}
               </div>
@@ -510,14 +510,14 @@ export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
                     Conteúdo Exclusivo do Order Bump
                   </h3>
                   <p className="text-xs text-slate-300 mt-1 leading-relaxed">
-                    Você precisa ter adquirido o pacote <strong>Lista Secreta: 50 Maiores Fornecedores Nacionais</strong> para visualizar os contatos de WhatsApp e endereços de despacho imediato.
+                    Você precisa ter adquirido o pacote <strong>Lista Secreta: 50 Maiores Fornecedores Nacionais</strong> para visualizar os centros de distribuição e rotas de despacho imediato.
                   </p>
                 </div>
 
                 <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-left text-xs space-y-1.5">
                   <div className="text-amber-300 font-black text-[11px]">O que está incluído na Lista Secreta:</div>
                   <div className="text-slate-300 flex items-center gap-1.5 text-[11px]">
-                    <Check size={12} className="text-[#22c55e]" /> WhatsApp direto de 50 donos de distribuidoras do Brás e SC
+                    <Check size={12} className="text-[#22c55e]" /> Acesso direto aos 50 maiores centros de distribuição do Brás e SC
                   </div>
                   <div className="text-slate-300 flex items-center gap-1.5 text-[11px]">
                     <Check size={12} className="text-[#22c55e]" /> Estoque físico no Brasil sem risco de taxa de importação
@@ -577,19 +577,13 @@ export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
                   </div>
 
                   <div className="pt-3 mt-3 border-t border-white/10 flex items-center justify-between">
-                    <div className="text-[11px] text-[#4ade80] font-mono font-bold flex items-center gap-1">
-                      <Phone size={12} /> WhatsApp Verificado
+                    <div className="text-[11px] text-[#4ade80] font-mono font-bold flex items-center gap-1.5">
+                      <ShieldCheck size={13} className="text-[#22c55e]" /> Centro Homologado DecolaShop
                     </div>
 
-                    <a
-                      href={`https://wa.me/${supplier.whatsapp}?text=${encodeURIComponent('Olá! Sou membro VIP do DecolaShop e gostaria de receber a tabela de produtos para dropshipping e pronta entrega.')}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="py-1.5 px-3 rounded-lg bg-[#22c55e] hover:bg-[#16a34a] text-black font-black text-xs flex items-center gap-1 transition-all active:scale-95 shadow-md shadow-[#22c55e]/20"
-                    >
-                      <span>Conversar</span>
-                      <ExternalLink size={12} />
-                    </a>
+                    <span className="text-[11px] font-bold text-slate-300 bg-white/5 px-2.5 py-1 rounded-lg border border-white/10">
+                      Despacho 24h
+                    </span>
                   </div>
                 </div>
               ))}

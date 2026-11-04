@@ -11,7 +11,7 @@ const initialGroups = [
   { name: "SHOPEE LOVERS", link: "https://www.facebook.com/groups/3793850497562212/", desc: "Para afiliados e compradores apaixonados pela Shopee — bom para divulgar achados." },
   { name: "Vendedores Shopee Brasil", link: "https://www.facebook.com/groups/Vendedores.Shopee/", desc: "Exclusivo para vendedores (verifique regras sobre anúncios)." },
   { name: "[OFICIAL] Grupo de Vendedores Shopee Brasil", link: "https://www.facebook.com/groups/vendedorshopeeoficial/", desc: "Espaço para vendedores cadastrados trocarem informações." },
-  { name: "Vende Fácil Shopee", link: "https://gruposwhats.app/group/861054", desc: "Grupo de links para divulgação (busque nome atualizado)." }
+  { name: "Vende Fácil - Achados Shopee Brasil", link: "https://www.facebook.com/groups/vendedoresshopeebrasil/", desc: "Comunidade de divulgação e engajamento de ofertas." }
 ];
 
 export default function FindGroupsButton({ className, productName }: { className?: string; productName?: string }) {
@@ -74,7 +74,7 @@ export default function FindGroupsButton({ className, productName }: { className
                   <Loader2 size={48} className="text-[#1877F2] animate-spin" />
                   <h4 className="text-xl font-bold animate-pulse text-foreground">Achando grupos...</h4>
                   <p className="text-muted-foreground text-sm text-center max-w-sm">
-                    Estamos rastreando as melhores comunidades do Facebook e WhatsApp para o seu produto.
+                    Estamos rastreando as melhores comunidades e grupos de alta conversão para o seu produto.
                   </p>
                 </div>
               ) : (

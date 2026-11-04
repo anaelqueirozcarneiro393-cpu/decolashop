@@ -254,7 +254,7 @@ export default function SigilopayCheckoutModal({
       return;
     }
     if (!phone.trim() || phone.replace(/\D/g, '').length < 7) {
-      toast.error('Informe seu número de WhatsApp / telefone');
+      toast.error('Informe seu telefone de contato');
       return;
     }
     if (!email.trim() || !email.includes('@')) {
@@ -577,7 +577,7 @@ export default function SigilopayCheckoutModal({
 
                   <div>
                     <div className="flex items-center justify-between mb-0.5">
-                      <label className="text-[10px] font-bold text-slate-300 block">WhatsApp / Tel</label>
+                      <label className="text-[10px] font-bold text-slate-300 block">Telefone de Contato</label>
                       <button
                         type="button"
                         onClick={toggleInternationalPhone}

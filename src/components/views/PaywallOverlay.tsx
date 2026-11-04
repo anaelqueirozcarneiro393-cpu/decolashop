@@ -18,7 +18,7 @@ export default function PaywallOverlay() {
     'Filtros Avançados por Margem e Volume',
     'Gerador de Cópias e Anúncios com IA',
     'Visualização de Fornecedores Verificados',
-    'Suporte VIP via WhatsApp'
+    'Suporte VIP Prioritário'
   ];
 
   return (

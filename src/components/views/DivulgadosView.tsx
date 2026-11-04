@@ -36,7 +36,6 @@ import {
   Box,
   Plane,
   Home,
-  MessageCircle,
   FileCheck,
   Send,
   ArrowRight,
@@ -185,19 +184,6 @@ export default function DivulgadosView({ onNavigate, initialTab = 'divulgados' }
     setLinkCopied(true);
     toast.success('Link de rastreamento copiado!');
     setTimeout(() => setLinkCopied(false), 2000);
-  };
-
-  const handleSendWhatsAppNotification = (campOrName: DivulgadoCampaign | string, shipping: ShippingTrackingInfo) => {
-    const isUsd = shipping.currency === 'USD';
-    const recipientFirstName = shipping.recipientName.split(' ')[0];
-    const productName = typeof campOrName === 'string' ? campOrName : campOrName.name;
-    const message = isUsd
-      ? `📦 *DecolaShop Global Delivery Update*\n\nHello ${recipientFirstName}!\nYour order for *${productName}* is in express transit with guaranteed 7-day delivery!\n\n🔹 *Tracking Number:* ${shipping.trackingCode}\n🔹 *Carrier:* ${shipping.carrier}\n🔹 *Status:* ${shipping.statusLabel}\n🔹 *Estimated Arrival:* ${shipping.estimatedDeliveryDate}\n🔹 *Destination:* ${shipping.recipientCity}\n\nTrack your shipment live:\nhttps://decolashop.com/rastreio?code=${shipping.trackingCode}\n\nThank you for choosing DecolaShop Global!`
-      : `📦 *Decola Express - Acompanhamento de Pedido*\n\nOlá ${recipientFirstName}!\nSeu pedido do produto *${productName}* está em trânsito com prazo de entrega de 7 dias!\n\n🔹 *Código de Rastreio:* ${shipping.trackingCode}\n🔹 *Transportadora:* ${shipping.carrier}\n🔹 *Status Atual:* ${shipping.statusLabel}\n🔹 *Previsão de Chegada:* ${shipping.estimatedDeliveryDate}\n🔹 *Cidade de Destino:* ${shipping.recipientCity}\n\nAcompanhe em tempo real:\nhttps://decolashop.com/rastreio?code=${shipping.trackingCode}\n\nQualquer dúvida estamos à disposição! Decola Express.`;
-
-    const encoded = encodeURIComponent(message);
-    window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
-    toast.success('WhatsApp aberto com mensagem de rastreio!');
   };
 
   const soldCampaigns = campaigns.filter(c => (c.salesCount || (c as any).sales || 0) > 0);
@@ -733,10 +719,10 @@ export default function DivulgadosView({ onNavigate, initialTab = 'divulgados' }
                   </div>
 
                   {/* Right: Carrier, Tracking code & Actions */}
-                  <div className="flex items-center gap-2 justify-end shrink-0 flex-wrap">
-                    <div className="hidden lg:flex flex-col text-right mr-1">
-                      <span className="text-[9px] text-slate-400 font-mono">{order.shipping.carrier}</span>
-                      <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-3 justify-end shrink-0">
+                    <div className="hidden sm:flex flex-col text-right">
+                      <span className="text-[9px] text-slate-400 font-mono uppercase">{order.shipping.carrier}</span>
+                      <div className="flex items-center gap-1 justify-end">
                         <span className="font-mono text-[11px] font-bold text-cyan-300">{order.shipping.trackingCode}</span>
                         <button
                           type="button"
@@ -744,7 +730,7 @@ export default function DivulgadosView({ onNavigate, initialTab = 'divulgados' }
                             navigator.clipboard.writeText(order.shipping.trackingCode);
                             toast.success('Código copiado!');
                           }}
-                          className="text-slate-400 hover:text-white p-0.5 cursor-pointer"
+                          className="text-slate-400 hover:text-white p-0.5 cursor-pointer transition-colors"
                           title="Copiar código de rastreio"
                         >
                           <Copy size={11} />
@@ -760,19 +746,10 @@ export default function DivulgadosView({ onNavigate, initialTab = 'divulgados' }
                         price: order.price,
                         orderId: order.id
                       })}
-                      className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 hover:brightness-110 text-white font-black text-xs transition-all shadow-md shadow-cyan-500/20 flex items-center gap-1.5 cursor-pointer active:scale-95"
+                      className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 hover:brightness-110 text-white font-black text-xs transition-all shadow-md shadow-cyan-500/20 flex items-center gap-1.5 cursor-pointer active:scale-95"
                     >
-                      <Truck size={13} />
-                      <span>Rastrear</span>
-                    </button>
-
-                    <button
-                      onClick={() => handleSendWhatsAppNotification(order.productName, order.shipping)}
-                      className="px-2.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
-                      title="Notificar cliente no WhatsApp"
-                    >
-                      <MessageCircle size={13} />
-                      <span className="hidden sm:inline">WhatsApp</span>
+                      <Truck size={14} />
+                      <span>Rastrear Pedido</span>
                     </button>
                   </div>
                 </div>
@@ -1492,29 +1469,17 @@ export default function DivulgadosView({ onNavigate, initialTab = 'divulgados' }
                 </div>
               </div>
 
-              {/* AÇÕES: WHATSAPP, COPIAR LINK E FECHAR */}
+              {/* AÇÕES: COPIAR LINK E FECHAR */}
               <div className="pt-3 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3">
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <button
-                    type="button"
-                    onClick={() => handleSendWhatsAppNotification(activeModalInfo.name, shipping)}
-                    className="flex-1 sm:flex-initial px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 hover:brightness-110 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
-                    title="Enviar atualização de rastreio para o cliente no WhatsApp"
-                  >
-                    <MessageCircle size={15} />
-                    <span>Notificar no WhatsApp</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleCopyTrackingLink(shipping.trackingCode)}
-                    className="px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-colors border border-white/10"
-                    title="Copiar link rastreável para enviar ao cliente"
-                  >
-                    {linkCopied ? <Check size={14} className="text-[#22c55e]" /> : <ExternalLink size={14} />}
-                    <span>{linkCopied ? 'Link Copiado!' : 'Copiar Link'}</span>
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => handleCopyTrackingLink(shipping.trackingCode)}
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors border border-white/10"
+                  title="Copiar link rastreável para enviar ao cliente"
+                >
+                  {linkCopied ? <Check size={14} className="text-[#22c55e]" /> : <ExternalLink size={14} />}
+                  <span>{linkCopied ? 'Link Copiado!' : 'Copiar Link de Rastreio'}</span>
+                </button>
 
                 <button
                   type="button"
