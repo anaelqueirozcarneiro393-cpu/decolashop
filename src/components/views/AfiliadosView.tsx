@@ -351,21 +351,49 @@ export default function AfiliadosView() {
     }
   };
 
+  const handleMarkSingleSalePaid = async (saleId: string) => {
+    try {
+      setSales(prev => prev.map(s => (s.id === saleId || s.transactionId === saleId) ? { ...s, status: 'paid_to_affiliate' } : s));
+      toast.success('💸 Venda individual marcada como paga!');
+      await fetch('/api/affiliates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'mark_sale_paid', saleId })
+      });
+      const res = await syncAffiliatesFromServer();
+      if (res) {
+        setAffiliates(res.affiliates);
+        setSales(res.sales);
+      }
+      loadData();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const handleConfirmPayCommission = async () => {
     if (!payingAffiliate) return;
+    const targetAff = payingAffiliate;
     try {
+      // Atualização otimista imediata na interface
+      setSales(prev => prev.map(s => {
+        const isTarget = s.affiliateId === targetAff.id || s.affiliateCode?.toLowerCase() === targetAff.code?.toLowerCase();
+        return isTarget ? { ...s, status: 'paid_to_affiliate' } : s;
+      }));
+      markCommissionPaid(targetAff.id);
+      toast.success(`💸 Repasse de R$ ${targetAff.pendingCommission.toFixed(2).replace('.', ',')} marcado como pago com sucesso!`);
+      setPayingAffiliate(null);
+
       await fetch('/api/affiliates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'pay',
-          affiliateId: payingAffiliate.id,
-          affiliateCode: payingAffiliate.code
+          affiliateId: targetAff.id,
+          affiliateCode: targetAff.code
         })
       });
-      markCommissionPaid(payingAffiliate.id);
-      toast.success(`💸 Repasse de R$ ${payingAffiliate.pendingCommission.toFixed(2).replace('.', ',')} marcado como pago!`);
-      setPayingAffiliate(null);
+
       const res = await syncAffiliatesFromServer();
       if (res) {
         setAffiliates(res.affiliates);
@@ -373,7 +401,7 @@ export default function AfiliadosView() {
       }
       loadData();
     } catch {
-      markCommissionPaid(payingAffiliate.id);
+      markCommissionPaid(targetAff.id);
       setPayingAffiliate(null);
       loadData();
     }
@@ -1232,10 +1260,15 @@ export default function AfiliadosView() {
                             <span>Pago</span>
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-bold">
+                          <button
+                            type="button"
+                            onClick={() => handleMarkSingleSalePaid(sale.id)}
+                            title="Clique para marcar esta venda individual como Paga"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 hover:bg-emerald-500/20 text-amber-300 hover:text-emerald-400 border border-amber-500/30 hover:border-emerald-500/40 text-[10px] font-bold transition-all cursor-pointer"
+                          >
                             <Clock size={11} />
-                            <span>A Pagar</span>
-                          </span>
+                            <span>A Pagar (Pagar)</span>
+                          </button>
                         )}
                       </td>
 

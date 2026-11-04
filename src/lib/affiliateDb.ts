@@ -884,19 +884,20 @@ export async function dbGetLeadAffiliate(email: string): Promise<string | null> 
 export async function dbMarkCommissionPaid(affiliateIdOrCode: string): Promise<boolean> {
   try {
     const affiliates = await dbGetAffiliates();
-    const aff = affiliates.find(a => a.id === affiliateIdOrCode || a.code.toLowerCase() === affiliateIdOrCode.toLowerCase());
-    if (!aff || aff.pendingCommission <= 0) return false;
+    const cleanId = (affiliateIdOrCode || '').toLowerCase().trim();
+    const aff = affiliates.find(a => a.id.toLowerCase() === cleanId || a.code.toLowerCase() === cleanId);
+    if (!aff) {
+      console.warn(`[DB AFILIADOS] Afiliado ${affiliateIdOrCode} não encontrado para repasse.`);
+      return false;
+    }
 
-    const paidAmount = aff.pendingCommission;
-    aff.paidCommission = Number(((aff.paidCommission || 0) + paidAmount).toFixed(2));
-    aff.pendingCommission = 0;
-    aff.lastPaidAt = Date.now();
-    await dbSaveAffiliate(aff);
-
-    // Atualiza status das vendas associadas para 'paid_to_affiliate'
+    // Atualiza status de todas as vendas pendentes associadas para 'paid_to_affiliate'
     const sales = await dbGetSales();
     const supabase = getSupabaseAdmin('next_auth');
     const isKaioAff = aff.code.toLowerCase() === 'rwjncwiofw' || aff.code.toLowerCase() === 'kaio';
+
+    let paidCount = 0;
+    let paidAmount = 0;
 
     for (const s of sales) {
       const isTargetSale = 
@@ -904,8 +905,8 @@ export async function dbMarkCommissionPaid(affiliateIdOrCode: string): Promise<b
         s.affiliateCode?.toLowerCase() === aff.code.toLowerCase() ||
         (isKaioAff && (s.affiliateCode?.toLowerCase() === 'rwjncwiofw' || s.affiliateCode?.toLowerCase() === 'kaio'));
 
-      if (isTargetSale && s.status === 'confirmed') {
-        const updatedSale = { ...s, status: 'paid_to_affiliate' as const };
+      if (isTargetSale && s.status !== 'paid_to_affiliate') {
+        const updatedSale = { ...s, status: 'paid_to_affiliate' as const, paidAt: Date.now() };
         const key = `affiliate_sale:${s.transactionId || s.id}`;
         await supabase.from('verification_tokens').delete().eq('identifier', key);
         await supabase.from('verification_tokens').insert({
@@ -913,13 +914,46 @@ export async function dbMarkCommissionPaid(affiliateIdOrCode: string): Promise<b
           token: JSON.stringify(updatedSale),
           expires: EXPIRY_FAR_FUTURE
         });
+        paidCount++;
+        paidAmount += (s.commissionAmount || 0);
       }
     }
 
-    console.log(`[DB AFILIADOS] Comissão de R$ ${paidAmount} marcada como paga para ${aff.name} no Supabase.`);
+    aff.paidCommission = Number(((aff.paidCommission || 0) + paidAmount).toFixed(2));
+    aff.pendingCommission = 0;
+    aff.lastPaidAt = Date.now();
+    await dbSaveAffiliate(aff);
+
+    console.log(`[DB AFILIADOS] Repasse de R$ ${paidAmount.toFixed(2)} (${paidCount} vendas) quitado com sucesso para ${aff.name} no Supabase.`);
     return true;
   } catch (err) {
     console.error('[DB AFILIADOS] Erro ao pagar comissão no banco:', err);
+    return false;
+  }
+}
+
+/**
+ * 12.1 Marcar uma única venda específica como paga no banco Supabase
+ */
+export async function dbMarkSalePaid(saleId: string): Promise<boolean> {
+  try {
+    const supabase = getSupabaseAdmin('next_auth');
+    const sales = await dbGetSales();
+    const target = sales.find(s => s.id === saleId || s.transactionId === saleId);
+    if (!target) return false;
+
+    const updatedSale = { ...target, status: 'paid_to_affiliate' as const, paidAt: Date.now() };
+    const key = `affiliate_sale:${target.transactionId || target.id}`;
+    await supabase.from('verification_tokens').delete().eq('identifier', key);
+    await supabase.from('verification_tokens').insert({
+      identifier: key,
+      token: JSON.stringify(updatedSale),
+      expires: EXPIRY_FAR_FUTURE
+    });
+    console.log(`[DB AFILIADOS] Venda individual ${saleId} marcada como paga com sucesso!`);
+    return true;
+  } catch (err) {
+    console.error('[DB AFILIADOS] Erro ao marcar venda individual como paga:', err);
     return false;
   }
 }

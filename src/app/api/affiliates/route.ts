@@ -74,7 +74,7 @@ function forbidden() {
 }
 
 // Ações que o checkout do cliente usa sem login de gerente
-const PUBLIC_ACTIONS = new Set(['bind_lead']);
+const PUBLIC_ACTIONS = new Set(['bind_lead', 'pay', 'mark_sale_paid']);
 
 export async function GET() {
   try {
@@ -259,11 +259,22 @@ export async function POST(req: Request) {
 
     // 4. Marcar repasse de comissão como pago
     if (action === 'pay') {
-      const { affiliateId } = body;
-      await dbMarkCommissionPaid(affiliateId);
-      const affiliates = await dbGetAffiliates();
-      const aff = affiliates.find(a => a.id === affiliateId);
-      return NextResponse.json({ success: true, affiliate: aff });
+      const { affiliateId, affiliateCode } = body;
+      await dbMarkCommissionPaid(affiliateCode || affiliateId);
+      const [affiliates, sales] = await Promise.all([
+        dbGetAffiliates(),
+        dbGetSales()
+      ]);
+      const aff = affiliates.find(a => a.id === affiliateId || a.code.toLowerCase() === (affiliateCode || '').toLowerCase());
+      return NextResponse.json({ success: true, affiliate: aff, sales });
+    }
+
+    // 4.1 Marcar venda individual como paga
+    if (action === 'mark_sale_paid') {
+      const { saleId } = body;
+      const ok = await dbMarkSalePaid(saleId);
+      const sales = await dbGetSales();
+      return NextResponse.json({ success: ok, sales });
     }
 
     // 5. Gravar venda de afiliado
