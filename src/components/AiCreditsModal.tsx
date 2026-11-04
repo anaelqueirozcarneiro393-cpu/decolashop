@@ -31,8 +31,10 @@ export default function AiCreditsModal() {
     (typeof window !== 'undefined' ? (localStorage.getItem('decolashop_user_email') || '').toLowerCase().trim() : '') ||
     'usuario@decolashop.com';
   const userName = session?.user?.name || 'Membro DecolaShop';
+  const userPlan = (session?.user as any)?.plan || (typeof window !== 'undefined' ? localStorage.getItem('decolashop_user_plan') : null);
+  const isLifetime = userPlan === 'lifetime' || userPlan === 'vitalicio' || userEmail === 'gerente@decolashop.com' || userEmail === 'admin@decolashop.com';
 
-  const { credits } = useCredits(userEmail);
+  const { credits } = useCredits(userEmail, userPlan);
 
   const [isOpen, setIsOpen] = useState(false);
   const [contextReason, setContextReason] = useState<string | null>(null);
@@ -227,12 +229,15 @@ export default function AiCreditsModal() {
               <Zap size={24} className="fill-[#4ade80] animate-pulse" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-lg sm:text-xl font-black text-white tracking-tight">
                   Recarga de Créditos IA
                 </h3>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/10 text-slate-300 font-bold border border-white/10">
                   Saldo: {credits} ⚡
+                </span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#22c55e]/15 text-[#4ade80] border border-[#22c55e]/30">
+                  {isLifetime ? 'Plano Vitalício (50 Base)' : 'Plano Mensal (30 Base)'}
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">

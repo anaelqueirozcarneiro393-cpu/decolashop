@@ -418,11 +418,14 @@ export async function POST(req: Request) {
       }
     }
 
+    const initialCredits = userPlan === 'monthly' ? 30 : 50;
+
     return NextResponse.json({
       success: true,
       message: 'Pagamento confirmado e conta liberada com sucesso!',
       email: cleanEmail,
       plan: userPlan,
+      initialCredits,
       transactionId: transactionId || null
     });
   } catch (err: any) {

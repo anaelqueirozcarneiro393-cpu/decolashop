@@ -32,7 +32,8 @@ export default function Header({ onMenuClick, session: propSession }: HeaderProp
 
   const { isSoundEnabled, toggleSound, recentSales } = useSales();
   const { hideEmail, toggleHideEmail, maskEmail } = usePrivacy();
-  const { credits, isLowCredits, openRecharge } = useCredits(userEmail);
+  const userPlan = (session?.user as any)?.plan || (typeof window !== 'undefined' ? localStorage.getItem('decolashop_user_plan') : null) || (isAdmin ? 'lifetime' : 'monthly');
+  const { credits, isLowCredits, openRecharge } = useCredits(userEmail, userPlan);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 

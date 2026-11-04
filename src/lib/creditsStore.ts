@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
-export const INITIAL_CREDITS = 25; // Injeção de boas-vindas para viciar o usuário
-export const DEFAULT_SLOT_LIMIT = 15; // Limite padrão de 15 produtos divulgados
+export const LIFETIME_INITIAL_CREDITS = 50; // Plano Vitalício vem com 50 créditos
+export const MONTHLY_INITIAL_CREDITS = 30;  // Plano Mensal vem com 30 créditos
+export const DEFAULT_INITIAL_CREDITS = 30;  // Base padrão
+export const DEFAULT_SLOT_LIMIT = 15;       // Limite padrão de 15 produtos divulgados
 
 export const CREDIT_COSTS = {
   PUBLISH_AI: 3,         // Divulgar Produto com IA (Canais e Margens)
@@ -60,16 +62,54 @@ function getCleanEmailKey(email?: string): string {
   return (email || 'default').toLowerCase().replace(/[^a-z0-9_]/g, '_');
 }
 
-export function getUserCredits(email?: string): number {
-  if (typeof window === 'undefined') return INITIAL_CREDITS;
-  const key = `decolashop_ai_credits_${getCleanEmailKey(email)}`;
+export function getInitialCreditsForPlan(plan?: string | null, email?: string): number {
+  const cleanEmail = (email || '').toLowerCase().trim();
+  const rawPlan = (
+    plan ||
+    (typeof window !== 'undefined' ? localStorage.getItem('decolashop_user_plan') : null) ||
+    ''
+  ).toLowerCase().trim();
+
+  const isLifetime = 
+    rawPlan === 'lifetime' || 
+    rawPlan === 'vitalicio' || 
+    cleanEmail === 'gerente@decolashop.com' || 
+    cleanEmail === 'admin@decolashop.com' ||
+    cleanEmail.includes('admin') ||
+    cleanEmail.includes('gerente');
+
+  return isLifetime ? LIFETIME_INITIAL_CREDITS : MONTHLY_INITIAL_CREDITS;
+}
+
+export function getUserCredits(email?: string, plan?: string): number {
+  if (typeof window === 'undefined') return LIFETIME_INITIAL_CREDITS;
+  const cleanKey = getCleanEmailKey(email);
+  const key = `decolashop_ai_credits_${cleanKey}`;
+  const planInitKey = `decolashop_plan_credits_initialized_v3_${cleanKey}`;
   const stored = localStorage.getItem(key);
+  const expectedInitial = getInitialCreditsForPlan(plan, email);
+
+  // Primeira inicialização para a conta
   if (stored === null) {
-    localStorage.setItem(key, String(INITIAL_CREDITS));
-    return INITIAL_CREDITS;
+    localStorage.setItem(key, String(expectedInitial));
+    localStorage.setItem(planInitKey, 'true');
+    return expectedInitial;
   }
+
   const parsed = parseInt(stored, 10);
-  return isNaN(parsed) ? INITIAL_CREDITS : parsed;
+  const current = isNaN(parsed) ? expectedInitial : parsed;
+
+  // Garante que Vitalício venha com pelo menos 50 créditos e Mensal com pelo menos 30 créditos
+  const isInitialized = localStorage.getItem(planInitKey);
+  if (!isInitialized) {
+    localStorage.setItem(planInitKey, 'true');
+    if (current < expectedInitial) {
+      localStorage.setItem(key, String(expectedInitial));
+      return expectedInitial;
+    }
+  }
+
+  return current;
 }
 
 export function setUserCredits(amount: number, email?: string): void {
@@ -124,14 +164,14 @@ export function openCreditsModal(contextReason?: string, recommendedPackageId?: 
 }
 
 // Hook reativo para qualquer componente React
-export function useCredits(email?: string) {
-  const [credits, setCreditsState] = useState<number>(() => getUserCredits(email));
+export function useCredits(email?: string, plan?: string) {
+  const [credits, setCreditsState] = useState<number>(() => getUserCredits(email, plan));
   const [slotLimit, setSlotLimitState] = useState<number>(() => getCampaignSlotLimit(email));
 
   const sync = useCallback(() => {
-    setCreditsState(getUserCredits(email));
+    setCreditsState(getUserCredits(email, plan));
     setSlotLimitState(getCampaignSlotLimit(email));
-  }, [email]);
+  }, [email, plan]);
 
   useEffect(() => {
     sync();
