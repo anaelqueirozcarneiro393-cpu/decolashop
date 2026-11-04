@@ -731,6 +731,15 @@ export default function CatalogoView({ onNavigate, onSave, savedProducts = [] }:
         onConfirm={handleConfirmMargin}
         isUsd={isUsd}
       />
+
+      {/* Modal de Carregamento e Publicação IA com Progresso em Tempo Real */}
+      <PublishingProgressModal
+        isOpen={!!publishingConfig}
+        product={publishingConfig?.product || null}
+        channelLabel={publishingConfig?.channelLabel || ''}
+        isUsd={isUsd}
+        onComplete={handlePublishComplete}
+      />
     </div>
   );
 }

@@ -216,6 +216,12 @@ export default function MarginSelectionModal({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (isOpen) {
+      setIsSubmitting(false);
+    }
+  }, [isOpen]);
+
   const handleConfirm = () => {
     setIsSubmitting(true);
     try {
