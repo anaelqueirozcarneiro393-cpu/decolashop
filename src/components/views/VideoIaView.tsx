@@ -34,6 +34,7 @@ import SafeImage from '@/components/SafeImage';
 import { mockProducts } from '@/lib/mockData';
 import { useSession } from 'next-auth/react';
 import { hasOrderBump, unlockOrderBumpsLocally } from '@/lib/orderBumps';
+import { getAffiliateRef } from '@/lib/affiliateSystem';
 
 export const API_PROVIDERS = [
   {
@@ -257,6 +258,7 @@ export default function VideoIaView({ product, onNavigate }: VideoIaViewProps) {
           planPrice: 0,
           bumps: ['bump_gerador_videos_ia'],
           total: 27.90,
+          affiliateCode: getAffiliateRef() || undefined,
           customer: {
             name: session?.user?.name || 'Cliente DecolaShop',
             email: session?.user?.email || '',
@@ -303,6 +305,7 @@ export default function VideoIaView({ product, onNavigate }: VideoIaViewProps) {
           email: session.user.email,
           bumps: ['bump_gerador_videos_ia'],
           total: 27.90,
+          affiliateCode: getAffiliateRef() || undefined,
           transactionId: pixData?.transactionId
         })
       });

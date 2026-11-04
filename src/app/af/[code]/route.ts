@@ -21,6 +21,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ code: st
       path: '/',
       maxAge: 365 * 86400,
       sameSite: 'lax',
+      secure: true,
     });
   }
 

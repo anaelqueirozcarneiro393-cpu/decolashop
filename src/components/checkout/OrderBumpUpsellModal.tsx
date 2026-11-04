@@ -206,6 +206,7 @@ export default function OrderBumpUpsellModal() {
           email: session.user.email,
           bumps: selectedBumps,
           total: totalPrice,
+          affiliateCode: getAffiliateRef() || undefined,
           transactionId: pixData?.transactionId
         })
       });

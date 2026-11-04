@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import QRCode from 'qrcode';
 import { validateAndSanitizePayload, isValidEmail } from '@/lib/security';
-import { dbSavePendingPix, dbBindLead, dbGetLeadAffiliate, dbGetAffiliates, resolveAffiliateCode } from '@/lib/affiliateDb';
+import { dbSavePendingPix, dbBindLead, dbGetLeadAffiliate, dbGetAffiliates, dbGetSales, resolveAffiliateCode } from '@/lib/affiliateDb';
 
 export const dynamic = 'force-dynamic';
 
@@ -131,6 +131,14 @@ export async function POST(req: Request) {
         if (boundCode) {
           effectiveAffiliateCode = boundCode;
           console.log(`[AFILIADOS LEAD LOCK DB] Lead recorrente recuperado do Supabase! ${customer.email} -> ${boundCode}`);
+        } else {
+          // Trava de cliente recorrente: se o cliente já comprou antes com um afiliado, mantém o vínculo
+          const pastSales = await dbGetSales();
+          const past = pastSales.find(s => s.customerEmail?.toLowerCase().trim() === customer.email.toLowerCase().trim());
+          if (past?.affiliateCode) {
+            effectiveAffiliateCode = past.affiliateCode;
+            console.log(`[AFILIADOS REPEAT SALE PIX] Lead recorrente resgatado via histórico: ${customer.email} -> ${effectiveAffiliateCode}`);
+          }
         }
       } catch {}
     }

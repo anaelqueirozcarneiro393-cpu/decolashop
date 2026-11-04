@@ -132,6 +132,7 @@ export default function RootLayout({
                       'kaiofredy': 'rwjncwiofw',
                       'kaiofredy2908': 'rwjncwiofw',
                       'knzin': 'utmyhgftj',
+                      'davi': 'mhnfbcve',
                       'david': 'mhnfbcve',
                       'az': 'iyujghnbcv',
                       'relampa': 'rgefgrebehe',
@@ -144,12 +145,13 @@ export default function RootLayout({
                       try { sessionStorage.setItem('decolashop_affiliate_ref', clean); } catch(e){}
                       var d = 365 * 86400;
                       var exp = new Date(Date.now() + 365 * 864e5).toUTCString();
-                      document.cookie = 'decolashop_af=' + clean + '; max-age=' + d + '; expires=' + exp + '; path=/; SameSite=Lax';
+                      var sec = window.location.protocol === 'https:' ? '; Secure' : '';
+                      document.cookie = 'decolashop_af=' + clean + '; max-age=' + d + '; expires=' + exp + '; path=/; SameSite=Lax' + sec;
                       var host = window.location.hostname;
                       if (host.indexOf('decolashop.com.br') !== -1) {
-                        document.cookie = 'decolashop_af=' + clean + '; max-age=' + d + '; expires=' + exp + '; path=/; domain=.decolashop.com.br; SameSite=Lax';
+                        document.cookie = 'decolashop_af=' + clean + '; max-age=' + d + '; expires=' + exp + '; path=/; domain=.decolashop.com.br; SameSite=Lax' + sec;
                       } else if (host.indexOf('decolashop.com') !== -1) {
-                        document.cookie = 'decolashop_af=' + clean + '; max-age=' + d + '; expires=' + exp + '; path=/; domain=.decolashop.com; SameSite=Lax';
+                        document.cookie = 'decolashop_af=' + clean + '; max-age=' + d + '; expires=' + exp + '; path=/; domain=.decolashop.com; SameSite=Lax' + sec;
                       }
                     }
                   }

@@ -203,7 +203,8 @@ export default function AppContainer({ initialView = 'dashboard' }: { initialVie
     if (product) setSelectedProduct(product);
     setCurrentView(view);
     if (typeof window !== 'undefined') {
-      window.history.pushState(null, '', `/${view}`);
+      const search = window.location.search || '';
+      window.history.pushState(null, '', `/${view}${search}`);
     }
     window.scrollTo(0, 0);
   };

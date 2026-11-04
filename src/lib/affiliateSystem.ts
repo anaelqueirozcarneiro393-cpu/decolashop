@@ -275,6 +275,7 @@ export const AFFILIATE_CODE_ALIASES: Record<string, string> = {
   'kaiofredy': 'rwjncwiofw',
   'kaiofredy2908': 'rwjncwiofw',
   'knzin': 'utmyhgftj',
+  'davi': 'mhnfbcve',
   'david': 'mhnfbcve',
   'az': 'iyujghnbcv',
   'relampa': 'rgefgrebehe',

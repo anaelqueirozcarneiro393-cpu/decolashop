@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { validateAndSanitizePayload, isValidEmail, sanitizeString } from '@/lib/security';
-import { dbRecordSale, dbGetPendingPix, dbGetLeadAffiliate, dbBindLead, dbGetAffiliates, resolveAffiliateCode } from '@/lib/affiliateDb';
+import { dbRecordSale, dbGetPendingPix, dbGetLeadAffiliate, dbBindLead, dbGetAffiliates, dbGetSales, resolveAffiliateCode } from '@/lib/affiliateDb';
 import { recordPaidWithdrawalFee } from '@/lib/withdrawalFeesStore';
 
 export const dynamic = 'force-dynamic';
