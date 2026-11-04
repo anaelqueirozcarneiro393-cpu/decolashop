@@ -156,29 +156,40 @@ export default function AiCreditsModal() {
   };
 
   const handleConfirmPayment = async () => {
+    if (!pixData?.transactionId) {
+      toast.error('Gere uma cobrança Pix antes de verificar o pagamento.');
+      return;
+    }
+
     setIsCheckingPayment(true);
     try {
-      // Tenta confirmação na API SigiloPay
-      let isApproved = false;
-      try {
-        const res = await fetch('/api/sigilopay/confirm-payment', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: userEmail,
-            plan: selectedPackage.id,
-            transactionId: pixData?.transactionId
-          })
-        });
-        const data = await res.json();
-        if (data?.success) isApproved = true;
-      } catch {}
+      const res = await fetch('/api/sigilopay/confirm-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: userEmail,
+          plan: selectedPackage.id,
+          transactionId: pixData.transactionId
+        })
+      });
 
-      // Para testes ou liberação instantânea: se aprovado ou após clique de confirmação
-      addCredits(selectedPackage.totalCredits, `Recarga ${selectedPackage.name}`, userEmail);
+      const data = await res.json();
 
-      toast.success(`🎉 +${selectedPackage.totalCredits} Créditos de IA adicionados com sucesso!`, {
-        duration: 5000,
+      // TRAVA DE SEGURANÇA MÁXIMA: NUNCA LIBERA SEM CONFIRMAÇÃO DO BANCO
+      if (!res.ok || !data?.success || !data?.paid) {
+        toast.error(
+          data?.error || 'Pagamento via Pix ainda não identificado pelo banco. Conclua o pagamento no seu banco e tente novamente em instantes.',
+          { duration: 6000, icon: '⏳' }
+        );
+        return;
+      }
+
+      // Só executa se for 100% confirmado e pago no gateway bancário
+      const creditsToAdd = data.creditsAdded || selectedPackage.totalCredits;
+      addCredits(creditsToAdd, `Recarga ${selectedPackage.name}`, userEmail);
+
+      toast.success(`🎉 Pagamento confirmado pelo banco! +${creditsToAdd} Créditos de IA liberados!`, {
+        duration: 6000,
         style: {
           background: '#0d121f',
           color: '#fff',
@@ -191,6 +202,9 @@ export default function AiCreditsModal() {
       setIsOpen(false);
       setStep('packages');
       setPixData(null);
+    } catch (err) {
+      console.error('Erro ao verificar Pix:', err);
+      toast.error('Erro de conexão ao consultar o banco. Verifique sua conexão e tente novamente.');
     } finally {
       setIsCheckingPayment(false);
     }
@@ -422,19 +436,19 @@ export default function AiCreditsModal() {
                 {isCheckingPayment ? (
                   <>
                     <RotateCw size={14} className="animate-spin" />
-                    <span>Verificando Pix...</span>
+                    <span>Consultando Banco Central & Gateway...</span>
                   </>
                 ) : (
                   <>
                     <CheckCircle2 size={15} />
-                    <span>Já Fiz o Pix / Liberar Créditos</span>
+                    <span>Verificar Pagamento no Banco</span>
                   </>
                 )}
               </button>
             </div>
 
-            <p className="text-[10px] text-slate-500">
-              Ambiente seguro. A liberação dos seus créditos ocorre automaticamente assim que a transferência for identificada pelo banco.
+            <p className="text-[10px] text-slate-400 leading-snug">
+              🔒 <strong>Validação Bancária em Tempo Real:</strong> O sistema consulta a compensação do Pix diretamente no gateway SigiloPay. Os créditos só são liberados após confirmação da instituição financeira.
             </p>
           </div>
         )}

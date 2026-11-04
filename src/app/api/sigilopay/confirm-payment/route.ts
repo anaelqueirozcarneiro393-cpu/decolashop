@@ -120,10 +120,69 @@ export async function POST(req: Request) {
     const pendingTx = transactionId ? await dbGetPendingPix(transactionId) : null;
     const effectivePlan = plan || pendingTx?.plan || 'lifetime';
     const isTaxaAntecipacao = effectivePlan === 'taxa_antecipacao';
+    const isCreditsRecharge = effectivePlan.startsWith('pack_') || effectivePlan === 'creditos_ia';
+
+    const paidAmount = Number(txData.amount || txData.value || txData.data?.amount || 0);
+
+    // TRATAMENTO EXCLUSIVO DE RECARGA DE CRÉDITOS IA:
+    // Trava rigorosa: só credita se comprovadamente pago na SigiloPay com valor real e sem replay attack
+    if (isCreditsRecharge) {
+      const minAmount = effectivePlan === 'pack_imperio' ? 70 : effectivePlan === 'pack_turbo' ? 35 : 18;
+
+      if (paidAmount > 0 && paidAmount < minAmount) {
+        console.warn(`[SECURITY ALERT] Valor pago na SigiloPay insuficiente para créditos ${effectivePlan}: R$ ${paidAmount}`);
+        return NextResponse.json({
+          success: false,
+          paid: false,
+          error: 'Valor identificado no pagamento é insuficiente para o pacote de créditos selecionado.'
+        }, { status: 400 });
+      }
+
+      // Prevenção contra Replay Attack (impede creditar mais de 1 vez a mesma transação)
+      const claimId = `claim_credits_${transactionId}`;
+      const supabase = getSupabaseAdmin('next_auth');
+      const { data: alreadyClaimed } = await supabase
+        .from('verification_tokens')
+        .select('identifier, token')
+        .eq('identifier', claimId)
+        .maybeSingle();
+
+      if (alreadyClaimed) {
+        return NextResponse.json({
+          success: false,
+          paid: false,
+          error: 'Esta transação Pix já foi creditada anteriormente. Recarregue novamente para obter novos créditos.'
+        }, { status: 409 });
+      }
+
+      // Registra claim no banco para bloquear qualquer reuso
+      try {
+        await supabase.from('verification_tokens').insert({
+          identifier: claimId,
+          token: cleanEmail,
+          expires: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
+        });
+      } catch (err) {
+        console.error('Erro ao registrar token de crédito:', err);
+      }
+
+      let creditsToAdd = 50;
+      if (effectivePlan === 'pack_turbo') creditsToAdd = 175;
+      else if (effectivePlan === 'pack_imperio') creditsToAdd = 600;
+
+      console.log(`[SigiloPay Confirm] ✅ Recarga de créditos aprovada para ${cleanEmail}: +${creditsToAdd} créditos (R$ ${paidAmount || rawBody.total}).`);
+
+      return NextResponse.json({
+        success: true,
+        paid: true,
+        plan: effectivePlan,
+        creditsAdded: creditsToAdd,
+        message: `Pagamento confirmado com sucesso! +${creditsToAdd} créditos adicionados à sua conta.`
+      });
+    }
 
     // Validação de valor real pago na SigiloPay (Impede ativação com pagamentos adulterados de R$ 1,00)
-    const paidAmount = Number(txData.amount || txData.value || txData.data?.amount || 0);
-    if (!isTaxaAntecipacao && effectivePlan !== 'bumps_only') {
+    if (!isTaxaAntecipacao && effectivePlan !== 'bumps_only' && !isCreditsRecharge) {
       if (paidAmount > 0 && paidAmount < 70) {
         console.warn(`[SECURITY ALERT] Valor pago na SigiloPay (R$ ${paidAmount}) insuficiente para plano ${effectivePlan}: ${cleanEmail}`);
         return NextResponse.json({
