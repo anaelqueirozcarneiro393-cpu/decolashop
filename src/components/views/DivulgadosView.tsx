@@ -46,6 +46,8 @@ import FindGroupsButton from '@/components/FindGroupsButton';
 import { toast } from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
 import { useRegionCurrency } from '@/lib/regionState';
+import { useCredits, CREDIT_COSTS } from '@/lib/creditsStore';
+import { Zap } from 'lucide-react';
 import { 
   DivulgadoCampaign, 
   getDivulgados, 
@@ -87,6 +89,23 @@ export default function DivulgadosView({ onNavigate, initialTab = 'divulgados' }
   }, [initialTab]);
 
   const [campaigns, setCampaigns] = useState<DivulgadoCampaign[]>([]);
+  const { credits, slotLimit, deductCredits, expandSlots, openRecharge } = useCredits(userEmail);
+
+  const handleExpandSlots = () => {
+    const cost = CREDIT_COSTS.EXPAND_SLOTS;
+    if (credits < cost) {
+      openRecharge(`Você precisa de ${cost} créditos para aumentar seu limite em +5 vagas de produtos ativos. Saldo atual: ${credits} créditos.`);
+      return;
+    }
+    const success = deductCredits(cost, 'Expansão de 5 vagas no catálogo de divulgados');
+    if (success) {
+      const newLimit = expandSlots(5);
+      toast.success(`🎉 Limite aumentado com sucesso! Agora você pode divulgar até ${newLimit} produtos ativos!`, {
+        icon: '🚀',
+        duration: 4000
+      });
+    }
+  };
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'paused'>('all');
   const [regionFilter, setRegionFilter] = useState<'all' | 'BRL' | 'USD'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -389,17 +408,28 @@ export default function DivulgadosView({ onNavigate, initialTab = 'divulgados' }
             </div>
             <div className="flex items-baseline justify-between">
               <div className="text-xl sm:text-2xl font-black text-white">
-                {stats.activeCount} <span className="text-xs text-slate-400 font-normal">/ {MAX_ACTIVE_CAMPAIGNS} máx</span>
+                {stats.activeCount} <span className="text-xs text-slate-400 font-normal">/ {slotLimit} máx</span>
               </div>
-              {stats.activeCount >= MAX_ACTIVE_CAMPAIGNS && (
-                <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                  Limite 15/15
+              <button
+                type="button"
+                onClick={handleExpandSlots}
+                className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-xl bg-gradient-to-r from-amber-500/20 to-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/30 hover:border-[#22c55e] hover:bg-[#22c55e]/25 transition-all flex items-center gap-1 cursor-pointer active:scale-95 shadow-sm"
+                title="Aumentar limite em +5 produtos ativos por 10 créditos"
+              >
+                <Zap size={11} className="fill-current text-amber-400" />
+                <span>+5 Vagas (10 Créd.)</span>
+              </button>
+            </div>
+            <div className="flex items-center justify-between mt-2 text-[10px] sm:text-xs">
+              <div className="flex items-center gap-1.5 text-[#4ade80] font-bold">
+                <span className="w-2 h-2 rounded-full bg-[#22c55e] animate-pulse" />
+                <span>Transmitindo em redes VIP</span>
+              </div>
+              {stats.activeCount >= slotLimit && (
+                <span className="text-[10px] font-black uppercase px-2 py-0.2 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 animate-pulse">
+                  Limite Atingido
                 </span>
               )}
-            </div>
-            <div className="flex items-center gap-1.5 mt-2 text-[10px] sm:text-xs text-[#4ade80] font-bold">
-              <span className="w-2 h-2 rounded-full bg-[#22c55e] animate-pulse" />
-              <span>Transmitindo em redes VIP</span>
             </div>
           </div>
 

@@ -30,6 +30,7 @@ import LandingPageView from '@/components/views/LandingPageView';
 import OrderBumpUpsellModal from '@/components/checkout/OrderBumpUpsellModal';
 import LiveSocialProofNotification from '@/components/LiveSocialProofNotification';
 import MobileBottomNav from '@/components/MobileBottomNav';
+import AiCreditsModal from '@/components/AiCreditsModal';
 
 export type ViewType = 
   | 'dashboard' 
@@ -395,6 +396,9 @@ export default function AppContainer({ initialView = 'dashboard' }: { initialVie
 
       {/* Modern Fixed Mobile Bottom Navigation Bar */}
       <MobileBottomNav currentView={currentView} onNavigate={navigateToView} />
+
+      {/* Modal Global de Recarga de Créditos IA */}
+      <AiCreditsModal />
     </div>
   );
 }

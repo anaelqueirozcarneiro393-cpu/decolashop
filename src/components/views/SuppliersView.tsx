@@ -29,6 +29,8 @@ import { hasOrderBump } from '@/lib/orderBumps';
 import { SECRET_SUPPLIERS_50 } from '@/lib/secretSuppliers';
 import { useRegionCurrency } from '@/lib/regionState';
 import { INTERNATIONAL_SUPPLIERS } from '@/lib/internationalCatalogData';
+import { useCredits, CREDIT_COSTS } from '@/lib/creditsStore';
+import { Zap } from 'lucide-react';
 
 interface SuppliersViewProps {
   onNavigate?: (view: any, product?: any) => void;
@@ -163,6 +165,57 @@ export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
   const { data: session } = useSession();
   const [filter, setFilter] = useState('Todos (8)');
   const [search, setSearch] = useState('');
+  const userEmail = session?.user?.email?.toLowerCase().trim() || 'default';
+  const { credits, deductCredits, openRecharge } = useCredits(userEmail);
+  const [minedSuppliers, setMinedSuppliers] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('decolashop_mined_suppliers_' + userEmail);
+        return stored ? JSON.parse(stored) : [];
+      } catch {}
+    }
+    return [];
+  });
+
+  const handleMineSupplier = (supplierId: string, supplierName: string) => {
+    const cost = CREDIT_COSTS.SUPPLIER_MINING;
+    if (minedSuppliers.includes(supplierId)) return;
+    if (credits < cost) {
+      openRecharge(`Você precisa de ${cost} créditos para realizar a mineração profunda deste fornecedor com IA.`);
+      return;
+    }
+    const success = deductCredits(cost, `Mineração Profunda: ${supplierName}`);
+    if (success) {
+      const updated = [...minedSuppliers, supplierId];
+      setMinedSuppliers(updated);
+      try {
+        localStorage.setItem('decolashop_mined_suppliers_' + userEmail, JSON.stringify(updated));
+      } catch {}
+      toast.success(`⚡ Mineração IA concluída para ${supplierName}! Dados confidenciais de galpão revelados.`, {
+        icon: '🛡️',
+        duration: 4000
+      });
+    }
+  };
+
+  const handleUnlockWithCredits = () => {
+    const cost = 20;
+    if (credits < cost) {
+      openRecharge(`Você precisa de ${cost} créditos para desbloquear a Lista Secreta Completa de Fornecedores.`);
+      return;
+    }
+    const success = deductCredits(cost, 'Desbloqueio Lista Secreta 50 Fornecedores');
+    if (success) {
+      setIsUnlockedSecret(true);
+      try {
+        localStorage.setItem('decolashop_unlocked_secret_suppliers_' + userEmail, 'true');
+      } catch {}
+      toast.success('👑 Lista Secreta desbloqueada com sucesso usando Créditos IA!', {
+        icon: '🚀',
+        duration: 5000
+      });
+    }
+  };
   const [activated, setActivated] = useState<string[]>([]);
   const [isUnlockedSecret, setIsUnlockedSecret] = useState(false);
 
@@ -527,14 +580,24 @@ export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={openBumpModal}
-                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-400 via-[#22c55e] to-emerald-400 text-black font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-500/25 hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Sparkles size={15} />
-                  <span>DESBLOQUEAR LISTA SECRETA POR R$ 19,90</span>
-                </button>
+                <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={openBumpModal}
+                    className="flex-1 w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-400 via-[#22c55e] to-emerald-400 text-black font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-500/25 hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Sparkles size={15} />
+                    <span>DESBLOQUEAR POR R$ 19,90</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleUnlockWithCredits}
+                    className="flex-1 w-full py-3.5 rounded-xl bg-white/10 hover:bg-white/15 text-white font-black text-xs uppercase tracking-wider border border-white/20 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                  >
+                    <Zap size={14} className="fill-current text-amber-400" />
+                    <span>OU COM 20 CRÉDITOS IA</span>
+                  </button>
+                </div>
               </div>
             </div>
           ) : (
@@ -574,6 +637,34 @@ export default function SuppliersView({ onNavigate }: SuppliersViewProps) {
                     <div className="mt-2 text-[10px] text-slate-400 font-semibold">
                       Mínimo: <span className="text-slate-200">{supplier.minOrder}</span>
                     </div>
+
+                    {minedSuppliers.includes(supplier.id) ? (
+                      <div className="mt-2.5 p-2 rounded-xl bg-black/60 border border-[#22c55e]/40 text-[11px] space-y-1 animate-in fade-in">
+                        <div className="text-[#4ade80] font-black flex items-center gap-1">
+                          <Zap size={11} className="fill-current" /> Mineração Profunda Concluída
+                        </div>
+                        <div className="text-slate-300 text-[10px]">
+                          📍 Hub Físico: Galpão Central de Distribuição ({supplier.region})
+                        </div>
+                        <div className="text-slate-300 text-[10px]">
+                          ⚡ Rota Express: Despacho prioritário em {supplier.dispatchTime}
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleMineSupplier(supplier.id, supplier.name)}
+                        className="mt-2.5 w-full py-1.5 px-3 rounded-xl bg-gradient-to-r from-amber-500/15 via-[#22c55e]/15 to-transparent border border-[#22c55e]/30 hover:border-[#22c55e] text-xs font-bold text-[#4ade80] flex items-center justify-between transition-all cursor-pointer group active:scale-95"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <Zap size={12} className="text-amber-400 fill-current" />
+                          <span>Mineração Profunda de Galpão</span>
+                        </span>
+                        <span className="text-[10px] font-mono font-black text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-full border border-amber-500/30">
+                          2 Créditos
+                        </span>
+                      </button>
+                    )}
                   </div>
 
                   <div className="pt-3 mt-3 border-t border-white/10 flex items-center justify-between">

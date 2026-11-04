@@ -1,3 +1,4 @@
+import { getCampaignSlotLimit } from '@/lib/creditsStore';
 export interface DivulgadoCampaign {
   id: string;
   productId: string;
@@ -619,8 +620,9 @@ export function addDivulgado(newEntry: Omit<DivulgadoCampaign, 'id' | 'createdAt
   const activeCount = current.filter(c => c.status === 'active').length;
   
   // Limite de no máximo 15 campanhas ativas
+  const maxSlots = getCampaignSlotLimit(email);
   let initialStatus = newEntry.status || 'active';
-  if (initialStatus === 'active' && activeCount >= MAX_ACTIVE_CAMPAIGNS) {
+  if (initialStatus === 'active' && activeCount >= maxSlots) {
     initialStatus = 'paused';
   }
 
@@ -645,10 +647,11 @@ export function toggleDivulgadoStatus(id: string, email?: string): { updated: Di
   // Ao despausar/ativar, valida se já não atingiu o limite de 15 ativas
   if (target.status === 'paused') {
     const activeCount = current.filter(c => c.status === 'active').length;
-    if (activeCount >= MAX_ACTIVE_CAMPAIGNS) {
+    const maxSlots = getCampaignSlotLimit(email);
+    if (activeCount >= maxSlots) {
       return {
         updated: current,
-        error: `Limite atingido: você já possui ${MAX_ACTIVE_CAMPAIGNS} campanhas ativas! Pause uma campanha antes de ativar outra.`
+        error: `Limite atingido: você já possui ${maxSlots} campanhas ativas! Use 10 créditos para adicionar +5 vagas ou pause uma campanha.`
       };
     }
   }

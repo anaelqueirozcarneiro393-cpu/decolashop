@@ -16,6 +16,8 @@ import { Product } from '@/lib/mockData';
 import { toast } from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
 import { isChannelConnected } from '@/lib/divulgados';
+import { useCredits, CREDIT_COSTS } from '@/lib/creditsStore';
+import { Zap } from 'lucide-react';
 
 export type MarketplaceChannel = 'mercadolivre' | 'shopee' | 'tiktok' | 'amazon' | 'shopify';
 
@@ -54,6 +56,9 @@ export default function MarginSelectionModal({
   const { data: session } = useSession();
   const userEmail = session?.user?.email || undefined;
   const currencySymbol = isUsd ? 'US$' : 'R$';
+  const { credits, deductCredits, openRecharge } = useCredits(userEmail);
+  const cost = CREDIT_COSTS.PUBLISH_AI;
+  const hasEnoughCredits = credits >= cost;
 
   // Preço base
   const initialBasePrice = useMemo(() => {
@@ -223,6 +228,13 @@ export default function MarginSelectionModal({
   }, [isOpen]);
 
   const handleConfirm = () => {
+    if (!hasEnoughCredits) {
+      openRecharge('Você precisa de ' + cost + ' créditos para divulgar este produto com IA. Seu saldo atual: ' + credits + ' créditos.');
+      return;
+    }
+    const success = deductCredits(cost, 'Divulgação IA: ' + (product.name || product.title));
+    if (!success) return;
+    toast.success('⚡ ' + cost + ' Créditos utilizados na divulgação com IA!');
     setIsSubmitting(true);
     try {
       const config: MarginConfig = {
@@ -458,15 +470,28 @@ export default function MarginSelectionModal({
             Voltar
           </button>
 
-          <button
-            type="button"
-            onClick={handleConfirm}
-            disabled={isSubmitting}
-            className="flex-1 py-3 px-4 rounded-2xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-black font-black text-xs uppercase tracking-wider shadow-lg shadow-[#22c55e]/25 hover:shadow-[#22c55e]/40 transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
-          >
-            <span>Divulgar na {activeChannel.shortName}</span>
-            <ArrowRight size={14} />
-          </button>
+          {hasEnoughCredits ? (
+            <button
+              type="button"
+              onClick={handleConfirm}
+              disabled={isSubmitting}
+              className="flex-1 py-3 px-4 rounded-2xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-black font-black text-xs uppercase tracking-wider shadow-lg shadow-[#22c55e]/25 hover:shadow-[#22c55e]/40 transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
+            >
+              <Zap size={14} className="fill-current" />
+              <span>Divulgar na {activeChannel.shortName} (3 Créditos)</span>
+              <ArrowRight size={14} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => openRecharge('Você precisa de 3 créditos para divulgar este produto com IA. Seu saldo atual é de ' + credits + ' créditos.')}
+              className="flex-1 py-3 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-500/25 transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer animate-pulse"
+            >
+              <Zap size={14} className="fill-current" />
+              <span>Saldo Baixo: Recarregar Créditos (Pix)</span>
+              <ArrowRight size={14} />
+            </button>
+          )}
         </div>
 
       </div>

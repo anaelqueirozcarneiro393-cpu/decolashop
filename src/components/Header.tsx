@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Bell, User, Menu, Volume2, VolumeX, CheckCircle, X, Eye, EyeOff } from 'lucide-react';
+import { Search, Bell, User, Menu, Volume2, VolumeX, CheckCircle, X, Eye, EyeOff, Zap } from 'lucide-react';
 import { useSession, signIn } from 'next-auth/react';
 import { useSales, formatSaleTime } from '@/lib/salesContext';
 import { usePrivacy } from '@/lib/privacyContext';
+import { useCredits } from '@/lib/creditsStore';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -31,6 +32,7 @@ export default function Header({ onMenuClick, session: propSession }: HeaderProp
 
   const { isSoundEnabled, toggleSound, recentSales } = useSales();
   const { hideEmail, toggleHideEmail, maskEmail } = usePrivacy();
+  const { credits, isLowCredits, openRecharge } = useCredits(userEmail);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -77,6 +79,27 @@ export default function Header({ onMenuClick, session: propSession }: HeaderProp
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3">
+        {/* Pill Viciante de Créditos IA */}
+        <button
+          type="button"
+          onClick={() => openRecharge()}
+          className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border font-bold transition-all cursor-pointer group shadow-sm active:scale-95 ${
+            isLowCredits
+              ? 'bg-amber-500/15 border-amber-500/50 text-amber-300 hover:bg-amber-500/25 shadow-amber-500/10 animate-pulse'
+              : 'bg-gradient-to-r from-[#22c55e]/15 to-emerald-500/10 border-[#22c55e]/30 text-[#4ade80] hover:border-[#22c55e] hover:bg-[#22c55e]/25'
+          }`}
+          title="Saldo de Créditos IA - Clique para recarregar com Pix"
+        >
+          <Zap size={14} className={`fill-current ${isLowCredits ? 'text-amber-400' : 'text-[#22c55e]'}`} />
+          <span className="font-mono text-xs font-black">{credits}</span>
+          <span className="hidden sm:inline text-[11px] font-semibold text-slate-300 group-hover:text-white">
+            {credits === 1 ? 'crédito' : 'créditos'}
+          </span>
+          <span className="ml-0.5 px-1.5 py-0.2 rounded-md bg-[#22c55e] text-black text-[10px] font-black group-hover:scale-105 transition-transform">
+            +
+          </span>
+        </button>
+
         {/* Som de Notificação Toggle */}
         <button
           onClick={toggleSound}
