@@ -156,6 +156,16 @@ export default function MarginSelectionModal({
     return channels.find(c => c.id === selectedChannel) || channels[0];
   }, [channels, selectedChannel]);
 
+  const channelConnectionMap = useMemo(() => {
+    const map: Record<string, boolean> = {};
+    for (const ch of channels) {
+      map[ch.id] = isChannelConnected(ch.id, userEmail);
+    }
+    return map;
+  }, [channels, userEmail]);
+
+  const isCurrentChannelConnected = !!channelConnectionMap[selectedChannel];
+
   // Margem Dela
   const [selectedMarginPercent, setSelectedMarginPercent] = useState<number>(35);
   const [isEditingValue, setIsEditingValue] = useState<boolean>(false);

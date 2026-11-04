@@ -1016,7 +1016,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               userMeta.password = typedPassword;
               supabaseAdmin.from("users").update({
                 image: JSON.stringify(userMeta)
-              }).eq("email", email).then(() => {}).catch(() => {});
+              }).eq("email", email).then(() => {}, () => {});
             } else {
               // Compara senha de forma direta, case-insensitive, ou aceita decola123
               const isMatch = (typedPassword === storedPassword) ||
@@ -1034,7 +1034,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 userMeta.password = typedPassword;
                 supabaseAdmin.from("users").update({
                   image: JSON.stringify(userMeta)
-                }).eq("email", email).then(() => {}).catch(() => {});
+                }).eq("email", email).then(() => {}, () => {});
               }
             }
           }

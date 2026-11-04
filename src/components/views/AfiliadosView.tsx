@@ -1222,7 +1222,7 @@ export default function AfiliadosView() {
                         <div className="font-bold text-white text-xs">
                           {sale.plan === 'lifetime' 
                             ? '💎 Plano Vitalício (R$ 179,90)' 
-                            : (sale.plan === 'bumps_only' || sale.planPrice === 0 || (!sale.planPrice && sale.totalAmount < 89.9) || (sale.totalAmount === 99.8 && sale.bumps?.length === 2))
+                            : ((sale.plan as string) === 'bumps_only' || sale.planPrice === 0 || (!sale.planPrice && sale.totalAmount < 89.9) || (sale.totalAmount === 99.8 && sale.bumps?.length === 2))
                               ? '🚀 Upgrade de Ferramentas (Upsell)' 
                               : '⚡ Plano Mensal (R$ 89,90)'}
                         </div>

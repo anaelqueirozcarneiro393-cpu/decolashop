@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Megaphone, 
   Sparkles, 
@@ -187,12 +187,13 @@ export default function DivulgadosView({ onNavigate, initialTab = 'divulgados' }
     setTimeout(() => setLinkCopied(false), 2000);
   };
 
-  const handleSendWhatsAppNotification = (camp: DivulgadoCampaign, shipping: ShippingTrackingInfo) => {
+  const handleSendWhatsAppNotification = (campOrName: DivulgadoCampaign | string, shipping: ShippingTrackingInfo) => {
     const isUsd = shipping.currency === 'USD';
     const recipientFirstName = shipping.recipientName.split(' ')[0];
+    const productName = typeof campOrName === 'string' ? campOrName : campOrName.name;
     const message = isUsd
-      ? `📦 *DecolaShop Global Delivery Update*\n\nHello ${recipientFirstName}!\nYour order for *${camp.name}* is in express transit with guaranteed 7-day delivery!\n\n🔹 *Tracking Number:* ${shipping.trackingCode}\n🔹 *Carrier:* ${shipping.carrier}\n🔹 *Status:* ${shipping.statusLabel}\n🔹 *Estimated Arrival:* ${shipping.estimatedDeliveryDate}\n🔹 *Destination:* ${shipping.recipientCity}\n\nTrack your shipment live:\nhttps://decolashop.com/rastreio?code=${shipping.trackingCode}\n\nThank you for choosing DecolaShop Global!`
-      : `📦 *Decola Express - Acompanhamento de Pedido*\n\nOlá ${recipientFirstName}!\nSeu pedido do produto *${camp.name}* está em trânsito com prazo de entrega de 7 dias!\n\n🔹 *Código de Rastreio:* ${shipping.trackingCode}\n🔹 *Transportadora:* ${shipping.carrier}\n🔹 *Status Atual:* ${shipping.statusLabel}\n🔹 *Previsão de Chegada:* ${shipping.estimatedDeliveryDate}\n🔹 *Cidade de Destino:* ${shipping.recipientCity}\n\nAcompanhe em tempo real:\nhttps://decolashop.com/rastreio?code=${shipping.trackingCode}\n\nQualquer dúvida estamos à disposição! Decola Express.`;
+      ? `📦 *DecolaShop Global Delivery Update*\n\nHello ${recipientFirstName}!\nYour order for *${productName}* is in express transit with guaranteed 7-day delivery!\n\n🔹 *Tracking Number:* ${shipping.trackingCode}\n🔹 *Carrier:* ${shipping.carrier}\n🔹 *Status:* ${shipping.statusLabel}\n🔹 *Estimated Arrival:* ${shipping.estimatedDeliveryDate}\n🔹 *Destination:* ${shipping.recipientCity}\n\nTrack your shipment live:\nhttps://decolashop.com/rastreio?code=${shipping.trackingCode}\n\nThank you for choosing DecolaShop Global!`
+      : `📦 *Decola Express - Acompanhamento de Pedido*\n\nOlá ${recipientFirstName}!\nSeu pedido do produto *${productName}* está em trânsito com prazo de entrega de 7 dias!\n\n🔹 *Código de Rastreio:* ${shipping.trackingCode}\n🔹 *Transportadora:* ${shipping.carrier}\n🔹 *Status Atual:* ${shipping.statusLabel}\n🔹 *Previsão de Chegada:* ${shipping.estimatedDeliveryDate}\n🔹 *Cidade de Destino:* ${shipping.recipientCity}\n\nAcompanhe em tempo real:\nhttps://decolashop.com/rastreio?code=${shipping.trackingCode}\n\nQualquer dúvida estamos à disposição! Decola Express.`;
 
     const encoded = encodeURIComponent(message);
     window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
@@ -659,7 +660,7 @@ export default function DivulgadosView({ onNavigate, initialTab = 'divulgados' }
               </span>
             </div>
 
-            {recentOrders.map((order) => {
+            {recentOrders.map((order: OrderShipmentItem) => {
               const isDelivered = order.shipping.isDelivered;
               const isUsd = order.currency === 'USD';
               const currencySym = isUsd ? 'US$' : 'R$';
@@ -1180,9 +1181,9 @@ export default function DivulgadosView({ onNavigate, initialTab = 'divulgados' }
       {(trackingModalData || trackingCampaign) && (() => {
         const activeModalInfo = trackingModalData || (trackingCampaign ? {
           shipping: getCampaignShippingInfo(trackingCampaign),
-          name: activeModalInfo.name,
-          image_url: activeModalInfo.image_url,
-          price: activeModalInfo.price,
+          name: trackingCampaign.name,
+          image_url: trackingCampaign.image_url,
+          price: trackingCampaign.price,
           orderId: undefined
         } : null);
         if (!activeModalInfo) return null;
@@ -1496,7 +1497,7 @@ export default function DivulgadosView({ onNavigate, initialTab = 'divulgados' }
                 <div className="flex items-center gap-2 w-full sm:w-auto">
                   <button
                     type="button"
-                    onClick={() => handleSendWhatsAppNotification(trackingCampaign, shipping)}
+                    onClick={() => handleSendWhatsAppNotification(activeModalInfo.name, shipping)}
                     className="flex-1 sm:flex-initial px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 hover:brightness-110 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
                     title="Enviar atualização de rastreio para o cliente no WhatsApp"
                   >

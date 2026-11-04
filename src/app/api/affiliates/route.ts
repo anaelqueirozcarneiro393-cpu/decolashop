@@ -17,6 +17,7 @@ import {
   dbBindLead,
   dbGetLeadAffiliate,
   dbMarkCommissionPaid,
+  dbMarkSalePaid,
   dbReassignSale,
   dbRecalculateAllAffiliatesMetrics,
   dbRepriceUnpaidSales,

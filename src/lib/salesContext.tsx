@@ -1224,6 +1224,7 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     setHourlyDataUSD(CLEAN_HOURLY);
     setRecentSalesUSD([]);
 
+    const userStorageKeyUSD = `decolashop_metrics_usd_${cleanEmailKey}`;
     const emptyStateUSD = {
       vendasTotais: 0,
       saldoDisponivel: 0,
