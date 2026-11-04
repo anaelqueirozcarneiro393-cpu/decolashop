@@ -22,6 +22,7 @@ import { useSession } from 'next-auth/react';
 import { addDivulgado, getDivulgados, MAX_ACTIVE_CAMPAIGNS, getConnectedChannelInfo, generateMarketplacePublishData } from '@/lib/divulgados';
 import { useRegionCurrency } from '@/lib/regionState';
 import MarginSelectionModal, { MarginConfig } from '@/components/MarginSelectionModal';
+import { usePrivacy } from '@/lib/privacyContext';
 
 interface AdGeneratorViewProps {
   product?: any;
@@ -30,6 +31,7 @@ interface AdGeneratorViewProps {
 
 export default function AdGeneratorView({ product: initialProduct, onNavigate }: AdGeneratorViewProps) {
   const { data: session } = useSession();
+  const { hideEmail } = usePrivacy();
   const userEmail = session?.user?.email?.toLowerCase().trim();
   const { isUsd } = useRegionCurrency();
   const [products, setProducts] = useState<Product[]>(mockProducts);
@@ -315,7 +317,7 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
 
               <div className="flex items-center gap-1.5">
                 <span className="text-[10px] font-black uppercase bg-[#22c55e]/20 text-[#4ade80] px-2 py-0.5 rounded-md border border-[#22c55e]/30">
-                  GERENTE
+                  {hideEmail ? 'MEMBRO VIP' : 'GERENTE'}
                 </span>
                 <span className="text-[10px] font-black uppercase border border-[#22c55e]/30 text-[#4ade80] px-2 py-0.5 rounded-md">
                   ∞ ILIMITADO
@@ -334,12 +336,14 @@ export default function AdGeneratorView({ product: initialProduct, onNavigate }:
             </div>
 
             <p className="text-[11px] text-slate-400 leading-relaxed">
-              ✓ Conta de Gerente: Divulgações ilimitadas sem nenhum consumo de créditos.
+              {hideEmail 
+                ? '✓ Membro VIP: Divulgações ilimitadas liberadas com inteligência artificial.' 
+                : '✓ Conta de Gerente: Divulgações ilimitadas sem nenhum consumo de créditos.'}
             </p>
 
             <button className="w-full py-2.5 px-4 rounded-2xl bg-[#22c55e]/15 hover:bg-[#22c55e]/25 border border-[#22c55e]/40 text-[#4ade80] font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-[0_0_15px_rgba(34,197,94,0.15)]">
               <Crown size={14} />
-              <span>CRÉDITOS INFINITOS ATIVOS</span>
+              <span>{hideEmail ? 'CRÉDITOS VIP LIBERADOS' : 'CRÉDITOS INFINITOS ATIVOS'}</span>
             </button>
           </div>
 

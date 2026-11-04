@@ -211,10 +211,10 @@ export default function AdminQuickActions() {
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base sm:text-lg font-black text-white">
-                  {isSuperAdmin ? 'Painel do Administrador' : 'Painel do Gerente'}
+                  {hideEmail ? 'Painel de Gestão VIP' : (isSuperAdmin ? 'Painel do Administrador' : 'Painel do Gerente')}
                 </h3>
                 <span className="text-[9px] font-black uppercase tracking-wider text-[#080c14] bg-[#22c55e] px-1.5 py-0.5 rounded-full font-bold">
-                  {isSuperAdmin ? 'Admin Master' : 'Gerente'}
+                  {hideEmail ? 'VIP' : (isSuperAdmin ? 'Admin Master' : 'Gerente')}
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">

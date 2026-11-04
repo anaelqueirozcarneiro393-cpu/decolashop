@@ -34,7 +34,7 @@ export default function PerfilView() {
   const [email, setEmail] = useState(getInitialEmail);
   const [name, setName] = useState(() => getInitialName(getInitialEmail()));
   const [isSaving, setIsSaving] = useState(false);
-  const { hideEmail, toggleHideEmail, maskEmail } = usePrivacy();
+  const { hideEmail, toggleHideEmail, maskEmail, maskName } = usePrivacy();
 
   // Atualização reativa assim que a sessão NextAuth ou o localStorage carrega
   React.useEffect(() => {
@@ -89,8 +89,10 @@ export default function PerfilView() {
     userRole === 'admin'
   );
   const isSuperAdmin = userRole === 'admin' || userEmail.includes('admin');
-  const userBadge = isAdmin ? (isSuperAdmin ? 'Administrador' : 'Gerente') : 'Membro VIP';
-  const planBadge = isAdmin ? 'Acesso Total ∞ (Ilimitado)' : 'Plano Vitalício Ativo';
+  const rawUserBadge = isAdmin ? (isSuperAdmin ? 'Administrador' : 'Gerente') : 'Membro VIP';
+  const rawPlanBadge = isAdmin ? 'Acesso Total ∞ (Ilimitado)' : 'Plano Vitalício Ativo';
+  const userBadge = hideEmail ? 'Membro VIP' : rawUserBadge;
+  const planBadge = hideEmail ? 'Plano Vitalício Ativo' : rawPlanBadge;
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -146,7 +148,7 @@ export default function PerfilView() {
             <User size={32} />
           </div>
           <div>
-            <h3 className="text-xl font-black text-white">{name}</h3>
+            <h3 className="text-xl font-black text-white">{hideEmail ? maskName(name) : name}</h3>
             <div className="flex items-center gap-2">
               <p className="text-xs text-muted-foreground font-mono">
                 {hideEmail ? maskEmail(email) : email}
@@ -180,8 +182,11 @@ export default function PerfilView() {
             <label className="block text-xs font-bold text-slate-300 mb-1.5">Nome Completo</label>
             <input
               type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              value={hideEmail ? maskName(name) : name}
+              onChange={(e) => {
+                if (!hideEmail) setName(e.target.value);
+              }}
+              readOnly={hideEmail}
               className="w-full bg-secondary/30 border border-border/50 rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50"
             />
           </div>
@@ -227,10 +232,14 @@ export default function PerfilView() {
 
           <button
             type="submit"
-            disabled={isSaving}
-            className="px-6 py-3 rounded-xl bg-primary text-black font-extrabold text-xs hover:bg-primary/90 transition-all shadow-md shadow-primary/20"
+            disabled={isSaving || hideEmail}
+            className={`px-6 py-3 rounded-xl font-extrabold text-xs transition-all shadow-md ${
+              hideEmail
+                ? 'bg-white/10 text-slate-400 cursor-not-allowed border border-white/5'
+                : 'bg-primary text-black hover:bg-primary/90 shadow-primary/20 cursor-pointer'
+            }`}
           >
-            {isSaving ? 'Salvando...' : 'Salvar Alterações'}
+            {isSaving ? 'Salvando...' : (hideEmail ? 'Modo Gravação Ativo (Edição Bloqueada)' : 'Salvar Alterações')}
           </button>
         </form>
       </div>

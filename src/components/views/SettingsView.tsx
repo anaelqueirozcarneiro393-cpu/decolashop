@@ -9,7 +9,7 @@ import { usePrivacy } from '@/lib/privacyContext';
 
 export default function SettingsView() {
   const { data: session, update } = useSession();
-  const { hideEmail, toggleHideEmail, maskEmail } = usePrivacy();
+  const { hideEmail, toggleHideEmail, maskEmail, maskName } = usePrivacy();
   // @ts-ignore
   const plan = session?.user?.plan || 'free';
   const isVip = plan !== 'free';
@@ -57,7 +57,7 @@ export default function SettingsView() {
             )}
           </div>
           <div>
-            <h3 className="text-lg font-bold text-white">{session?.user?.name || 'Membro DecolaShop'}</h3>
+            <h3 className="text-lg font-bold text-white">{hideEmail ? maskName(session?.user?.name) : (session?.user?.name || 'Membro DecolaShop')}</h3>
             <div className="flex items-center gap-2">
               <p className="text-xs text-muted-foreground font-mono">
                 {hideEmail ? maskEmail(session?.user?.email || 'email@exemplo.com') : (session?.user?.email || 'email@exemplo.com')}
@@ -141,8 +141,8 @@ export default function SettingsView() {
             </div>
           )}
 
-          {/* Apenas contas de Gerente/Admin podem alternar modo */}
-          {((session?.user as any)?.role === 'gerente' || (session?.user as any)?.role === 'admin' || session?.user?.email?.includes('gerente') || session?.user?.email?.includes('admin')) && (
+          {/* Apenas contas de Gerente/Admin podem alternar modo (ocultado em modo gravação) */}
+          {!hideEmail && ((session?.user as any)?.role === 'gerente' || (session?.user as any)?.role === 'admin' || session?.user?.email?.includes('gerente') || session?.user?.email?.includes('admin')) && (
             <button
               onClick={toggleTestPlan}
               disabled={isUpdating}

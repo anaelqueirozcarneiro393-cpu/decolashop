@@ -73,9 +73,11 @@ export default function Sidebar({ currentView, onNavigate, isOpen, setIsOpen }: 
     userRole === 'admin'
   );
   const isSuperAdmin = userRole === 'admin' || userEmail.includes('admin');
-  const userBadge = isAdmin ? (isSuperAdmin ? 'Administrador' : 'Gerente') : 'Membro VIP';
-  const planBadge = isAdmin ? 'Acesso Total ∞' : 'Plano Vitalício';
+  const rawUserBadge = isAdmin ? (isSuperAdmin ? 'Administrador' : 'Gerente') : 'Membro VIP';
+  const rawPlanBadge = isAdmin ? 'Acesso Total ∞' : 'Plano Vitalício';
   const { hideEmail, toggleHideEmail, maskEmail } = usePrivacy();
+  const userBadge = hideEmail ? 'Membro VIP' : rawUserBadge;
+  const planBadge = hideEmail ? 'Plano Vitalício' : rawPlanBadge;
 
   const displayNavItems = useMemo(() => {
     const list = [...navItems];
@@ -84,12 +86,12 @@ export default function Sidebar({ currentView, onNavigate, isOpen, setIsOpen }: 
         name: 'Afiliados',
         id: 'afiliados',
         icon: Users,
-        badge: isSuperAdmin ? 'ADMIN' : 'GERENTE',
+        badge: hideEmail ? 'VIP' : (isSuperAdmin ? 'ADMIN' : 'GERENTE'),
         badgeColor: 'bg-[#22c55e]/20 text-[#4ade80] border-[#22c55e]/30'
       });
     }
     return list;
-  }, [isAdmin, isSuperAdmin]);
+  }, [isAdmin, isSuperAdmin, hideEmail]);
 
   return (
     <aside className={cn(

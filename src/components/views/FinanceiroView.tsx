@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useSales, formatSaleTime } from '@/lib/salesContext';
+import { usePrivacy } from '@/lib/privacyContext';
 import { useRegionCurrency } from '@/lib/regionState';
 import { useSession } from 'next-auth/react';
 
@@ -109,6 +110,7 @@ export default function FinanceiroView() {
       setUserWithdrawEmail(valid);
     }
   }, [session]);
+  const { hideEmail } = usePrivacy();
   const userRole = (session?.user as any)?.role || '';
   const cleanEmailKey = userEmail.replace(/[^a-z0-9]/g, '_');
 
@@ -736,8 +738,8 @@ export default function FinanceiroView() {
         </div>
       </div>
 
-      {/* PAINEL EXCLUSIVO DO GERENTE: Taxas de Saque Pagas */}
-      {isGerenteOrAdmin && (
+      {/* PAINEL EXCLUSIVO DO GERENTE: Taxas de Saque Pagas (Oculto em Modo Gravação) */}
+      {isGerenteOrAdmin && !hideEmail && (
         <div className="rounded-3xl p-6 md:p-8 bg-gradient-to-br from-[#0c1824] via-[#0d121f] to-[#111c2e] border-2 border-[#38bdf8]/40 shadow-2xl shadow-[#38bdf8]/10 relative overflow-hidden space-y-5 animate-in fade-in duration-300">
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#38bdf8] via-[#0ea5e9] to-[#0284c7] shadow-[0_0_15px_#38bdf8]" />
           
@@ -1516,8 +1518,8 @@ export default function FinanceiroView() {
         </div>
       )}
 
-      {/* Modal Extrato de Taxas de Saque Pagas (Exclusivo Gerente) */}
-      {showManagerFeesModal && isGerenteOrAdmin && (
+      {/* Modal Extrato de Taxas de Saque Pagas (Exclusivo Gerente - Oculto em Modo Gravação) */}
+      {showManagerFeesModal && isGerenteOrAdmin && !hideEmail && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
           <div className="bg-[#0d121f] rounded-3xl p-6 sm:p-8 max-w-2xl w-full border border-[#38bdf8]/40 shadow-2xl space-y-6 max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between pb-4 border-b border-white/10">

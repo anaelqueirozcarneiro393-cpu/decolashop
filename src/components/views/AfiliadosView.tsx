@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
+import { usePrivacy } from '@/lib/privacyContext';
 import { 
   Affiliate, 
   AffiliateSale, 
@@ -58,6 +59,7 @@ const BUMP_NAMES: Record<string, string> = {
 
 export default function AfiliadosView() {
   const { data: session, status } = useSession();
+  const { hideEmail } = usePrivacy();
   const rawEmail = session?.user?.email || (typeof window !== 'undefined' ? localStorage.getItem('decolashop_user_email') || '' : '');
   const userEmail = rawEmail.toLowerCase().trim();
   const userRole = (((session?.user as any)?.role) || (typeof window !== 'undefined' ? localStorage.getItem('decolashop_user_role') || '' : '')).toLowerCase();
@@ -501,7 +503,7 @@ export default function AfiliadosView() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="px-2.5 py-0.5 rounded-full bg-[#22c55e]/15 text-[#4ade80] border border-[#22c55e]/30 text-[10px] font-black uppercase tracking-wider">
-              Painel Gerente
+              {hideEmail ? 'Painel de Afiliados' : 'Painel Gerente'}
             </span>
             <span className="text-xs text-slate-400 font-semibold">• Sistema de Afiliados</span>
           </div>

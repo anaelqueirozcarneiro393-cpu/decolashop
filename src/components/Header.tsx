@@ -28,10 +28,11 @@ export default function Header({ onMenuClick, session: propSession }: HeaderProp
     userRole === 'admin'
   );
   const isSuperAdmin = userRole === 'admin' || userEmail.includes('admin');
-  const userBadge = isAdmin ? (isSuperAdmin ? 'Administrador' : 'Gerente') : 'Membro VIP';
+  const rawUserBadge = isAdmin ? (isSuperAdmin ? 'Administrador' : 'Gerente') : 'Membro VIP';
 
   const { isSoundEnabled, toggleSound, recentSales } = useSales();
-  const { hideEmail, toggleHideEmail, maskEmail } = usePrivacy();
+  const { hideEmail, toggleHideEmail, maskEmail, maskName } = usePrivacy();
+  const userBadge = hideEmail ? 'Membro VIP' : rawUserBadge;
   const userPlan = (session?.user as any)?.plan || (typeof window !== 'undefined' ? localStorage.getItem('decolashop_user_plan') : null) || (isAdmin ? 'lifetime' : 'monthly');
   const { credits, isLowCredits, openRecharge } = useCredits(userEmail, userPlan);
   const [isNotifOpen, setIsNotifOpen] = useState(false);

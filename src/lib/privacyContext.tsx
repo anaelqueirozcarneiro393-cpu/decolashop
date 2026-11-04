@@ -7,12 +7,18 @@ interface PrivacyContextType {
   hideEmail: boolean;
   toggleHideEmail: () => void;
   maskEmail: (email: string) => string;
+  maskName: (name?: string | null) => string;
+  maskBadge: (badge?: string) => string;
+  maskPlan: (plan?: string) => string;
 }
 
 const PrivacyContext = createContext<PrivacyContextType>({
   hideEmail: false,
   toggleHideEmail: () => {},
   maskEmail: (email: string) => email,
+  maskName: (name?: string | null) => name || 'Membro DecolaShop',
+  maskBadge: (badge?: string) => badge || 'Membro VIP',
+  maskPlan: (plan?: string) => plan || 'Plano Vitalício',
 });
 
 export function PrivacyProvider({ children }: { children: React.ReactNode }) {
@@ -36,10 +42,10 @@ export function PrivacyProvider({ children }: { children: React.ReactNode }) {
       
       toast(
         next 
-          ? '🛡️ Modo Gravação: E-mail da conta ocultado com sucesso!' 
-          : '👁️ E-mail da conta visível novamente.', 
+          ? '🛡️ Modo Gravação: Perfil exibido como membro comum e dados ocultos!' 
+          : '👁️ Modo Gravação desativado: Visualização original restaurada.', 
         {
-          duration: 3000,
+          duration: 3200,
           icon: next ? '🔒' : '👁️',
           style: {
             background: '#0d121f',
@@ -57,6 +63,11 @@ export function PrivacyProvider({ children }: { children: React.ReactNode }) {
 
   const maskEmail = (email: string): string => {
     if (!email) return '••••••••••••';
+    const lower = email.toLowerCase().trim();
+    // Se for conta de gerente ou admin, mascara para e-mail neutro de membro comum
+    if (lower.includes('gerente') || lower.includes('admin')) {
+      return 'm••••••p@••••••.com';
+    }
     const parts = email.split('@');
     if (parts.length !== 2) return '••••••••••••';
     const [user, domain] = parts;
@@ -67,8 +78,42 @@ export function PrivacyProvider({ children }: { children: React.ReactNode }) {
     return `${firstChar}••••••${lastChar}@••••••${tld}`;
   };
 
+  const maskName = (name?: string | null): string => {
+    if (!name) return 'Membro DecolaShop';
+    const lower = name.toLowerCase().trim();
+    if (lower.includes('gerente') || lower.includes('admin') || lower.includes('administrador')) {
+      return 'Membro DecolaShop';
+    }
+    return name;
+  };
+
+  const maskBadge = (badge?: string): string => {
+    if (!badge) return 'Membro VIP';
+    const lower = badge.toLowerCase().trim();
+    if (lower.includes('gerente') || lower.includes('admin') || lower.includes('administrador')) {
+      return 'Membro VIP';
+    }
+    return badge;
+  };
+
+  const maskPlan = (plan?: string): string => {
+    if (!plan) return 'Plano Vitalício';
+    const lower = plan.toLowerCase().trim();
+    if (lower.includes('total') || lower.includes('ilimitado') || lower.includes('infinito')) {
+      return 'Plano Vitalício';
+    }
+    return plan;
+  };
+
   return (
-    <PrivacyContext.Provider value={{ hideEmail, toggleHideEmail, maskEmail }}>
+    <PrivacyContext.Provider value={{ 
+      hideEmail, 
+      toggleHideEmail, 
+      maskEmail,
+      maskName,
+      maskBadge,
+      maskPlan
+    }}>
       {children}
     </PrivacyContext.Provider>
   );
