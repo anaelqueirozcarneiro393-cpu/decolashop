@@ -363,7 +363,7 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
         // CENÁRIO 1: CONTA GERENTE (Histórico Semanal de Vendas entre 3k e 5k/dia)
         // =========================================================================
         if (isGerenteUser) {
-          if (!parsed || typeof parsed.vendasTotais !== 'number' || parsed.vendasTotais < 10000) {
+          if (!parsed || typeof parsed.vendasTotais !== 'number') {
             parsed = getDeterministicBaseline(userEmail, Date.now());
             try {
               const str = JSON.stringify(parsed);
@@ -554,7 +554,7 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
 
         let count = 0;
         if (isGerenteUser) {
-          if (shouldCatchUpSales) {
+          if (shouldCatchUpSales && currVendasTotais > 0 && currRecentSales.length > 0) {
             const elapsedMinutes = Math.max(
               Math.floor(elapsedMs / 60_000),
               Math.floor(timeSinceNewestSale / 60_000)
@@ -1162,62 +1162,46 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
   };
 
   const resetData = () => {
-    let baseline: any = null;
-    if (isGerenteUser) {
-      baseline = getDeterministicBaseline('gerente@decolashop.com', Date.now());
-    } else if (userEmail === 'usuario@decolashop.com') {
-      baseline = getDeterministicBaseline('usuario@decolashop.com', Date.now());
-    }
+    setVendasTotais(0);
+    setSaldoDisponivel(0);
+    setVisitas(0);
+    setCliques(0);
+    setPedidos(0);
+    setUnidades(0);
+    setHourlyData(CLEAN_HOURLY);
+    setRecentSales([]);
+    setAutoSimulate(false);
 
-    if (baseline) {
-      setVendasTotais(baseline.vendasTotais);
-      setSaldoDisponivel(baseline.saldoDisponivel);
-      setVisitas(baseline.visitas);
-      setCliques(baseline.cliques);
-      setPedidos(baseline.pedidos);
-      setUnidades(baseline.unidades);
-      setHourlyData(baseline.hourlyData);
-      setRecentSales(baseline.recentSales);
-      setAutoSimulate(true);
+    const emptyState = {
+      vendasTotais: 0,
+      saldoDisponivel: 0,
+      visitas: 0,
+      cliques: 0,
+      pedidos: 0,
+      unidades: 0,
+      hourlyData: CLEAN_HOURLY,
+      recentSales: []
+    };
 
-      try {
-        const str = JSON.stringify(baseline);
-        localStorage.setItem(userStorageKey, str);
-        if (isGerenteUser) {
-          localStorage.setItem('decolashop_sales_state_gerente_decolashop_com', str);
-          localStorage.setItem('decolashop_sales_state_admin_decolashop_com', str);
-        } else {
-          localStorage.setItem('decolashop_sales_state_usuario_decolashop_com', str);
-        }
-        fetch('/api/user/sync-state', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: userEmail, state: baseline })
-        }).catch(() => {});
-      } catch {}
-    } else {
-      setVendasTotais(0);
-      setSaldoDisponivel(0);
-      setVisitas(0);
-      setCliques(0);
-      setPedidos(0);
-      setUnidades(0);
-      setHourlyData(CLEAN_HOURLY);
-      setRecentSales([]);
-      setAutoSimulate(true);
-
-      try {
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.removeItem(userStorageKey);
-        localStorage.removeItem('decolashop_sales_state_v2');
-        localStorage.removeItem('decolashop_sales_state');
-        localStorage.removeItem(`decolashop_sales_state_${cleanEmailKey}`);
-        localStorage.removeItem(`decolashop_divulgados_${cleanEmailKey}`);
-        localStorage.removeItem('decolashop_divulgados');
-        localStorage.removeItem('decolashop_next_sale_target');
-        fetch(`/api/user/sync-state?action=reset&email=${encodeURIComponent(userEmail)}`).catch(() => {});
-      } catch {}
-    }
+    try {
+      const str = JSON.stringify(emptyState);
+      localStorage.setItem(userStorageKey, str);
+      localStorage.setItem('decolashop_sales_state_gerente_decolashop_com', str);
+      localStorage.setItem('decolashop_sales_state_admin_decolashop_com', str);
+      localStorage.setItem('decolashop_sales_state_usuario_decolashop_com', str);
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem('decolashop_sales_state_v2');
+      localStorage.removeItem('decolashop_sales_state');
+      localStorage.removeItem(`decolashop_sales_state_${cleanEmailKey}`);
+      localStorage.removeItem(`decolashop_divulgados_${cleanEmailKey}`);
+      localStorage.removeItem('decolashop_divulgados');
+      localStorage.removeItem('decolashop_next_sale_target');
+      fetch('/api/user/sync-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: userEmail, state: emptyState })
+      }).catch(() => {});
+    } catch {}
 
     try {
       localStorage.removeItem('decolashop_saldo_antecipado');
@@ -1231,26 +1215,31 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
       window.dispatchEvent(new Event('decolashop_divulgados_updated'));
     } catch {}
 
-    const baselineUSD = getDeterministicBaselineUSD(userEmail, Date.now());
-    if (baselineUSD && isGerenteUser) {
-      setVendasTotaisUSD(baselineUSD.vendasTotais);
-      setSaldoDisponivelUSD(baselineUSD.saldoDisponivel);
-      setVisitasUSD(baselineUSD.visitas);
-      setCliquesUSD(baselineUSD.cliques);
-      setPedidosUSD(baselineUSD.pedidos);
-      setUnidadesUSD(baselineUSD.unidades);
-      setHourlyDataUSD(baselineUSD.hourlyData);
-      setRecentSalesUSD(baselineUSD.recentSales);
-    } else {
-      setVendasTotaisUSD(0);
-      setSaldoDisponivelUSD(0);
-      setVisitasUSD(0);
-      setCliquesUSD(0);
-      setPedidosUSD(0);
-      setUnidadesUSD(0);
-      setHourlyDataUSD(CLEAN_HOURLY);
-      setRecentSalesUSD([]);
-    }
+    setVendasTotaisUSD(0);
+    setSaldoDisponivelUSD(0);
+    setVisitasUSD(0);
+    setCliquesUSD(0);
+    setPedidosUSD(0);
+    setUnidadesUSD(0);
+    setHourlyDataUSD(CLEAN_HOURLY);
+    setRecentSalesUSD([]);
+
+    const emptyStateUSD = {
+      vendasTotais: 0,
+      saldoDisponivel: 0,
+      visitas: 0,
+      cliques: 0,
+      pedidos: 0,
+      unidades: 0,
+      hourlyData: CLEAN_HOURLY,
+      recentSales: []
+    };
+    try {
+      localStorage.setItem(userStorageKeyUSD, JSON.stringify(emptyStateUSD));
+      localStorage.setItem('decolashop_metrics_usd_gerente_decolashop_com', JSON.stringify(emptyStateUSD));
+      localStorage.setItem('decolashop_metrics_usd_admin_decolashop_com', JSON.stringify(emptyStateUSD));
+      localStorage.setItem('decolashop_metrics_usd_usuario_decolashop_com', JSON.stringify(emptyStateUSD));
+    } catch {}
 
     toast.success('Conta redefinida com sucesso para o estado inicial.');
   };

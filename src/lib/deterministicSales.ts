@@ -174,24 +174,17 @@ export function getDeterministicBaseline(email: string, nowMs: number = Date.now
 
     const todaySalesSum = hourlyData.reduce((acc, h) => acc + (h.valHoje || 0), 0);
 
-    // Faturamento acumulado dos 6 dias anteriores (entre 3k e 5k por dia):
-    // D-6: 3.480,00
-    // D-5: 4.250,00
-    // D-4: 3.790,00
-    // D-3: 4.890,00
-    // D-2: 3.620,00
-    // D-1 (Ontem): 4.380,00
-    // Soma dias anteriores = R$ 24.410,00
-    const pastDaysGross = 24410.00;
+    // Faturamento acumulado dos dias anteriores
+    const pastDaysGross = 0;
     const totalGross = Math.round((pastDaysGross + todaySalesSum) * 100) / 100;
     const totalCommission = Math.round(totalGross * 0.32 * 100) / 100;
 
-    // Pedidos: ~162 pedidos nos dias anteriores + pedidos de hoje
-    const todayOrders = Math.max(1, Math.round(todaySalesSum / 150));
-    const totalOrders = 162 + todayOrders;
+    // Pedidos de hoje
+    const todayOrders = Math.max(0, Math.round(todaySalesSum / 150));
+    const totalOrders = todayOrders;
     const totalVisits = Math.round(totalOrders * 15.5);
     const totalClicks = Math.round(totalOrders * 31.2);
-    const totalUnits = totalOrders + 8;
+    const totalUnits = totalOrders;
 
     // Gerar lista rica de ~50 transações reais nos últimos 7 dias
     const recentSales: SaleItem[] = [];

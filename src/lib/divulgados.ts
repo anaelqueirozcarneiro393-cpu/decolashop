@@ -729,25 +729,49 @@ export interface ConnectedChannelInfo {
   connectedAt?: string;
 }
 
-export function getConnectedChannelInfo(channel: string): ConnectedChannelInfo | null {
+export function getConnectedChannelInfo(channel: string, userEmail?: string): ConnectedChannelInfo | null {
   if (typeof window === 'undefined') return null;
   try {
-    const raw = localStorage.getItem('decolashop_channel_connections');
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object') return null;
+    const keysToCheck: string[] = [];
+    if (userEmail) {
+      keysToCheck.push(`decolashop_channel_connections_${userEmail.toLowerCase().trim()}`);
+    }
+    const storedEmail = localStorage.getItem('decolashop_user_email') || localStorage.getItem('decolashop_active_user_email');
+    if (storedEmail) {
+      keysToCheck.push(`decolashop_channel_connections_${storedEmail.toLowerCase().trim()}`);
+    }
+    keysToCheck.push('decolashop_channel_connections');
 
-    let key = channel.toLowerCase();
-    if (key === 'mercadolivre') key = 'ml';
-    
-    const info = parsed[key] || (key === 'ml' ? parsed['mercadolivre'] : null);
-    if (info && info.connected) {
-      return info as ConnectedChannelInfo;
+    // Varre todas as chaves do localStorage para encontrar conexões salvas
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('decolashop_channel_connections') && !keysToCheck.includes(k)) {
+        keysToCheck.push(k);
+      }
+    }
+
+    let normKey = channel.toLowerCase().trim();
+    if (normKey === 'mercadolivre') normKey = 'ml';
+
+    for (const key of keysToCheck) {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') continue;
+
+      const info = parsed[normKey] || (normKey === 'ml' ? parsed['mercadolivre'] : null);
+      if (info && info.connected) {
+        return info as ConnectedChannelInfo;
+      }
     }
     return null;
   } catch {
     return null;
   }
+}
+
+export function isChannelConnected(channel: string, userEmail?: string): boolean {
+  return !!getConnectedChannelInfo(channel, userEmail);
 }
 
 export function generateMarketplacePublishData(channel: string, productName: string) {
@@ -804,5 +828,83 @@ export function generateMarketplacePublishData(channel: string, productName: str
     marketplaceItemUrl: `https://google.com/search?q=${searchKeyword}`,
     channelLabel: channel
   };
+}
+
+export interface OrderShipmentItem {
+  id: string; // #DEC-84920
+  orderNumber: string;
+  campaignId: string;
+  productId: string;
+  productName: string;
+  productImage: string;
+  customerName: string;
+  customerCity: string;
+  customerAddress: string;
+  price: number;
+  margin: number;
+  channel: string;
+  channelLabel: string;
+  currency: 'BRL' | 'USD';
+  createdAt: number;
+  dateStr: string;
+  timeStr: string;
+  shipping: ShippingTrackingInfo;
+}
+
+export function getRecentOrdersFromCampaigns(campaigns: DivulgadoCampaign[], limit = 15): OrderShipmentItem[] {
+  const orders: OrderShipmentItem[] = [];
+
+  for (const camp of campaigns) {
+    const salesCount = Math.max(0, camp.salesCount || 0);
+    if (salesCount <= 0) continue;
+
+    const basePrice = typeof camp.price === 'number' 
+      ? camp.price 
+      : parseFloat(String(camp.price).replace(/[^0-9.]/g, '')) || 99.90;
+    const margin = camp.sellerMargin || Math.round(basePrice * 0.35 * 100) / 100;
+    const campCreatedMs = new Date(camp.createdAt).getTime();
+
+    for (let i = 0; i < salesCount; i++) {
+      const hash = Math.abs(
+        camp.id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) + 
+        (i + 1) * 7823
+      );
+      const orderNum = (10000 + (hash % 89999)).toString();
+      const orderTimeMs = Math.min(Date.now(), campCreatedMs + (i * 3600000 * 2));
+      const orderDate = new Date(orderTimeMs);
+
+      const shipping = getCampaignShippingInfo({
+        ...camp,
+        id: `${camp.id}_order_${i}`,
+        createdAt: orderDate.toISOString()
+      });
+
+      orders.push({
+        id: `#DEC-${orderNum}`,
+        orderNumber: orderNum,
+        campaignId: camp.id,
+        productId: camp.productId,
+        productName: camp.name,
+        productImage: camp.image_url,
+        customerName: shipping.recipientName,
+        customerCity: shipping.recipientCity,
+        customerAddress: shipping.recipientAddress,
+        price: basePrice,
+        margin,
+        channel: camp.channel || 'shopee',
+        channelLabel: camp.channelLabel || 'Shopee Brasil',
+        currency: camp.currency || 'BRL',
+        createdAt: orderTimeMs,
+        dateStr: orderDate.toLocaleDateString('pt-BR'),
+        timeStr: orderDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        shipping
+      });
+    }
+  }
+
+  // Ordena por data decrescente (mais recente primeiro) e limita estritamente aos últimos 15 pedidos
+  return orders
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, limit);
 }
 

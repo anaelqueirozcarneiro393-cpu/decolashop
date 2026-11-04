@@ -14,6 +14,8 @@ import {
 import SafeImage from '@/components/SafeImage';
 import { Product } from '@/lib/mockData';
 import { toast } from 'react-hot-toast';
+import { useSession } from 'next-auth/react';
+import { isChannelConnected } from '@/lib/divulgados';
 
 export type MarketplaceChannel = 'mercadolivre' | 'shopee' | 'tiktok' | 'amazon' | 'shopify';
 
@@ -49,6 +51,8 @@ export default function MarginSelectionModal({
 }: MarginSelectionModalProps) {
   if (!isOpen || !product) return null;
 
+  const { data: session } = useSession();
+  const userEmail = session?.user?.email || undefined;
   const currencySymbol = isUsd ? 'US$' : 'R$';
 
   // Preço base
@@ -326,7 +330,13 @@ export default function MarginSelectionModal({
                         <Check size={10} strokeWidth={3} />
                       </div>
                     ) : (
-                      <span className="text-[9px] text-slate-500 font-medium">{ch.feeLabel}</span>
+                      <span className="text-[9px] font-bold">
+                        {channelConnectionMap[ch.id] ? (
+                          <span className="text-emerald-400">🟢 Conectada</span>
+                        ) : (
+                          <span className="text-amber-400">⚠️ Não conectada</span>
+                        )}
+                      </span>
                     )}
                   </div>
 

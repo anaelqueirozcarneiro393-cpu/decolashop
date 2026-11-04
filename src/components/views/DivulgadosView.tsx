@@ -59,7 +59,9 @@ import {
   MAX_ACTIVE_CAMPAIGNS,
   isGerenteOrAdminEmail,
   getCampaignShippingInfo,
-  ShippingTrackingInfo
+  ShippingTrackingInfo,
+  getRecentOrdersFromCampaigns,
+  OrderShipmentItem
 } from '@/lib/divulgados';
 
 interface DivulgadosViewProps {
@@ -92,6 +94,17 @@ export default function DivulgadosView({ onNavigate, initialTab = 'divulgados' }
   const [selectedCategory, setSelectedCategory] = useState('Todas');
   const [selectedCampaign, setSelectedCampaign] = useState<DivulgadoCampaign | null>(null);
   const [trackingCampaign, setTrackingCampaign] = useState<DivulgadoCampaign | null>(null);
+  const [trackingModalData, setTrackingModalData] = useState<{
+    shipping: ShippingTrackingInfo;
+    name: string;
+    image_url: string;
+    price: number | string;
+    orderId?: string;
+  } | null>(null);
+
+  const recentOrders = useMemo(() => {
+    return getRecentOrdersFromCampaigns(campaigns, 15);
+  }, [campaigns]);
   const [isCopied, setIsCopied] = useState(false);
   const [trackingCopied, setTrackingCopied] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
@@ -608,506 +621,316 @@ export default function DivulgadosView({ onNavigate, initialTab = 'divulgados' }
         </div>
       </div>
 
-      {/* Campaigns List */}
-      {filteredCampaigns.length === 0 ? (
-        <div className="rounded-3xl p-12 bg-[#0d121f]/60 border border-white/10 text-center space-y-4">
-          <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 mx-auto flex items-center justify-center text-slate-500">
-            {activeMainTab === 'vendidos' ? <PackageCheck size={32} className="text-cyan-400" /> : <Megaphone size={28} />}
-          </div>
-          <div>
-            <h3 className="text-lg font-bold text-white">
-              {activeMainTab === 'vendidos'
-                ? 'Nenhum pedido vendido com rastreio pendente'
-                : 'Nenhum produto divulgado encontrado'}
-            </h3>
-            <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
-              {activeMainTab === 'vendidos'
-                ? 'O acompanhamento logístico de transporte, transportadora e prazo de entrega de 7 dias é ativado automaticamente assim que seus produtos divulgados realizam vendas.'
-                : searchQuery 
-                ? 'Nenhum item corresponde ao termo pesquisado. Tente outra palavra-chave.' 
-                : regionFilter !== 'all'
-                ? `Você ainda não possui produtos divulgados no filtro de região selecionado (${regionFilter === 'USD' ? 'Exterior' : 'Brasil'}).`
-                : 'Você ainda não possui produtos nessa categoria de status.'}
+      {/* Conteúdo Principal Alternado por Aba */}
+      {activeMainTab === 'vendidos' ? (
+        /* ========================================================================= */
+        /* ABA 2: PRODUTOS VENDIDOS & RASTREIO (SEPARADOS POR PEDIDO, ÚLTIMOS 15)   */
+        /* ========================================================================= */
+        recentOrders.length === 0 ? (
+          <div className="rounded-3xl p-12 bg-[#0d121f]/60 border border-white/10 text-center space-y-3">
+            <div className="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 mx-auto flex items-center justify-center text-cyan-400">
+              <PackageCheck size={28} />
+            </div>
+            <h3 className="text-base font-bold text-white">Nenhum pedido vendido com envio pendente</h3>
+            <p className="text-xs text-slate-400 max-w-md mx-auto">
+              Assim que suas campanhas ativas realizarem vendas, os envios aparecerão aqui individualmente por pedido (limitado estritamente aos últimos 15 pedidos) com código de rastreio e prazo de entrega garantido de 7 dias.
             </p>
-          </div>
-          <div className="flex items-center justify-center gap-3">
-            {activeMainTab === 'vendidos' ? (
+            <div className="pt-2">
               <button
-                onClick={() => {
-                  setActiveMainTab('divulgados');
-                  onNavigate('divulgados');
-                }}
-                className="px-4 py-2 rounded-xl bg-[#22c55e] hover:bg-[#16a34a] text-black font-black text-xs transition-colors flex items-center gap-2 cursor-pointer shadow-lg shadow-[#22c55e]/20"
+                onClick={() => setActiveMainTab('divulgados')}
+                className="px-4 py-2 rounded-xl bg-[#22c55e] text-black font-extrabold text-xs inline-flex items-center gap-1.5 cursor-pointer shadow-lg shadow-[#22c55e]/20 hover:brightness-110 active:scale-95 transition-all"
               >
                 <Megaphone size={14} />
                 <span>Ver Anúncios Divulgados</span>
               </button>
-            ) : campaigns.length === 0 && isGerente ? (
-              <button
-                onClick={handleRestoreDefaults}
-                className="px-4 py-2 rounded-xl bg-white/10 text-white text-xs font-bold hover:bg-white/20 transition-all flex items-center gap-1.5 cursor-pointer"
-              >
-                <RotateCcw size={14} /> Sincronizar Campanhas
-              </button>
-            ) : null}
-            <button
-              onClick={() => onNavigate('divulgacao-ia')}
-              className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs transition-colors flex items-center gap-2 cursor-pointer"
-            >
-              <Plus size={14} /> Divulgar Agora
-            </button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between px-1 mb-1">
+              <div className="flex items-center gap-2">
+                <PackageCheck size={16} className="text-cyan-400" />
+                <span className="text-xs sm:text-sm font-black text-white">
+                  Últimos Pedidos Despachados ({recentOrders.length})
+                </span>
+              </div>
+              <span className="text-[10px] text-cyan-300 font-mono bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-0.5 rounded-full font-bold">
+                Últimos 15 pedidos
+              </span>
+            </div>
+
+            {recentOrders.map((order) => {
+              const isDelivered = order.shipping.isDelivered;
+              const isUsd = order.currency === 'USD';
+              const currencySym = isUsd ? 'US$' : 'R$';
+
+              return (
+                <div
+                  key={order.id}
+                  className="rounded-2xl p-3.5 sm:p-4 bg-[#0d121f]/90 border border-cyan-500/20 hover:border-cyan-500/40 transition-all shadow-xl backdrop-blur-xl flex flex-col md:flex-row md:items-center justify-between gap-3.5"
+                >
+                  {/* Left: Product image + Order Number + Destination */}
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-xl overflow-hidden bg-black/40 border border-white/10 shrink-0">
+                      <SafeImage
+                        src={order.productImage}
+                        alt={order.productName}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className="font-mono text-xs font-black text-cyan-300 bg-cyan-500/15 border border-cyan-500/30 px-2 py-0.5 rounded-md">
+                          {order.id}
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          {order.dateStr} às {order.timeStr}
+                        </span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md border bg-white/5 border-white/10 text-slate-300">
+                          {order.channelLabel}
+                        </span>
+                      </div>
+
+                      <h4 className="text-xs sm:text-sm font-bold text-white truncate max-w-sm sm:max-w-md">
+                        {order.productName}
+                      </h4>
+
+                      <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
+                        <span>Cliente: <strong className="text-slate-200">{order.customerName}</strong></span>
+                        <span>•</span>
+                        <span className="flex items-center gap-1 text-cyan-400">
+                          <MapPin size={10} /> {order.customerCity}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Center: Value & Net Profit */}
+                  <div className="flex items-center gap-5 px-3 py-2 rounded-xl bg-black/40 border border-white/5 shrink-0 justify-between md:justify-start">
+                    <div>
+                      <span className="text-[9px] text-slate-400 uppercase font-bold block">Valor Venda</span>
+                      <span className="text-xs font-black text-white">
+                        {currencySym} {order.price.toFixed(2).replace('.', ',')}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] text-slate-400 uppercase font-bold block">Lucro Líquido</span>
+                      <span className="text-xs font-black text-emerald-400">
+                        +{currencySym} {order.margin.toFixed(2).replace('.', ',')}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] text-slate-400 uppercase font-bold block">Status Envio</span>
+                      <span className={`text-[10px] font-black uppercase flex items-center gap-1 ${
+                        isDelivered ? 'text-emerald-400' : 'text-cyan-300'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${isDelivered ? 'bg-emerald-400' : 'bg-cyan-400 animate-pulse'}`} />
+                        {isDelivered ? 'Entregue (7d)' : order.shipping.statusLabel}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Right: Carrier, Tracking code & Actions */}
+                  <div className="flex items-center gap-2 justify-end shrink-0 flex-wrap">
+                    <div className="hidden lg:flex flex-col text-right mr-1">
+                      <span className="text-[9px] text-slate-400 font-mono">{order.shipping.carrier}</span>
+                      <div className="flex items-center gap-1">
+                        <span className="font-mono text-[11px] font-bold text-cyan-300">{order.shipping.trackingCode}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(order.shipping.trackingCode);
+                            toast.success('Código copiado!');
+                          }}
+                          className="text-slate-400 hover:text-white p-0.5 cursor-pointer"
+                          title="Copiar código de rastreio"
+                        >
+                          <Copy size={11} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => setTrackingModalData({
+                        shipping: order.shipping,
+                        name: order.productName,
+                        image_url: order.productImage,
+                        price: order.price,
+                        orderId: order.id
+                      })}
+                      className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 hover:brightness-110 text-white font-black text-xs transition-all shadow-md shadow-cyan-500/20 flex items-center gap-1.5 cursor-pointer active:scale-95"
+                    >
+                      <Truck size={13} />
+                      <span>Rastrear</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleSendWhatsAppNotification(order.productName, order.shipping)}
+                      className="px-2.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                      title="Notificar cliente no WhatsApp"
+                    >
+                      <MessageCircle size={13} />
+                      <span className="hidden sm:inline">WhatsApp</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )
       ) : (
-        <div className="space-y-4">
-          {filteredCampaigns.map((camp) => {
-            const isUsd = camp.currency === 'USD' || (typeof camp.price === 'string' && camp.price.includes('$') && !camp.price.includes('R$'));
-            
-            const formattedPrice = typeof camp.price === 'string'
-              ? camp.price
-              : isUsd 
-                ? `US$ ${camp.price?.toFixed(2) || '49.90'}`
-                : `R$ ${camp.price?.toFixed(2) || '99.90'}`;
-
-            const formattedRevenue = isUsd
-              ? `US$ ${camp.revenue?.toFixed(2) || '0.00'}`
-              : `R$ ${(camp.revenue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-
-            const isActive = camp.status === 'active';
-            const shipping = getCampaignShippingInfo(camp);
-
-            return (
-              <div
-                key={camp.id}
-                className={`rounded-2xl sm:rounded-3xl p-4 sm:p-5 bg-[#0d121f]/90 border transition-all shadow-xl backdrop-blur-xl flex flex-col gap-4 ${
-                  activeMainTab === 'vendidos'
-                    ? 'border-cyan-500/20 hover:border-cyan-500/40'
-                    : isActive
-                    ? 'border-white/10 hover:border-[#22c55e]/40'
-                    : 'border-white/5 opacity-75 hover:opacity-100 hover:border-amber-400/30'
-                }`}
+        /* ========================================================================= */
+        /* ABA 1: PRODUTOS DIVULGADOS (CARDS MINIMALISTAS E LIMPOS)                  */
+        /* ========================================================================= */
+        filteredCampaigns.length === 0 ? (
+          <div className="rounded-3xl p-12 bg-[#0d121f]/60 border border-white/10 text-center space-y-4">
+            <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 mx-auto flex items-center justify-center text-slate-500">
+              <Megaphone size={28} />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-white">Nenhum produto divulgado encontrado</h3>
+              <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+                {searchQuery 
+                  ? 'Nenhum item corresponde ao termo pesquisado. Tente outra palavra-chave.' 
+                  : regionFilter !== 'all'
+                  ? `Você ainda não possui produtos divulgados no filtro de região selecionado (${regionFilter === 'USD' ? 'Exterior' : 'Brasil'}).`
+                  : 'Você ainda não possui anúncios divulgados. Escolha produtos no catálogo para divulgar com IA.'}
+              </p>
+            </div>
+            <div className="flex items-center justify-center gap-3">
+              <button
+                onClick={() => onNavigate('catalogo')}
+                className="px-4 py-2 rounded-xl bg-[#22c55e] text-black font-extrabold text-xs transition-colors flex items-center gap-2 cursor-pointer shadow-lg shadow-[#22c55e]/20"
               >
-                {/* Upper row: Product info, live metrics and action buttons */}
-                <div className="w-full flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-                  {/* Left: Product Info */}
-                  <div className="flex items-start sm:items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
-                    {/* Image with status & flag badges */}
-                    <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden bg-black/40 border border-white/10 flex-shrink-0">
+                <Plus size={14} /> Ir para o Catálogo
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredCampaigns.map((camp) => {
+              const isUsd = camp.currency === 'USD' || (typeof camp.price === 'string' && camp.price.includes('$') && !camp.price.includes('R$'));
+              const currencySym = isUsd ? 'US$' : 'R$';
+              const priceNum = typeof camp.price === 'number' 
+                ? camp.price 
+                : parseFloat(String(camp.price).replace(/[^0-9.]/g, '')) || 99.90;
+              const marginNum = camp.sellerMargin !== undefined 
+                ? camp.sellerMargin 
+                : Math.round(priceNum * 0.35 * 100) / 100;
+              const isActive = camp.status === 'active';
+
+              return (
+                <div
+                  key={camp.id}
+                  className={`rounded-2xl p-3.5 sm:p-4 bg-[#0d121f]/90 border transition-all shadow-md backdrop-blur-xl flex flex-col md:flex-row md:items-center justify-between gap-3.5 ${
+                    isActive
+                      ? 'border-white/10 hover:border-[#22c55e]/30'
+                      : 'border-white/5 opacity-70 hover:opacity-100 hover:border-amber-400/20'
+                  }`}
+                >
+                  {/* Left: Product Thumbnail + Title + Channel + Price/Margin */}
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-xl overflow-hidden bg-black/40 border border-white/10 shrink-0">
                       <SafeImage
                         src={camp.image_url}
                         alt={camp.name}
                         className="w-full h-full object-cover"
                       />
-                      <div className="absolute top-1.5 left-1.5">
-                        {activeMainTab === 'vendidos' ? (
-                          <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider flex items-center gap-1 shadow-md bg-emerald-500 text-black">
-                            <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" />
-                            PEDIDO VENDIDO
-                          </span>
-                        ) : (
-                          <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider flex items-center gap-1 shadow-md ${
-                            isActive
-                              ? 'bg-[#22c55e] text-black'
-                              : 'bg-amber-400 text-black'
-                          }`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-black animate-pulse' : 'bg-black/60'}`} />
-                            {isActive ? 'ATIVO' : 'PAUSADO'}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Flag Pill */}
-                      <div className="absolute bottom-1.5 right-1.5">
-                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-black/80 backdrop-blur-md border border-white/20 text-white shadow-sm">
-                          {isUsd ? '🇺🇸 US$' : '🇧🇷 R$'}
-                        </span>
-                      </div>
                     </div>
 
-                    {/* Text details */}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-slate-400">
-                          {camp.category}
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1 ${
+                          camp.channel === 'mercadolivre'
+                            ? 'bg-yellow-500/10 text-yellow-300 border-yellow-500/25'
+                            : camp.channel === 'shopee'
+                            ? 'bg-orange-500/10 text-orange-400 border-orange-500/25'
+                            : camp.channel === 'tiktok'
+                            ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/25'
+                            : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25'
+                        }`}>
+                          {camp.channel === 'mercadolivre' ? '🟡' : camp.channel === 'shopee' ? '🟠' : camp.channel === 'tiktok' ? '⚫' : '🌐'} {camp.channelLabel || 'Marketplace'}
                         </span>
-                        {camp.channelLabel && (
-                          <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md border flex items-center gap-1 ${
-                            camp.channel === 'mercadolivre'
-                              ? 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30'
-                              : camp.channel === 'shopee'
-                              ? 'bg-orange-500/15 text-orange-400 border-orange-500/30'
-                              : camp.channel === 'tiktok'
-                              ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'
-                              : 'bg-blue-500/15 text-blue-300 border-blue-500/30'
-                          }`}>
-                            {camp.channel === 'mercadolivre' ? '🟡' : camp.channel === 'shopee' ? '🟠' : camp.channel === 'tiktok' ? '⚫' : '🌐'} {camp.channelLabel}
-                            {camp.marketplaceItemId && (
-                              <span className="font-mono text-[9px] bg-black/40 px-1.5 py-0.2 rounded border border-white/10 text-white font-bold ml-1">
-                                {camp.marketplaceItemId}
-                              </span>
-                            )}
-                          </span>
-                        )}
-                        {camp.origin && (
-                          <span className="text-[10px] text-cyan-400 flex items-center gap-1 bg-cyan-500/10 px-2 py-0.5 rounded-md border border-cyan-500/20">
-                            <MapPin size={10} />
-                            {camp.origin.split('-')[0].trim()}
-                          </span>
-                        )}
-                        <span className="text-[10px] text-slate-500 flex items-center gap-1">
-                          <Clock size={11} />
-                          {new Date(camp.createdAt).toLocaleDateString('pt-BR')} às {new Date(camp.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 ${
+                          isActive ? 'bg-[#22c55e]/15 text-[#4ade80]' : 'bg-amber-400/15 text-amber-300'
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-[#22c55e] animate-pulse' : 'bg-amber-400'}`} />
+                          {isActive ? 'Ativo' : 'Pausado'}
                         </span>
                       </div>
 
-                      <h3 className="text-sm sm:text-base font-bold text-white truncate max-w-md">
+                      <h3 className="text-xs sm:text-sm font-bold text-white truncate max-w-sm sm:max-w-md">
                         {camp.name}
                       </h3>
 
-                      <div className="flex items-center gap-3 mt-1.5 text-xs flex-wrap">
-                        <span className="font-black text-[#4ade80] text-sm">
-                          {formattedPrice}
+                      <div className="flex items-center gap-2 mt-1 text-xs">
+                        <span className="font-extrabold text-white">
+                          {currencySym} {priceNum.toFixed(2).replace('.', ',')}
                         </span>
-                        {camp.sellerMargin !== undefined ? (
-                          <span className="text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md text-[11px] flex items-center gap-1">
-                            <span>Sua Margem:</span>
-                            <strong className="text-emerald-300">{isUsd ? 'US$' : 'R$'} {camp.sellerMargin.toFixed(2).replace('.', ',')}</strong>
-                            <span className="text-[10px] text-emerald-400/80">({camp.sellerMarginPercent || 35}%)</span>
-                          </span>
-                        ) : camp.commission ? (
-                          <span className="text-slate-400 text-[11px]">
-                            Comissão: <strong className="text-white">{camp.commission}</strong>
-                          </span>
-                        ) : null}
-                        {camp.supplierCost !== undefined && (
-                          <span className="text-slate-400 text-[11px] flex items-center gap-1">
-                            Custo Forn.: <strong className="text-slate-300">{isUsd ? 'US$' : 'R$'} {camp.supplierCost.toFixed(2).replace('.', ',')}</strong>
-                            <span className="text-[9px] text-amber-400 font-bold bg-amber-500/10 px-1 rounded border border-amber-500/20">🔒 Imutável</span>
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Networks badges */}
-                      <div className="flex items-center gap-1.5 flex-wrap mt-2.5">
-                        {camp.networks?.map((net, i) => (
-                          <span 
-                            key={i} 
-                            className="text-[10px] font-medium px-2 py-0.5 rounded-lg bg-white/[0.04] border border-white/5 text-slate-300"
-                          >
-                            {net}
-                          </span>
-                        ))}
+                        <span className="text-slate-500">•</span>
+                        <span className="text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.2 rounded border border-emerald-500/20 text-[11px]">
+                          Lucro: +{currencySym} {marginNum.toFixed(2).replace('.', ',')}
+                        </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Center: Performance Numbers / Order Fulfillment */}
-                  {activeMainTab === 'vendidos' ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 py-3 px-3.5 rounded-2xl bg-black/40 border border-cyan-500/20 text-center flex-shrink-0 lg:min-w-[360px]">
-                      <div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Pedidos</span>
-                        <span className="text-xs sm:text-sm font-black text-cyan-300 mt-0.5 block">
-                          {camp.salesCount} ped.
-                        </span>
-                      </div>
-
-                      <div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Faturamento</span>
-                        <span className="text-xs sm:text-sm font-black text-[#4ade80] mt-0.5 block">
-                          {formattedRevenue}
-                        </span>
-                      </div>
-
-                      <div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Lucro Líquido</span>
-                        <span className="text-xs sm:text-sm font-black text-emerald-300 mt-0.5 block">
-                          {isUsd ? 'US$' : 'R$'} {((camp.sellerMargin || (typeof camp.price === 'number' ? camp.price * 0.35 : 35)) * (camp.salesCount || 1)).toFixed(2).replace('.', ',')}
-                        </span>
-                      </div>
-
-                      <div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Previsão</span>
-                        <span className={`text-[11px] font-black mt-0.5 block truncate ${shipping.isDelivered ? 'text-[#4ade80]' : 'text-amber-300'}`}>
-                          {shipping.isDelivered ? 'Entregue (7d)' : shipping.estimatedDeliveryDate}
-                        </span>
-                      </div>
+                  {/* Center: 3 Compact Stats */}
+                  <div className="flex items-center gap-5 px-3 py-2 rounded-xl bg-black/40 border border-white/5 shrink-0 justify-between md:justify-start text-xs">
+                    <div>
+                      <span className="text-[9px] text-slate-400 uppercase font-bold block">Views</span>
+                      <span className="font-bold text-white">{(camp.impressions || 0).toLocaleString('pt-BR')}</span>
                     </div>
-                  ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 py-3 px-3.5 rounded-2xl bg-black/40 border border-white/5 text-center flex-shrink-0 lg:min-w-[360px]">
-                      <div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Visualizações</span>
-                        <span className="text-xs sm:text-sm font-black text-white mt-0.5 block">
-                          {camp.impressions.toLocaleString('pt-BR')}
-                        </span>
-                      </div>
-
-                      <div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Cliques</span>
-                        <span className="text-xs sm:text-sm font-black text-white mt-0.5 block">
-                          {camp.clicks.toLocaleString('pt-BR')}
-                        </span>
-                      </div>
-
-                      <div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Vendas IA</span>
-                        <span className="text-xs sm:text-sm font-black text-[#4ade80] mt-0.5 block">
-                          {camp.salesCount} ped.
-                        </span>
-                      </div>
-
-                      <div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Faturamento</span>
-                        <span className="text-xs sm:text-sm font-black text-[#4ade80] mt-0.5 block">
-                          {formattedRevenue}
-                        </span>
-                      </div>
+                    <div>
+                      <span className="text-[9px] text-slate-400 uppercase font-bold block">Cliques</span>
+                      <span className="font-bold text-white">{(camp.clicks || 0).toLocaleString('pt-BR')}</span>
                     </div>
-                  )}
-
-                  {/* Right: Actions */}
-                  <div className="flex items-center gap-2 justify-end flex-wrap flex-shrink-0">
-                    {activeMainTab === 'vendidos' ? (
-                      <>
-                        {/* Tracking / Rastreio Button */}
-                        <button
-                          onClick={() => setTrackingCampaign(camp)}
-                          className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-md cursor-pointer ${
-                            shipping.isDelivered
-                              ? 'bg-[#22c55e] text-black hover:brightness-110 shadow-[#22c55e]/25'
-                              : 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:brightness-110 shadow-cyan-500/25'
-                          }`}
-                          title="Acompanhar transporte e entrega em tempo real (prazo 7 dias)"
-                        >
-                          <Truck size={14} />
-                          <span>{shipping.isDelivered ? 'Entregue (7d)' : 'Rastrear Pedido'}</span>
-                        </button>
-
-                        {/* WhatsApp Notification */}
-                        <button
-                          type="button"
-                          onClick={() => handleSendWhatsAppNotification(camp, shipping)}
-                          className="px-3 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-                          title="Notificar cliente com dados de rastreio no WhatsApp"
-                        >
-                          <MessageCircle size={13} />
-                          <span className="hidden sm:inline">WhatsApp</span>
-                        </button>
-
-                        {/* View Details Modal */}
-                        <button
-                          onClick={() => setSelectedCampaign(camp)}
-                          className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold border border-white/10 transition-all flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <Eye size={13} />
-                          <span>Detalhes</span>
-                        </button>
-
-                        {/* Link Oficial do Anúncio no Marketplace */}
-                        <a
-                          href={camp.marketplaceItemUrl || (camp.channel === 'mercadolivre' ? `https://lista.mercadolivre.com.br/${encodeURIComponent(camp.name.split('(')[0].trim())}` : `https://shopee.com.br/search?keyword=${encodeURIComponent(camp.name.split('(')[0].trim())}`)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-bold border border-white/10 transition-all flex items-center gap-1.5 cursor-pointer"
-                          title={`Abrir anúncio oficial no ${camp.channelLabel || 'Marketplace'}`}
-                        >
-                          <ExternalLink size={13} />
-                          <span>Anúncio</span>
-                        </a>
-                      </>
-                    ) : (
-                      <>
-                        {/* Pause / Resume Button */}
-                        <button
-                          onClick={(e) => handleToggle(camp.id, e)}
-                          className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                            isActive
-                              ? 'bg-amber-400/10 text-amber-300 border border-amber-400/30 hover:bg-amber-400/20'
-                              : 'bg-[#22c55e]/15 text-[#4ade80] border border-[#22c55e]/30 hover:bg-[#22c55e]/25'
-                          }`}
-                          title={isActive ? 'Pausar divulgação' : 'Retomar divulgação'}
-                        >
-                          {isActive ? <Pause size={13} /> : <Play size={13} />}
-                          <span>{isActive ? 'Pausar' : 'Retomar'}</span>
-                        </button>
-
-                        {/* View Details Modal */}
-                        <button
-                          onClick={() => setSelectedCampaign(camp)}
-                          className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold border border-white/10 transition-all flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <Eye size={13} />
-                          <span>Detalhes</span>
-                        </button>
-
-                        {/* Link Oficial do Anúncio no Marketplace */}
-                        <a
-                          href={camp.marketplaceItemUrl || (camp.channel === 'mercadolivre' ? `https://lista.mercadolivre.com.br/${encodeURIComponent(camp.name.split('(')[0].trim())}` : `https://shopee.com.br/search?keyword=${encodeURIComponent(camp.name.split('(')[0].trim())}`)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
-                            camp.channel === 'mercadolivre'
-                              ? 'bg-yellow-500/15 hover:bg-yellow-500/25 text-yellow-300 border-yellow-500/30'
-                              : camp.channel === 'shopee'
-                              ? 'bg-orange-500/15 hover:bg-orange-500/25 text-orange-400 border-orange-500/30'
-                              : 'bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border-cyan-500/30'
-                          }`}
-                          title={`Abrir anúncio oficial no ${camp.channelLabel || 'Marketplace'}`}
-                        >
-                          <ExternalLink size={13} />
-                          <span>{camp.channel === 'mercadolivre' ? 'Ver no ML' : camp.channel === 'shopee' ? 'Ver na Shopee' : 'Ver Anúncio'}</span>
-                        </a>
-
-                        {/* Video IA Shortcut */}
-                        <button
-                          onClick={() => onNavigate('video-ia', { 
-                            id: camp.productId, 
-                            name: camp.name, 
-                            image_url: camp.image_url, 
-                            price: camp.price 
-                          })}
-                          className="px-3 py-2 rounded-xl bg-gradient-to-r from-[#84cc16]/15 to-[#a3e635]/15 text-[#a3e635] border border-[#84cc16]/30 hover:bg-[#84cc16]/25 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-                          title="Criar Vídeo com IA para este produto"
-                        >
-                          <Video size={13} />
-                          <span className="hidden sm:inline">Vídeo IA</span>
-                        </button>
-
-                        {/* Share in Shopee/WhatsApp groups */}
-                        <FindGroupsButton 
-                          productName={camp.name} 
-                          className="px-3 py-2 text-xs"
-                        />
-
-                        {/* Remove */}
-                        <button
-                          onClick={(e) => handleDelete(camp.id, e)}
-                          className="p-2 rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
-                          title="Excluir campanha"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </>
-                    )}
+                    <div>
+                      <span className="text-[9px] text-slate-400 uppercase font-bold block">Vendas</span>
+                      <span className="font-extrabold text-[#4ade80]">{camp.salesCount || 0} ped.</span>
+                    </div>
                   </div>
-                </div>
 
-                {/* Se aba for DIVULGADOS: Mostra aviso sutil de vendas, SEM barra de rastreio logístico */}
-                {activeMainTab === 'divulgados' && camp.salesCount > 0 && (
-                  <div className="w-full pt-3 border-t border-white/5 flex items-center justify-between text-xs flex-wrap gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-[#22c55e] animate-pulse" />
-                      <span className="text-slate-300 font-semibold">
-                        Anúncio com conversão ativa: <strong className="text-emerald-400">{camp.salesCount} pedido(s) vendido(s)</strong>
-                      </span>
-                    </div>
+                  {/* Right: Clean 2-3 Actions */}
+                  <div className="flex items-center gap-2 justify-end shrink-0">
                     <button
-                      type="button"
-                      onClick={() => {
-                        setActiveMainTab('vendidos');
-                        onNavigate('vendidos');
-                      }}
-                      className="px-3 py-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                      onClick={(e) => handleToggle(camp.id, e)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+                        isActive
+                          ? 'bg-amber-400/10 text-amber-300 border-amber-400/25 hover:bg-amber-400/20'
+                          : 'bg-[#22c55e]/15 text-[#4ade80] border-[#22c55e]/30 hover:bg-[#22c55e]/25'
+                      }`}
                     >
-                      <PackageCheck size={13} />
-                      <span>Ver Acompanhamento & Rastreio ({camp.salesCount}) →</span>
+                      {isActive ? <Pause size={12} /> : <Play size={12} />}
+                      <span>{isActive ? 'Pausar' : 'Retomar'}</span>
+                    </button>
+
+                    <a
+                      href={camp.marketplaceItemUrl || `https://shopee.com.br/search?keyword=${encodeURIComponent(camp.name.split('(')[0].trim())}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-bold border border-white/10 transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <ExternalLink size={12} />
+                      <span>Ver Anúncio</span>
+                    </a>
+
+                    <button
+                      onClick={(e) => handleDelete(camp.id, e)}
+                      className="p-1.5 rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                      title="Excluir campanha"
+                    >
+                      <Trash2 size={13} />
                     </button>
                   </div>
-                )}
-
-                {/* Se aba for VENDIDOS: Mostra a Logística Completa de Entrega (Prazo Rigoroso de 7 Dias) */}
-                {activeMainTab === 'vendidos' && (
-                  <div className="w-full pt-3.5 border-t border-white/10 flex flex-col gap-3">
-                    {/* Status row com badges detalhados */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <div className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-sm ${
-                          shipping.isDelivered
-                            ? 'bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/40 shadow-[0_0_10px_rgba(34,197,94,0.2)]'
-                            : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                        }`}>
-                          {shipping.isDelivered ? <CheckCircle2 size={13} className="text-[#22c55e]" /> : <Truck size={13} className="text-cyan-400" />}
-                          <span>{shipping.isDelivered ? '✅ ENTREGUE AO CLIENTE (7 DIAS CUMPRIDOS)' : `🚚 ${shipping.statusLabel.toUpperCase()}`}</span>
-                        </div>
-
-                        <div className="flex items-center gap-1.5 text-[11px] text-slate-300 font-mono bg-white/5 px-2 py-0.5 rounded-md border border-white/5">
-                          <span className="text-slate-500">Rastreio:</span>
-                          <strong className="text-white">{shipping.trackingCode}</strong>
-                        </div>
-
-                        <span className="text-[11px] text-slate-400">
-                          • Destino: <strong className="text-slate-200">{shipping.recipientCity}</strong>
-                        </span>
-
-                        <span className="text-[11px] text-slate-500 hidden md:inline">
-                          • {shipping.carrier}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2.5 self-start sm:self-auto">
-                        <span className="text-[11px] text-slate-400 font-medium">
-                          {shipping.isDelivered ? (
-                            <span className="text-[#4ade80] font-bold">Entrega pontual confirmada</span>
-                          ) : (
-                            <span>Previsão: <strong className="text-amber-300">{shipping.estimatedDeliveryDate}</strong> ({shipping.daysRemaining} {shipping.daysRemaining === 1 ? 'dia restante' : 'dias restantes'})</span>
-                          )}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setTrackingCampaign(camp)}
-                          className="px-2.5 py-1 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <span>Ver Rota</span>
-                          <Navigation size={11} />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Visual 5-Checkpoints Progress Tracker */}
-                    <div className="relative pt-1 pb-1">
-                      <div className="w-full h-2 rounded-full bg-black/60 border border-white/10 overflow-hidden relative">
-                        <div 
-                          className={`h-full rounded-full transition-all duration-700 ${
-                            shipping.isDelivered 
-                              ? 'bg-gradient-to-r from-emerald-500 via-green-400 to-[#22c55e] shadow-[0_0_12px_rgba(34,197,94,0.6)]' 
-                              : 'bg-gradient-to-r from-indigo-500 via-cyan-400 to-[#22c55e] shadow-[0_0_12px_rgba(6,182,212,0.5)]'
-                          }`}
-                          style={{ width: `${shipping.progressPercentage}%` }}
-                        />
-                      </div>
-
-                      {/* 5 checkpoints labels */}
-                      <div className="grid grid-cols-5 text-[10px] text-slate-400 font-medium mt-1.5 px-0.5">
-                        <div className={`text-left flex items-center gap-1 ${shipping.steps[0].isCompleted ? 'text-[#4ade80] font-bold' : ''}`}>
-                          <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                          <span className="truncate">1. Pedido</span>
-                        </div>
-                        <div className={`text-center flex items-center justify-center gap-1 ${shipping.steps[1].isCompleted ? 'text-[#4ade80] font-bold' : ''}`}>
-                          <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                          <span className="truncate">2. Despacho</span>
-                        </div>
-                        <div className={`text-center flex items-center justify-center gap-1 ${shipping.steps[2].isCompleted ? 'text-[#4ade80] font-bold' : ''}`}>
-                          <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                          <span className="truncate">3. Em Rota</span>
-                        </div>
-                        <div className={`text-center flex items-center justify-center gap-1 ${shipping.steps[3].isCompleted ? 'text-[#4ade80] font-bold' : ''}`}>
-                          <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                          <span className="truncate">4. Rota Local</span>
-                        </div>
-                        <div className={`text-right flex items-center justify-end gap-1 ${shipping.steps[4].isCompleted ? 'text-[#4ade80] font-black' : ''}`}>
-                          <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                          <span className="truncate">5. Entregue (7d)</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Campaign Details Modal */}
+                </div>
+              );
+            })}
+          </div>
+        )
+      )}{/* Campaign Details Modal */}
       {selectedCampaign && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
           <div className="relative w-full max-w-lg bg-[#0d121f] border border-white/10 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-2xl space-y-4 max-h-[88vh] overflow-y-auto">
@@ -1354,8 +1177,16 @@ export default function DivulgadosView({ onNavigate, initialTab = 'divulgados' }
       )}
 
       {/* MODAL PREMIUM DE RASTREAMENTO LOGÍSTICO EM TEMPO REAL (PRAZO DE 7 DIAS) */}
-      {trackingCampaign && (() => {
-        const shipping = getCampaignShippingInfo(trackingCampaign);
+      {(trackingModalData || trackingCampaign) && (() => {
+        const activeModalInfo = trackingModalData || (trackingCampaign ? {
+          shipping: getCampaignShippingInfo(trackingCampaign),
+          name: activeModalInfo.name,
+          image_url: activeModalInfo.image_url,
+          price: activeModalInfo.price,
+          orderId: undefined
+        } : null);
+        if (!activeModalInfo) return null;
+        const shipping = activeModalInfo.shipping;
         const isUsd = shipping.currency === 'USD';
 
         return (
@@ -1393,7 +1224,7 @@ export default function DivulgadosView({ onNavigate, initialTab = 'divulgados' }
                 </div>
 
                 <button
-                  onClick={() => setTrackingCampaign(null)}
+                  onClick={() => { setTrackingCampaign(null); setTrackingModalData(null); }}
                   className="p-2 text-slate-400 hover:text-white rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
                 >
                   <X size={20} />
@@ -1404,8 +1235,8 @@ export default function DivulgadosView({ onNavigate, initialTab = 'divulgados' }
               <div className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-white/[0.03] border border-white/10">
                 <div className="w-14 h-14 rounded-xl overflow-hidden bg-black/40 border border-white/10 shrink-0">
                   <SafeImage
-                    src={trackingCampaign.image_url}
-                    alt={trackingCampaign.name}
+                    src={activeModalInfo.image_url}
+                    alt={activeModalInfo.name}
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -1419,13 +1250,13 @@ export default function DivulgadosView({ onNavigate, initialTab = 'divulgados' }
                     </span>
                   </div>
                   <h4 className="text-xs sm:text-sm font-bold text-white truncate">
-                    {trackingCampaign.name}
+                    {activeModalInfo.name}
                   </h4>
                   <div className="flex items-center gap-3 mt-0.5 text-xs">
                     <span className="text-[#4ade80] font-black">
                       {isUsd 
-                        ? (typeof trackingCampaign.price === 'string' ? trackingCampaign.price : `US$ ${trackingCampaign.price?.toFixed(2)}`)
-                        : (typeof trackingCampaign.price === 'string' ? trackingCampaign.price : `R$ ${trackingCampaign.price?.toFixed(2)}`)}
+                        ? (typeof activeModalInfo.price === 'string' ? activeModalInfo.price : `US$ ${activeModalInfo.price?.toFixed(2)}`)
+                        : (typeof activeModalInfo.price === 'string' ? activeModalInfo.price : `R$ ${activeModalInfo.price?.toFixed(2)}`)}
                     </span>
                     <span className="text-slate-400">• Destinatário: <strong className="text-slate-200">{shipping.recipientName}</strong></span>
                   </div>
@@ -1686,7 +1517,7 @@ export default function DivulgadosView({ onNavigate, initialTab = 'divulgados' }
 
                 <button
                   type="button"
-                  onClick={() => setTrackingCampaign(null)}
+                  onClick={() => { setTrackingCampaign(null); setTrackingModalData(null); }}
                   className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#22c55e] text-black font-black text-xs uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all cursor-pointer"
                 >
                   Fechar Rastreamento
