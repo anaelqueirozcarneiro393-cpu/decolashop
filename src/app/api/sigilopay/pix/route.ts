@@ -82,7 +82,7 @@ export async function POST(req: Request) {
     }
 
     // Validação estrita de preço mínimo legítimo (Proteção contra adulteração de valor no frontend)
-    let minExpectedTotal = 15.00;
+    let minExpectedTotal = 9.00;
     if (plan === 'lifetime') {
       minExpectedTotal = 179.90; // Mínimo autorizado para plano vitalício
     } else if (plan === 'monthly') {
@@ -91,6 +91,12 @@ export async function POST(req: Request) {
       minExpectedTotal = 25.00; // Mínimo para compra isolada de ferramenta
     } else if (plan === 'taxa_antecipacao') {
       minExpectedTotal = 15.00;
+    } else if (plan === 'pack_basico') {
+      minExpectedTotal = 9.00;
+    } else if (plan === 'pack_turbo') {
+      minExpectedTotal = 19.00;
+    } else if (plan === 'pack_imperio') {
+      minExpectedTotal = 39.00;
     }
 
     if (numTotal < minExpectedTotal) {

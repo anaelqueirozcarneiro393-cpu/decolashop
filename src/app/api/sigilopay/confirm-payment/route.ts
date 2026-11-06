@@ -127,7 +127,7 @@ export async function POST(req: Request) {
     // TRATAMENTO EXCLUSIVO DE RECARGA DE CRÉDITOS IA:
     // Trava rigorosa: só credita se comprovadamente pago na SigiloPay com valor real e sem replay attack
     if (isCreditsRecharge) {
-      const minAmount = effectivePlan === 'pack_imperio' ? 70 : effectivePlan === 'pack_turbo' ? 35 : 18;
+      const minAmount = effectivePlan === 'pack_imperio' ? 35 : effectivePlan === 'pack_turbo' ? 18 : 9;
 
       if (paidAmount > 0 && paidAmount < minAmount) {
         console.warn(`[SECURITY ALERT] Valor pago na SigiloPay insuficiente para créditos ${effectivePlan}: R$ ${paidAmount}`);
@@ -166,9 +166,9 @@ export async function POST(req: Request) {
         console.error('Erro ao registrar token de crédito:', err);
       }
 
-      let creditsToAdd = 50;
-      if (effectivePlan === 'pack_turbo') creditsToAdd = 175;
-      else if (effectivePlan === 'pack_imperio') creditsToAdd = 600;
+      let creditsToAdd = 40;
+      if (effectivePlan === 'pack_turbo') creditsToAdd = 120;
+      else if (effectivePlan === 'pack_imperio') creditsToAdd = 350;
 
       console.log(`[SigiloPay Confirm] ✅ Recarga de créditos aprovada para ${cleanEmail}: +${creditsToAdd} créditos (R$ ${paidAmount || rawBody.total}).`);
 
