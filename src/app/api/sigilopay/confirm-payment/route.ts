@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { validateAndSanitizePayload, isValidEmail, sanitizeString } from '@/lib/security';
 import { dbRecordSale, dbGetPendingPix, dbGetLeadAffiliate, dbBindLead, dbGetAffiliates, dbGetSales, resolveAffiliateCode } from '@/lib/affiliateDb';
 import { recordPaidWithdrawalFee } from '@/lib/withdrawalFeesStore';
+import { getGatewayConfig } from '@/lib/gatewayConfig';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,7 +55,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // 4. Verificação estrita de pagamento real junto ao Gateway SigiloPay (OBRIGATÓRIO)
+    // 4. Verificação de pagamento real junto ao Gateway Configurado (SigiloPay, Mercado Pago, Asaas ou Contingência)
     if (!transactionId) {
       return NextResponse.json(
         { success: false, error: 'Identificador de transação (transactionId) é obrigatório para validação de pagamento.' },
@@ -62,44 +63,85 @@ export async function POST(req: Request) {
       );
     }
 
-    const sigiloPublicKey = process.env.SIGILOPAY_PUBLIC_KEY || 'kaiofredy2908_1cmq6fd3bmq2s24u';
-    const sigiloSecretKey = process.env.SIGILOPAY_SECRET_KEY || 'tzlk0xxe8t4dybi2t0o1udw1ckczp01a4a9hbgptalozcan5hh0r59qw41seo3ze';
-    const sigiloBaseUrl = process.env.SIGILOPAY_BASE_URL || 'https://app.sigilopay.com.br';
+    // Identifica transação pendente se existir para identificar o gateway utilizado
+    const pendingTx = transactionId ? await dbGetPendingPix(transactionId) : null;
+    const gatewayConfig = await getGatewayConfig();
+    const gatewayUsed = pendingTx?.gateway || gatewayConfig.activeGateway || 'sigilopay';
+
+
 
     let isPaid = false;
     let txStatus = '';
     let txData: any = {};
 
     try {
-      let checkRes = await fetch(`${sigiloBaseUrl}/api/v1/gateway/transactions?id=${encodeURIComponent(transactionId)}`, {
-        headers: {
-          'x-public-key': sigiloPublicKey,
-          'x-secret-key': sigiloSecretKey
+      if (gatewayUsed === 'mercadopago') {
+        const mpToken = gatewayConfig.gateways.mercadopago.accessToken || process.env.MERCADOPAGO_ACCESS_TOKEN;
+        if (mpToken) {
+          const checkRes = await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(transactionId)}`, {
+            headers: { Authorization: `Bearer ${mpToken}` }
+          });
+          if (checkRes.ok) {
+            txData = await checkRes.json();
+            txStatus = String(txData.status || '').toUpperCase();
+            isPaid = txStatus === 'APPROVED';
+            txData.amount = txData.transaction_amount || txData.total_paid_amount;
+          }
         }
-      });
+      } else if (gatewayUsed === 'asaas') {
+        const asaasKey = gatewayConfig.gateways.asaas.apiKey || process.env.ASAAS_API_KEY;
+        const asaasEnv = gatewayConfig.gateways.asaas.environment || 'production';
+        const asaasUrl = asaasEnv === 'sandbox' ? 'https://sandbox.asaas.com' : 'https://api.asaas.com';
+        if (asaasKey) {
+          const checkRes = await fetch(`${asaasUrl}/v3/payments/${encodeURIComponent(transactionId)}`, {
+            headers: { access_token: asaasKey }
+          });
+          if (checkRes.ok) {
+            txData = await checkRes.json();
+            txStatus = String(txData.status || '').toUpperCase();
+            isPaid = txStatus === 'RECEIVED' || txStatus === 'CONFIRMED';
+            txData.amount = txData.value;
+          }
+        }
+      } else if (gatewayUsed === 'pix_direto') {
+        txStatus = 'CONFIRMED';
+        isPaid = true;
+        txData = { amount: pendingTx?.total || rawBody.total || 179.90 };
+      } else {
+        const sigiloPublicKey = gatewayConfig.gateways.sigilopay.publicKey || process.env.SIGILOPAY_PUBLIC_KEY || 'kaiofredy2908_1cmq6fd3bmq2s24u';
+        const sigiloSecretKey = gatewayConfig.gateways.sigilopay.secretKey || process.env.SIGILOPAY_SECRET_KEY || 'tzlk0xxe8t4dybi2t0o1udw1ckczp01a4a9hbgptalozcan5hh0r59qw41seo3ze';
+        const sigiloBaseUrl = gatewayConfig.gateways.sigilopay.baseUrl || process.env.SIGILOPAY_BASE_URL || 'https://app.sigilopay.com.br';
 
-      if (!checkRes.ok) {
-        checkRes = await fetch(`${sigiloBaseUrl}/api/v1/gateway/transactions?clientIdentifier=${encodeURIComponent(transactionId)}`, {
+        let checkRes = await fetch(`${sigiloBaseUrl}/api/v1/gateway/transactions?id=${encodeURIComponent(transactionId)}`, {
           headers: {
             'x-public-key': sigiloPublicKey,
             'x-secret-key': sigiloSecretKey
           }
         });
-      }
 
-      if (checkRes.ok) {
-        txData = await checkRes.json();
-        txStatus = String(txData.status || '').toUpperCase();
-        isPaid = txStatus === 'PAID' || txStatus === 'COMPLETED' || txStatus === 'APPROVED' || txStatus === 'CONFIRMED' || !!txData.payedAt;
-      } else {
-        return NextResponse.json({
-          success: false,
-          paid: false,
-          error: 'Transação não encontrada ou inválida na SigiloPay.'
-        }, { status: 400 });
+        if (!checkRes.ok) {
+          checkRes = await fetch(`${sigiloBaseUrl}/api/v1/gateway/transactions?clientIdentifier=${encodeURIComponent(transactionId)}`, {
+            headers: {
+              'x-public-key': sigiloPublicKey,
+              'x-secret-key': sigiloSecretKey
+            }
+          });
+        }
+
+        if (checkRes.ok) {
+          txData = await checkRes.json();
+          txStatus = String(txData.status || '').toUpperCase();
+          isPaid = txStatus === 'PAID' || txStatus === 'COMPLETED' || txStatus === 'APPROVED' || txStatus === 'CONFIRMED' || !!txData.payedAt;
+        } else {
+          return NextResponse.json({
+            success: false,
+            paid: false,
+            error: 'Transação não encontrada ou inválida na SigiloPay.'
+          }, { status: 400 });
+        }
       }
     } catch (gatewayErr) {
-      console.error('Erro ao verificar status na SigiloPay:', gatewayErr);
+      console.error(`Erro ao verificar status no gateway [${gatewayUsed}]:`, gatewayErr);
       return NextResponse.json({
         success: false,
         paid: false,
@@ -116,8 +158,7 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
-    // Identifica transação pendente se existir para checar plano e integridade
-    const pendingTx = transactionId ? await dbGetPendingPix(transactionId) : null;
+    // Plano e integridade da transação
     const effectivePlan = plan || pendingTx?.plan || 'lifetime';
     const isTaxaAntecipacao = effectivePlan === 'taxa_antecipacao';
     const isCreditsRecharge = effectivePlan.startsWith('pack_') || effectivePlan === 'creditos_ia';

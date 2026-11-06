@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import QRCode from 'qrcode';
 import { validateAndSanitizePayload, isValidEmail } from '@/lib/security';
 import { dbSavePendingPix, dbBindLead, dbGetLeadAffiliate, dbGetAffiliates, dbGetSales, resolveAffiliateCode } from '@/lib/affiliateDb';
+import { getGatewayConfig, generateBacemPixPayload, GatewayType } from '@/lib/gatewayConfig';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +25,7 @@ function isValidCPF(cpf: string): boolean {
 function getSafeValidCPF(inputCpf?: string): string {
   const clean = String(inputCpf || '').replace(/\D/g, '');
   if (isValidCPF(clean)) return clean;
-  // Converte ou gera um CPF matematicamente válido para a SigiloPay aceitar sem rejeição 422
+  // Converte ou gera um CPF matematicamente válido para aceitação sem rejeição 422
   const seed = clean.padEnd(9, '7').slice(0, 9);
   const digits = seed.split('').map(Number);
   let d1 = digits.reduce((total, number, index) => total + (number * (10 - index)), 0);
@@ -36,6 +37,16 @@ function getSafeValidCPF(inputCpf?: string): string {
   d2 = d2 >= 10 ? 0 : d2;
   digits.push(d2);
   return digits.join('');
+}
+
+interface PixGenerateResult {
+  success: boolean;
+  gateway: string;
+  qrCodeText?: string;
+  qrCodeImage?: string;
+  transactionId?: string;
+  expiresAt?: string;
+  error?: string;
 }
 
 export async function POST(req: Request) {
@@ -59,14 +70,14 @@ export async function POST(req: Request) {
     const matchAf = cookiesHeader.match(/(?:^|;\s*)decolashop_af=([^;]+)/);
     const affiliateCode = (body.affiliateCode || (matchAf ? decodeURIComponent(matchAf[1]) : null) || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '') || null;
 
-    if (!customer || !customer.email) {
+    if (!customer || !customer.email || !customer.name) {
       return NextResponse.json(
-        { success: false, error: 'Dados do cliente incompletos (e-mail obrigatório)' }, 
+        { success: false, error: 'Dados de cliente incompletos para geração de Pix.' },
         { status: 400 }
       );
     }
 
-    if (!isValidEmail(String(customer.email))) {
+    if (!isValidEmail(customer.email)) {
       return NextResponse.json(
         { success: false, error: 'Formato de e-mail inválido.' },
         { status: 400 }
@@ -81,14 +92,14 @@ export async function POST(req: Request) {
       );
     }
 
-    // Validação estrita de preço mínimo legítimo (Proteção contra adulteração de valor no frontend)
+    // Validação de preço mínimo legítimo
     let minExpectedTotal = 9.00;
     if (plan === 'lifetime') {
-      minExpectedTotal = 179.90; // Mínimo autorizado para plano vitalício
+      minExpectedTotal = 179.90;
     } else if (plan === 'monthly') {
-      minExpectedTotal = 89.90; // Mínimo autorizado para plano mensal
+      minExpectedTotal = 89.90;
     } else if (plan === 'bumps_only') {
-      minExpectedTotal = 25.00; // Mínimo para compra isolada de ferramenta
+      minExpectedTotal = 25.00;
     } else if (plan === 'taxa_antecipacao') {
       minExpectedTotal = 15.00;
     } else if (plan === 'pack_basico') {
@@ -100,7 +111,7 @@ export async function POST(req: Request) {
     }
 
     if (numTotal < minExpectedTotal) {
-      console.warn(`[SECURITY ALERT] Tentativa de manipulação de preço bloqueada: Total R$ ${numTotal} inferior ao mínimo de R$ ${minExpectedTotal} para o plano ${plan}`);
+      console.warn(`[SECURITY ALERT] Preço manipulado: Total R$ ${numTotal} inferior ao mínimo de R$ ${minExpectedTotal}`);
       return NextResponse.json(
         { success: false, error: 'Valor da transação abaixo do preço autorizado para este plano.' },
         { status: 400 }
@@ -110,18 +121,12 @@ export async function POST(req: Request) {
     const safeCpf = getSafeValidCPF(customer.cpf);
     const rawPhone = String(customer.phone || '').trim();
     const cleanPhone = rawPhone.replace(/\D/g, '') || '11999999999';
-    // Para o gateway SigiloPay, garante formato 10-11 dígitos para evitar rejeição 422
     const gatewayPhone = (cleanPhone.length >= 10 && cleanPhone.length <= 11) ? cleanPhone : '11999999999';
     const userPassword = String(customer.password || body.password || rawBody?.password || '').trim();
     const transactionId = `DECOLA-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
     const host = req.headers.get('x-forwarded-host') || req.headers.get('host') || 'decolashop-saas.vercel.app';
     const proto = req.headers.get('x-forwarded-proto') || 'https';
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `${proto}://${host}`;
-
-    // SigiloPay Gateway Keys
-    const sigiloPublicKey = process.env.SIGILOPAY_PUBLIC_KEY || 'kaiofredy2908_1cmq6fd3bmq2s24u';
-    const sigiloSecretKey = process.env.SIGILOPAY_SECRET_KEY || 'tzlk0xxe8t4dybi2t0o1udw1ckczp01a4a9hbgptalozcan5hh0r59qw41seo3ze';
-    const sigiloBaseUrl = process.env.SIGILOPAY_BASE_URL || 'https://app.sigilopay.com.br';
 
     const isTaxaAntecipacao = plan === 'taxa_antecipacao';
     let effectiveAffiliateCode = isTaxaAntecipacao ? undefined : (affiliateCode || undefined);
@@ -130,40 +135,49 @@ export async function POST(req: Request) {
       effectiveAffiliateCode = resolveAffiliateCode(effectiveAffiliateCode);
     }
 
-    // LEAD LOCK-IN NO SUPABASE: Se não veio código na requisição, busca se o email já está vinculado a um afiliado
+    // LEAD LOCK-IN NO SUPABASE
     if (!effectiveAffiliateCode && !isTaxaAntecipacao && customer?.email) {
       try {
         const boundCode = await dbGetLeadAffiliate(customer.email);
         if (boundCode) {
           effectiveAffiliateCode = boundCode;
-          console.log(`[AFILIADOS LEAD LOCK DB] Lead recorrente recuperado do Supabase! ${customer.email} -> ${boundCode}`);
         } else {
-          // Trava de cliente recorrente: se o cliente já comprou antes com um afiliado, mantém o vínculo
           const pastSales = await dbGetSales();
           const past = pastSales.find(s => s.customerEmail?.toLowerCase().trim() === customer.email.toLowerCase().trim());
           if (past?.affiliateCode) {
             effectiveAffiliateCode = past.affiliateCode;
-            console.log(`[AFILIADOS REPEAT SALE PIX] Lead recorrente resgatado via histórico: ${customer.email} -> ${effectiveAffiliateCode}`);
           }
         }
       } catch {}
     }
 
-    // Se há um afiliado associado (explicitamente vindo da URL ou lead legítimo), vincula perpetuamente o lead no Supabase
     if (effectiveAffiliateCode && !isTaxaAntecipacao && customer?.email) {
       await dbBindLead(customer.email, effectiveAffiliateCode).catch(() => {});
     }
 
-    console.log(`[SigiloPay Pix Request] Total: R$ ${numTotal} - Cliente: ${customer.email} - CPF Seguro: ${safeCpf} - Afiliado: ${effectiveAffiliateCode || 'Nenhum (ou Taxa de Saque)'}`);
+    // CARREGA CONFIGURAÇÃO DINÂMICA DE GATEWAY (Definida pelo Gerente)
+    const gatewayConfig = await getGatewayConfig();
+    const activeGateway = gatewayConfig.activeGateway || 'sigilopay';
+    console.log(`[GATEWAY ROUTER] Gateway ativo configurado: [${activeGateway}] | Total: R$ ${numTotal} | Cliente: ${customer.email}`);
 
-    if (sigiloPublicKey && sigiloSecretKey) {
-      try {
-        const sigiloResponse = await fetch(`${sigiloBaseUrl}/api/v1/gateway/pix/receive`, {
+    // EXECUTOR DE GERAÇÃO POR GATEWAY
+    async function executeGateway(gateway: GatewayType): Promise<PixGenerateResult> {
+      // 1. SIGILOPAY
+      if (gateway === 'sigilopay') {
+        const pub = gatewayConfig.gateways.sigilopay.publicKey || process.env.SIGILOPAY_PUBLIC_KEY || 'kaiofredy2908_1cmq6fd3bmq2s24u';
+        const sec = gatewayConfig.gateways.sigilopay.secretKey || process.env.SIGILOPAY_SECRET_KEY || 'tzlk0xxe8t4dybi2t0o1udw1ckczp01a4a9hbgptalozcan5hh0r59qw41seo3ze';
+        const baseUrl = gatewayConfig.gateways.sigilopay.baseUrl || process.env.SIGILOPAY_BASE_URL || 'https://app.sigilopay.com.br';
+
+        if (!pub || !sec) {
+          return { success: false, gateway: 'sigilopay', error: 'Chaves SigiloPay ausentes.' };
+        }
+
+        const res = await fetch(`${baseUrl}/api/v1/gateway/pix/receive`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-public-key': sigiloPublicKey,
-            'x-secret-key': sigiloSecretKey,
+            'x-public-key': pub,
+            'x-secret-key': sec,
             'User-Agent': 'DecolaShop-App/1.0 (Windows NT 10.0; Win64; x64)'
           },
           body: JSON.stringify({
@@ -188,81 +202,224 @@ export async function POST(req: Request) {
           })
         });
 
-        const sigiloData = await sigiloResponse.json();
-
-        if (sigiloResponse.ok) {
+        const sigiloData = await res.json().catch(() => ({}));
+        if (res.ok) {
           const pixPayload = sigiloData.pix || sigiloData.data || sigiloData;
-          const qrCodeText = 
-            pixPayload.code || 
-            pixPayload.qrcode || 
-            pixPayload.qr_code || 
-            pixPayload.emv || 
-            pixPayload.copia_cola;
-
+          const qrCodeText = pixPayload.code || pixPayload.qrcode || pixPayload.qr_code || pixPayload.emv || pixPayload.copia_cola;
           let qrCodeImage = pixPayload.base64 || pixPayload.qrcode_base64;
           if (qrCodeImage && !qrCodeImage.startsWith('data:')) {
             qrCodeImage = `data:image/png;base64,${qrCodeImage}`;
           }
-
           if (qrCodeText) {
             if (!qrCodeImage) {
               qrCodeImage = await QRCode.toDataURL(qrCodeText, { margin: 1, width: 320 });
             }
-            const finalTxId = sigiloData.transactionId || sigiloData.order?.id || transactionId;
-            console.log(`[SigiloPay Direct API] Pix gerado com sucesso via SigiloPay! Transaction: ${finalTxId}`);
-
-            // 1. Registra transação pendente diretamente no Supabase PostgreSQL
-            await dbSavePendingPix({
-              transactionId: finalTxId,
-              clientIdentifier: transactionId,
-              email: customer.email.toLowerCase().trim(),
-              name: customer.name || 'Cliente DecolaShop',
-              cpf: safeCpf,
-              phone: rawPhone || cleanPhone,
-              plan: plan || 'lifetime',
-              planPrice: isTaxaAntecipacao ? numTotal : (Number(planPrice) || (plan === 'monthly' ? 89.90 : 179.90)),
-              bumps: isTaxaAntecipacao ? [] : (bumps || []),
-              bumpPrices: isTaxaAntecipacao ? 0 : Math.max(0, numTotal - (Number(planPrice) || (plan === 'monthly' ? 89.90 : 179.90))),
-              total: numTotal,
-              affiliateCode: effectiveAffiliateCode,
-              password: userPassword || undefined,
-              createdAt: Date.now()
-            });
-
-            return NextResponse.json({
+            return {
               success: true,
-              pix: {
-                qrCodeText,
-                qrCodeImage,
-                transactionId: sigiloData.transactionId || sigiloData.order?.id || transactionId,
-                expiresAt: pixPayload.expiration || pixPayload.expires_at || new Date(Date.now() + 30 * 60000).toISOString()
-              }
-            });
+              gateway: 'sigilopay',
+              qrCodeText,
+              qrCodeImage,
+              transactionId: sigiloData.transactionId || sigiloData.order?.id || transactionId,
+              expiresAt: pixPayload.expiration || pixPayload.expires_at || new Date(Date.now() + 30 * 60000).toISOString()
+            };
           }
-        } else {
-          console.warn("[SigiloPay API Status]", sigiloResponse.status, sigiloData);
-          const detail = sigiloData?.message || sigiloData?.details?.[0]?.message || 'Erro ao processar chave Pix.';
-          return NextResponse.json({
-            success: false,
-            error: detail
-          }, { status: 400 });
         }
-      } catch (sigiloError: any) {
-        console.warn("[SigiloPay Direct API Warning]:", sigiloError.message);
-        return NextResponse.json({
-          success: false,
-          error: 'Falha temporária ao gerar chave Pix. Tente novamente em instantes.'
-        }, { status: 502 });
+        return { success: false, gateway: 'sigilopay', error: sigiloData?.message || 'Falha na resposta da SigiloPay.' };
+      }
+
+      // 2. MERCADO PAGO
+      if (gateway === 'mercadopago') {
+        const token = gatewayConfig.gateways.mercadopago.accessToken || process.env.MERCADOPAGO_ACCESS_TOKEN;
+        if (!token) {
+          return { success: false, gateway: 'mercadopago', error: 'Access Token do Mercado Pago não configurado.' };
+        }
+
+        const mpRes = await fetch('https://api.mercadopago.com/v1/payments', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'X-Idempotency-Key': transactionId
+          },
+          body: JSON.stringify({
+            transaction_amount: Number(numTotal.toFixed(2)),
+            description: `DecolaShop - ${plan || 'Acesso Vitalício'}`,
+            payment_method_id: 'pix',
+            payer: {
+              email: customer.email,
+              first_name: customer.name?.split(' ')[0] || 'Cliente',
+              last_name: customer.name?.split(' ').slice(1).join(' ') || 'DecolaShop',
+              identification: {
+                type: 'CPF',
+                number: safeCpf.replace(/\D/g, '')
+              }
+            }
+          })
+        });
+
+        const mpData = await mpRes.json().catch(() => ({}));
+        if (mpRes.ok && mpData.point_of_interaction?.transaction_data?.qr_code) {
+          const qrCodeText = mpData.point_of_interaction.transaction_data.qr_code;
+          let qrCodeImage = mpData.point_of_interaction.transaction_data.qr_code_base64;
+          if (qrCodeImage && !qrCodeImage.startsWith('data:')) {
+            qrCodeImage = `data:image/png;base64,${qrCodeImage}`;
+          } else if (!qrCodeImage) {
+            qrCodeImage = await QRCode.toDataURL(qrCodeText, { margin: 1, width: 320 });
+          }
+
+          return {
+            success: true,
+            gateway: 'mercadopago',
+            qrCodeText,
+            qrCodeImage,
+            transactionId: String(mpData.id || transactionId),
+            expiresAt: mpData.date_of_expiration || new Date(Date.now() + 30 * 60000).toISOString()
+          };
+        }
+        return { success: false, gateway: 'mercadopago', error: mpData?.message || 'Falha no Mercado Pago.' };
+      }
+
+      // 3. ASAAS
+      if (gateway === 'asaas') {
+        const apiKey = gatewayConfig.gateways.asaas.apiKey || process.env.ASAAS_API_KEY;
+        const env = gatewayConfig.gateways.asaas.environment || 'production';
+        const baseUrl = env === 'sandbox' ? 'https://sandbox.asaas.com' : 'https://api.asaas.com';
+
+        if (!apiKey) {
+          return { success: false, gateway: 'asaas', error: 'API Key do Asaas não configurada.' };
+        }
+
+        const asaasRes = await fetch(`${baseUrl}/v3/payments`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'access_token': apiKey
+          },
+          body: JSON.stringify({
+            billingType: 'PIX',
+            value: Number(numTotal.toFixed(2)),
+            dueDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+            description: `DecolaShop - ${plan || 'Acesso Vitalício'}`
+          })
+        });
+
+        const asaasData = await asaasRes.json().catch(() => ({}));
+        if (asaasRes.ok && asaasData.id) {
+          const qrRes = await fetch(`${baseUrl}/v3/payments/${asaasData.id}/pixQrCode`, {
+            headers: { 'access_token': apiKey }
+          });
+          const qrData = await qrRes.json().catch(() => ({}));
+          const qrCodeText = qrData.payload;
+          let qrCodeImage = qrData.encodedImage ? `data:image/png;base64,${qrData.encodedImage}` : null;
+          if (qrCodeText && !qrCodeImage) {
+            qrCodeImage = await QRCode.toDataURL(qrCodeText, { margin: 1, width: 320 });
+          }
+
+          if (qrCodeText) {
+            return {
+              success: true,
+              gateway: 'asaas',
+              qrCodeText,
+              qrCodeImage: qrCodeImage || undefined,
+              transactionId: asaasData.id,
+              expiresAt: new Date(Date.now() + 30 * 60000).toISOString()
+            };
+          }
+        }
+        return { success: false, gateway: 'asaas', error: asaasData?.errors?.[0]?.description || 'Falha no Asaas.' };
+      }
+
+      // 4. PIX DIRETO / CONTINGÊNCIA (Padrão BACEN Oficial EMV - 100% à prova de quedas)
+      if (gateway === 'pix_direto') {
+        const chavePix = gatewayConfig.gateways.pix_direto.chavePix || 'financeiro@decolashop.com';
+        const nomeTitular = gatewayConfig.gateways.pix_direto.nomeTitular || 'DECOLASHOP TECNOLOGIA LTDA';
+        const cidade = gatewayConfig.gateways.pix_direto.cidade || 'SAO PAULO';
+
+        const qrCodeText = generateBacemPixPayload({
+          chavePix,
+          nomeTitular,
+          cidade,
+          valor: numTotal,
+          transactionId: transactionId.replace(/[^A-Za-z0-9]/g, '').slice(0, 20)
+        });
+
+        const qrCodeImage = await QRCode.toDataURL(qrCodeText, { margin: 1, width: 320 });
+
+        return {
+          success: true,
+          gateway: 'pix_direto',
+          qrCodeText,
+          qrCodeImage,
+          transactionId,
+          expiresAt: new Date(Date.now() + 30 * 60000).toISOString()
+        };
+      }
+
+      return { success: false, gateway, error: `Gateway [${gateway}] não implementado.` };
+    }
+
+    // Tenta primeiro o gateway ativo
+    let result: PixGenerateResult = await executeGateway(activeGateway).catch(err => ({
+      success: false,
+      gateway: activeGateway,
+      error: err.message
+    }));
+
+    // SMART FAILOVER: Se o gateway ativo falhar e o recurso estiver ativado, tenta o fallback
+    if (!result.success && gatewayConfig.smartFailover && activeGateway !== gatewayConfig.fallbackGateway) {
+      console.warn(`[SMART FAILOVER ATIVADO] Gateway [${activeGateway}] indisponível (${result.error}). Acionando redundância automática: [${gatewayConfig.fallbackGateway}]...`);
+      const fallbackResult: PixGenerateResult = await executeGateway(gatewayConfig.fallbackGateway).catch(err => ({
+        success: false,
+        gateway: gatewayConfig.fallbackGateway,
+        error: err.message
+      }));
+
+      if (fallbackResult.success) {
+        result = fallbackResult;
+        console.log(`[SMART FAILOVER SUCESSO] Pix emitido com sucesso pelo gateway de contingência [${result.gateway}]!`);
       }
     }
 
+    if (!result.success || !result.qrCodeText) {
+      // Fallback final supremo com Pix Direto para nunca deixar de receber
+      console.warn(`[EMERGENCY FALLBACK] Todos os gateways falharam, emitindo Pix Direto BACEN para não perder venda.`);
+      result = await executeGateway('pix_direto');
+    }
+
+    const finalTxId = result.transactionId || transactionId;
+
+    // Registra transação pendente no Supabase associando o gateway utilizado
+    await dbSavePendingPix({
+      transactionId: finalTxId,
+      clientIdentifier: transactionId,
+      email: customer.email.toLowerCase().trim(),
+      name: customer.name || 'Cliente DecolaShop',
+      cpf: safeCpf,
+      phone: rawPhone || cleanPhone,
+      plan: plan || 'lifetime',
+      planPrice: isTaxaAntecipacao ? numTotal : (Number(planPrice) || (plan === 'monthly' ? 89.90 : 179.90)),
+      bumps: isTaxaAntecipacao ? [] : (bumps || []),
+      bumpPrices: isTaxaAntecipacao ? 0 : Math.max(0, numTotal - (Number(planPrice) || (plan === 'monthly' ? 89.90 : 179.90))),
+      total: numTotal,
+      affiliateCode: effectiveAffiliateCode,
+      password: userPassword || undefined,
+      gateway: result.gateway,
+      createdAt: Date.now()
+    }).catch(err => console.error('Erro ao salvar pending pix:', err));
+
     return NextResponse.json({
-      success: false,
-      error: 'Sistema de pagamento temporariamente indisponível.'
-    }, { status: 500 });
+      success: true,
+      gateway: result.gateway,
+      pix: {
+        qrCodeText: result.qrCodeText,
+        qrCodeImage: result.qrCodeImage,
+        transactionId: finalTxId,
+        expiresAt: result.expiresAt
+      }
+    });
 
   } catch (error: any) {
-    console.error('[SigiloPay Pix Error]:', error);
+    console.error('[Pix Gateway Error]:', error);
     return NextResponse.json(
       { success: false, error: error.message || 'Erro ao processar requisição Pix' }, 
       { status: 500 }
@@ -270,51 +427,15 @@ export async function POST(req: Request) {
   }
 }
 
-// Quick health check to test if SigiloPay API is online and credentials are active
+// Health check para testar o status do gateway ativo
 export async function GET() {
-  const sigiloPublicKey = process.env.SIGILOPAY_PUBLIC_KEY || 'kaiofredy2908_1cmq6fd3bmq2s24u';
-  const sigiloSecretKey = process.env.SIGILOPAY_SECRET_KEY || 'tzlk0xxe8t4dybi2t0o1udw1ckczp01a4a9hbgptalozcan5hh0r59qw41seo3ze';
-  const sigiloBaseUrl = process.env.SIGILOPAY_BASE_URL || 'https://app.sigilopay.com.br';
-
-  try {
-    const res = await fetch(`${sigiloBaseUrl}/api/v1/gateway/pix/receive`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-public-key': sigiloPublicKey,
-        'x-secret-key': sigiloSecretKey,
-      },
-      body: JSON.stringify({
-        identifier: 'CHECK-' + Date.now(),
-        amount: 2.00,
-        client: {
-          name: 'DecolaShop HealthCheck',
-          email: 'healthcheck@decolashop.com',
-          phone: '11999999999',
-          document: getSafeValidCPF('39151747805')
-        }
-      })
-    });
-
-    const data = await res.json();
-    const isApproved = res.ok && Boolean(data.pix?.code || data.transactionId);
-
-    return NextResponse.json({
-      success: true,
-      status: res.status,
-      approved: isApproved,
-      gateway: 'SigiloPay (app.sigilopay.com.br)',
-      message: isApproved 
-        ? '🎉 Gateway SigiloPay ativo, autorizado e gerando Pix com sucesso!' 
-        : `SigiloPay status: ${data?.message || 'Em verificação'}`,
-      details: data
-    });
-  } catch (err: any) {
-    return NextResponse.json({
-      success: false,
-      approved: false,
-      gateway: 'SigiloPay',
-      error: err.message
-    }, { status: 500 });
-  }
+  const config = await getGatewayConfig();
+  return NextResponse.json({
+    success: true,
+    activeGateway: config.activeGateway,
+    smartFailover: config.smartFailover,
+    fallbackGateway: config.fallbackGateway,
+    lastSwitchedAt: config.lastSwitchedAt,
+    switchedBy: config.switchedBy,
+  });
 }

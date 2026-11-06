@@ -54,6 +54,7 @@ export interface PendingPixTransaction {
   total: number;
   affiliateCode?: string | null;
   password?: string;
+  gateway?: string;
   createdAt: number;
 }
 

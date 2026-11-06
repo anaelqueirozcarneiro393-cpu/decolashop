@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Settings, Shield, User, CreditCard, Sparkles, Check, ExternalLink, RefreshCw, Key, Eye, EyeOff } from 'lucide-react';
+import { Settings, Shield, User, CreditCard, Sparkles, Check, ExternalLink, RefreshCw, Key, Eye, EyeOff, Layers, ShieldCheck, Zap } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { toast } from 'react-hot-toast';
 import SigilopayCheckoutModal from '@/components/checkout/SigilopayCheckoutModal';
+import GatewaySwitcherModal from '@/components/admin/GatewaySwitcherModal';
 import { usePrivacy } from '@/lib/privacyContext';
 
 export default function SettingsView() {
@@ -16,6 +17,21 @@ export default function SettingsView() {
 
   const [isUpdating, setIsUpdating] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showGatewayModal, setShowGatewayModal] = useState(false);
+
+  const userEmail = (session?.user?.email || (typeof window !== 'undefined' ? localStorage.getItem('decolashop_user_email') || '' : '')).toLowerCase().trim();
+  const userRole = (((session?.user as any)?.role) || (typeof window !== 'undefined' ? localStorage.getItem('decolashop_user_role') || '' : '')).toLowerCase();
+  const isCarlos = userEmail.includes('carlos') || userEmail.includes('souza');
+  const isGerenteOrAdmin = !isCarlos && (
+    userEmail === 'gerente@decolashop.com' ||
+    userEmail === 'admin@decolashop.com' ||
+    userEmail.startsWith('gerente@') ||
+    userEmail.startsWith('admin@') ||
+    userEmail.includes('gerente') ||
+    userEmail.includes('admin') ||
+    userRole === 'gerente' ||
+    userRole === 'admin'
+  );
 
   const toggleTestPlan = async () => {
     setIsUpdating(true);
@@ -160,6 +176,47 @@ export default function SettingsView() {
         isOpen={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}
         defaultPlan="lifetime"
+      />
+
+      {/* EXCLUSIVO CONTA GERENTE: Redundância & Troca de Gateway de Pagamento */}
+      {!hideEmail && isGerenteOrAdmin && (
+        <div className="glass rounded-3xl p-6 md:p-8 border-[#22c55e]/30 bg-gradient-to-br from-[#0c1624] via-[#0d121f] to-[#0a101d] space-y-4 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-[#22c55e]/10 rounded-full blur-3xl pointer-events-none" />
+          
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start sm:items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-[#22c55e]/15 border border-[#22c55e]/30 flex items-center justify-center text-[#22c55e] shadow-lg shadow-[#22c55e]/20 flex-shrink-0">
+                <Layers size={24} />
+              </div>
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#22c55e]/15 text-[#4ade80] text-[10px] font-black uppercase tracking-wider mb-1 border border-[#22c55e]/30">
+                  <ShieldCheck size={11} />
+                  <span>Exclusivo Gerente / Admin</span>
+                </div>
+                <h3 className="text-lg sm:text-xl font-black text-white tracking-tight flex items-center gap-2">
+                  Gateways de Pagamento & Redundância
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Troque o provedor de checkout (SigiloPay, Mercado Pago, Asaas ou Pix Direto) ou configure failover automático caso haja instabilidade.
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowGatewayModal(true)}
+              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] hover:from-[#4ade80] hover:to-[#22c55e] text-black font-extrabold text-xs transition-all shadow-md shadow-[#22c55e]/20 flex items-center justify-center gap-2 cursor-pointer self-start sm:self-auto active:scale-95 flex-shrink-0"
+            >
+              <Zap size={14} />
+              <span>Gerenciar & Trocar Gateway</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Troca de Gateway */}
+      <GatewaySwitcherModal
+        isOpen={showGatewayModal}
+        onClose={() => setShowGatewayModal(false)}
       />
 
       {/* Connected AI Models Status */}

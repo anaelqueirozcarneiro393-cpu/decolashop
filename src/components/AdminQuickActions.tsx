@@ -21,6 +21,7 @@ import { useSales } from '@/lib/salesContext';
 import { useSession } from 'next-auth/react';
 import { toast } from 'react-hot-toast';
 import { usePrivacy } from '@/lib/privacyContext';
+import GatewaySwitcherModal from '@/components/admin/GatewaySwitcherModal';
 
 export default function AdminQuickActions() {
   const { data: session } = useSession();
@@ -49,6 +50,7 @@ export default function AdminQuickActions() {
 
   // Oculto por padrão
   const [isOpen, setIsOpen] = useState(false);
+  const [isGatewayModalOpen, setIsGatewayModalOpen] = useState(false);
   const [customSaldo, setCustomSaldo] = useState('');
   const [searchProduct, setSearchProduct] = useState('');
 
@@ -229,6 +231,27 @@ export default function AdminQuickActions() {
             title="Fechar [Esc ou Alt + A]"
           >
             <X size={18} />
+          </button>
+        </div>
+
+        {/* Banner de Troca Rápida de Gateway */}
+        <div className="mb-4 p-2.5 rounded-xl bg-gradient-to-r from-[#22c55e]/10 to-sky-500/10 border border-[#22c55e]/25 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#22c55e] opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#22c55e]"></span>
+            </span>
+            <span className="text-slate-300 font-medium">Gateway de Pagamento:</span>
+            <span className="font-bold text-[#4ade80]">Ativo</span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsGatewayModalOpen(true)}
+            className="px-2.5 py-1 rounded-lg bg-[#22c55e]/20 hover:bg-[#22c55e]/30 text-[#4ade80] border border-[#22c55e]/35 font-bold text-[11px] transition-all cursor-pointer flex items-center gap-1"
+          >
+            <Zap size={11} />
+            <span>Trocar Gateway</span>
           </button>
         </div>
 
@@ -604,6 +627,11 @@ export default function AdminQuickActions() {
         </div>
 
       </div>
+
+      <GatewaySwitcherModal
+        isOpen={isGatewayModalOpen}
+        onClose={() => setIsGatewayModalOpen(false)}
+      />
     </div>
   );
 }
