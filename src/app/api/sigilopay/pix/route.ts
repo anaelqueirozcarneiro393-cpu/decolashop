@@ -226,20 +226,31 @@ export async function POST(req: Request) {
         return { success: false, gateway: 'sigilopay', error: sigiloData?.message || 'Falha na resposta da SigiloPay.' };
       }
 
-      // 2. CNPAY
+      // 2. CNPAY (https://painel.appcnpay.com/docs/v1)
       if (gateway === 'cnpay') {
-        const apiKey = gatewayConfig.gateways.cnpay.apiKey || process.env.CNPAY_API_KEY;
-        const secretKey = gatewayConfig.gateways.cnpay.secretKey || process.env.CNPAY_SECRET_KEY;
-        const baseUrl = gatewayConfig.gateways.cnpay.baseUrl || process.env.CNPAY_BASE_URL || 'https://api.cnpay.com.br';
+        const pubKey = gatewayConfig.gateways.cnpay.publicKey || gatewayConfig.gateways.cnpay.apiKey || process.env.CNPAY_PUBLIC_KEY || process.env.CNPAY_API_KEY || 'iamironman2001m_fo5jmrxbcscjli5u';
+        const secKey = gatewayConfig.gateways.cnpay.secretKey || process.env.CNPAY_SECRET_KEY || 'wucvyumqql79c74kl08a94ezjeep8bbkg3a81ti3je2girowkxdvqby6czfz0j6n';
+        const baseUrl = gatewayConfig.gateways.cnpay.baseUrl || process.env.CNPAY_BASE_URL || 'https://painel.appcnpay.com/api/v1';
 
-        if (apiKey || secretKey) {
+        if (pubKey && secKey) {
           try {
-            const cnRes = await fetch(`${baseUrl}/api/v1/pix/charges`, {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const dueDate = tomorrow.toISOString().split('T')[0];
+
+            const planName = plan === 'anual' ? 'Plano DecolaShop Anual'
+              : plan === 'vitalicio' ? 'Plano DecolaShop Vitalício'
+              : plan === 'mensal' ? 'Plano DecolaShop Mensal'
+              : plan === 'ai_credits' ? 'Créditos de IA DecolaShop'
+              : isTaxaAntecipacao ? 'Taxa de Antecipação de Saldo'
+              : 'Assinatura DecolaShop';
+
+            const cnRes = await fetch(`${baseUrl}/gateway/pix/receive`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${secretKey || apiKey}`,
-                'x-api-key': apiKey || '',
+                'x-public-key': pubKey,
+                'x-secret-key': secKey,
               },
               body: JSON.stringify({
                 identifier: transactionId,
@@ -250,32 +261,50 @@ export async function POST(req: Request) {
                   phone: gatewayPhone,
                   document: safeCpf
                 },
-                webhookUrl: `${siteUrl}/api/webhooks/sigilopay`,
+                products: [
+                  {
+                    id: plan || 'plano_decolashop',
+                    name: planName,
+                    quantity: 1,
+                    price: Number(numTotal.toFixed(2))
+                  }
+                ],
+                dueDate,
                 metadata: {
                   plan,
-                  total: numTotal
-                }
+                  planPrice: isTaxaAntecipacao ? numTotal : planPrice,
+                  bumps: isTaxaAntecipacao ? [] : bumps,
+                  affiliateCode: effectiveAffiliateCode,
+                  platform: 'DecolaShop SaaS',
+                  customerPhone: rawPhone || cleanPhone
+                },
+                callbackUrl: `${siteUrl}/api/webhooks/sigilopay`
               })
             });
 
             const cnData = await cnRes.json().catch(() => ({}));
-            const pixPayload = cnData.pix || cnData.data || cnData;
-            const qrCodeText = pixPayload.code || pixPayload.qrcode || pixPayload.qr_code || pixPayload.emv || pixPayload.copia_cola;
-            let qrCodeImage = pixPayload.base64 || pixPayload.qrcode_base64;
-            if (qrCodeText) {
-              if (qrCodeImage && !qrCodeImage.startsWith('data:')) {
+            if (cnRes.ok) {
+              const pixPayload = cnData.pix || cnData.data || cnData;
+              const qrCodeText = pixPayload.code || pixPayload.qrcode || pixPayload.qr_code || pixPayload.emv || pixPayload.copia_cola;
+              let qrCodeImage = pixPayload.image || pixPayload.base64 || pixPayload.qrcode_base64;
+              if (qrCodeImage && !qrCodeImage.startsWith('data:') && !qrCodeImage.startsWith('http')) {
                 qrCodeImage = `data:image/png;base64,${qrCodeImage}`;
-              } else if (!qrCodeImage) {
-                qrCodeImage = await QRCode.toDataURL(qrCodeText, { margin: 1, width: 320 });
               }
-              return {
-                success: true,
-                gateway: 'cnpay',
-                qrCodeText,
-                qrCodeImage,
-                transactionId: cnData.transactionId || cnData.id || transactionId,
-                expiresAt: pixPayload.expiration || new Date(Date.now() + 30 * 60000).toISOString()
-              };
+              if (qrCodeText) {
+                if (!qrCodeImage || qrCodeImage === '') {
+                  qrCodeImage = await QRCode.toDataURL(qrCodeText, { margin: 1, width: 320 });
+                }
+                return {
+                  success: true,
+                  gateway: 'cnpay',
+                  qrCodeText,
+                  qrCodeImage,
+                  transactionId: cnData.transactionId || cnData.id || transactionId,
+                  expiresAt: pixPayload.expiresAt || pixPayload.expiration || new Date(Date.now() + 30 * 60000).toISOString()
+                };
+              }
+            } else {
+              console.warn('[CNPAY API Error response]:', cnData);
             }
           } catch (err: any) {
             console.warn('[CNPAY API Error]:', err.message);

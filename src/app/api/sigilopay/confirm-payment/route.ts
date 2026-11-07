@@ -76,22 +76,34 @@ export async function POST(req: Request) {
 
     try {
       if (gatewayUsed === 'cnpay') {
-        const apiKey = gatewayConfig.gateways.cnpay.apiKey || process.env.CNPAY_API_KEY;
-        const secretKey = gatewayConfig.gateways.cnpay.secretKey || process.env.CNPAY_SECRET_KEY;
-        const baseUrl = gatewayConfig.gateways.cnpay.baseUrl || process.env.CNPAY_BASE_URL || 'https://api.cnpay.com.br';
+        const pubKey = gatewayConfig.gateways.cnpay.publicKey || gatewayConfig.gateways.cnpay.apiKey || process.env.CNPAY_PUBLIC_KEY || process.env.CNPAY_API_KEY || 'iamironman2001m_fo5jmrxbcscjli5u';
+        const secKey = gatewayConfig.gateways.cnpay.secretKey || process.env.CNPAY_SECRET_KEY || 'wucvyumqql79c74kl08a94ezjeep8bbkg3a81ti3je2girowkxdvqby6czfz0j6n';
+        const baseUrl = gatewayConfig.gateways.cnpay.baseUrl || process.env.CNPAY_BASE_URL || 'https://painel.appcnpay.com/api/v1';
 
-        if (apiKey || secretKey) {
-          const checkRes = await fetch(`${baseUrl}/api/v1/pix/${encodeURIComponent(transactionId)}`, {
+        if (pubKey && secKey) {
+          let checkRes = await fetch(`${baseUrl}/gateway/transactions?id=${encodeURIComponent(transactionId)}`, {
             headers: {
-              'Authorization': `Bearer ${secretKey || apiKey}`,
-              'x-api-key': apiKey || ''
+              'Content-Type': 'application/json',
+              'x-public-key': pubKey,
+              'x-secret-key': secKey,
             }
           });
+
+          if (!checkRes.ok) {
+            checkRes = await fetch(`${baseUrl}/gateway/transactions?clientIdentifier=${encodeURIComponent(transactionId)}`, {
+              headers: {
+                'Content-Type': 'application/json',
+                'x-public-key': pubKey,
+                'x-secret-key': secKey,
+              }
+            });
+          }
+
           if (checkRes.ok) {
             txData = await checkRes.json();
             txStatus = String(txData.status || '').toUpperCase();
-            isPaid = txStatus === 'PAID' || txStatus === 'COMPLETED' || txStatus === 'APPROVED' || txStatus === 'CONFIRMED';
-            txData.amount = txData.amount || txData.value;
+            isPaid = txStatus === 'PAID' || txStatus === 'COMPLETED' || txStatus === 'APPROVED' || txStatus === 'CONFIRMED' || Boolean(txData.payedAt);
+            txData.amount = txData.amount || txData.chargeAmount;
           }
         }
       } else if (gatewayUsed === 'vpay') {

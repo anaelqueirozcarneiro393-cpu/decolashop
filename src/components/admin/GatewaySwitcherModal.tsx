@@ -41,12 +41,12 @@ const GATEWAY_CARDS = [
   {
     id: 'cnpay' as GatewayType,
     name: 'CNpay',
-    subtitle: 'Gateway Alternativo 1',
-    badge: 'Opção 1',
+    subtitle: 'Gateway Oficial Homologado',
+    badge: 'API v1 Ativa',
     badgeColor: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
     icon: CreditCard,
-    description: 'Processadora de Pix de alta performance com webhook em tempo real e conciliação bancária rápida.',
-    features: ['Pix Imediato', 'Webhook Instantâneo', 'Anti-Instabilidade'],
+    description: 'Processadora oficial CN Pay (v1) via PIX com liquidação rápida, conciliação e webhooks.',
+    features: ['Pix Imediato', 'API v1 Homologada', 'Docs Oficiais'],
   },
   {
     id: 'vpay' as GatewayType,
@@ -91,10 +91,10 @@ export default function GatewaySwitcherModal({ isOpen, onClose }: GatewaySwitche
   const [sigiloSec, setSigiloSec] = useState('');
   const [sigiloUrl, setSigiloUrl] = useState('https://app.sigilopay.com.br');
 
-  // Credenciais CNpay
-  const [cnpayKey, setCnpayKey] = useState('');
-  const [cnpaySec, setCnpaySec] = useState('');
-  const [cnpayUrl, setCnpayUrl] = useState('https://api.cnpay.com.br');
+  // Credenciais CNpay (https://painel.appcnpay.com/docs/v1)
+  const [cnpayKey, setCnpayKey] = useState('iamironman2001m_fo5jmrxbcscjli5u');
+  const [cnpaySec, setCnpaySec] = useState('wucvyumqql79c74kl08a94ezjeep8bbkg3a81ti3je2girowkxdvqby6czfz0j6n');
+  const [cnpayUrl, setCnpayUrl] = useState('https://painel.appcnpay.com/api/v1');
 
   // Credenciais Vpay
   const [vpayId, setVpayId] = useState('');
@@ -119,9 +119,9 @@ export default function GatewaySwitcherModal({ isOpen, onClose }: GatewaySwitche
         setSigiloUrl(data.config.gateways?.sigilopay?.baseUrl || 'https://app.sigilopay.com.br');
 
         // CNpay
-        setCnpayKey(data.config.gateways?.cnpay?.apiKey || '');
-        setCnpaySec(data.config.gateways?.cnpay?.secretKey || '');
-        setCnpayUrl(data.config.gateways?.cnpay?.baseUrl || 'https://api.cnpay.com.br');
+        setCnpayKey(data.config.gateways?.cnpay?.publicKey || data.config.gateways?.cnpay?.apiKey || 'iamironman2001m_fo5jmrxbcscjli5u');
+        setCnpaySec(data.config.gateways?.cnpay?.secretKey || 'wucvyumqql79c74kl08a94ezjeep8bbkg3a81ti3je2girowkxdvqby6czfz0j6n');
+        setCnpayUrl(data.config.gateways?.cnpay?.baseUrl || 'https://painel.appcnpay.com/api/v1');
 
         // Vpay
         setVpayId(data.config.gateways?.vpay?.clientId || '');
@@ -151,9 +151,10 @@ export default function GatewaySwitcherModal({ isOpen, onClose }: GatewaySwitche
         credentials.baseUrl = sigiloUrl;
       }
       if (gatewayId === 'cnpay') {
-        credentials.apiKey = cnpayKey;
-        credentials.secretKey = cnpaySec;
-        credentials.baseUrl = cnpayUrl;
+        credentials.publicKey = cnpayKey || 'iamironman2001m_fo5jmrxbcscjli5u';
+        credentials.apiKey = cnpayKey || 'iamironman2001m_fo5jmrxbcscjli5u';
+        credentials.secretKey = cnpaySec || 'wucvyumqql79c74kl08a94ezjeep8bbkg3a81ti3je2girowkxdvqby6czfz0j6n';
+        credentials.baseUrl = cnpayUrl || 'https://painel.appcnpay.com/api/v1';
       }
       if (gatewayId === 'vpay') {
         credentials.clientId = vpayId;
@@ -214,9 +215,10 @@ export default function GatewaySwitcherModal({ isOpen, onClose }: GatewaySwitche
             baseUrl: sigiloUrl || 'https://app.sigilopay.com.br'
           },
           cnpay: {
-            apiKey: cnpayKey,
-            secretKey: cnpaySec,
-            baseUrl: cnpayUrl || 'https://api.cnpay.com.br'
+            publicKey: cnpayKey || 'iamironman2001m_fo5jmrxbcscjli5u',
+            apiKey: cnpayKey || 'iamironman2001m_fo5jmrxbcscjli5u',
+            secretKey: cnpaySec || 'wucvyumqql79c74kl08a94ezjeep8bbkg3a81ti3je2girowkxdvqby6czfz0j6n',
+            baseUrl: cnpayUrl || 'https://painel.appcnpay.com/api/v1'
           },
           vpay: {
             clientId: vpayId,
@@ -476,41 +478,55 @@ export default function GatewaySwitcherModal({ isOpen, onClose }: GatewaySwitche
           )}
 
           {selectedActive === 'cnpay' && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="text-[11px] font-semibold text-slate-300 block mb-1">
-                  CNpay API Key / Client ID
-                </label>
-                <input
-                  type="text"
-                  value={cnpayKey}
-                  onChange={(e) => setCnpayKey(e.target.value)}
-                  placeholder="cn_live_..."
-                  className="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#22c55e]"
-                />
+            <div className="space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-300 block mb-1">
+                    Chave Pública (Client ID)
+                  </label>
+                  <input
+                    type="text"
+                    value={cnpayKey}
+                    onChange={(e) => setCnpayKey(e.target.value)}
+                    placeholder="iamironman2001m_fo5jmrxbcscjli5u"
+                    className="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#22c55e]"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-300 block mb-1">
+                    Chave Privada (Client Secret)
+                  </label>
+                  <input
+                    type="password"
+                    value={cnpaySec}
+                    onChange={(e) => setCnpaySec(e.target.value)}
+                    placeholder="wucvyumqql79c74kl08a94ezjeep8bbkg3a81ti3je2girowkxdvqby6czfz0j6n"
+                    className="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#22c55e]"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-300 block mb-1">
+                    Base URL CNpay
+                  </label>
+                  <input
+                    type="text"
+                    value={cnpayUrl || 'https://painel.appcnpay.com/api/v1'}
+                    onChange={(e) => setCnpayUrl(e.target.value)}
+                    className="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#22c55e]"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="text-[11px] font-semibold text-slate-300 block mb-1">
-                  CNpay Secret Key / Token
-                </label>
-                <input
-                  type="password"
-                  value={cnpaySec}
-                  onChange={(e) => setCnpaySec(e.target.value)}
-                  placeholder="cn_sec_..."
-                  className="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#22c55e]"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] font-semibold text-slate-300 block mb-1">
-                  Base URL CNpay
-                </label>
-                <input
-                  type="text"
-                  value={cnpayUrl || 'https://api.cnpay.com.br'}
-                  onChange={(e) => setCnpayUrl(e.target.value)}
-                  className="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#22c55e]"
-                />
+              <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
+                <span className="text-cyan-400 font-mono">Documentação oficial homologada: API v1 REST via headers x-public-key e x-secret-key</span>
+                <a 
+                  href="https://painel.appcnpay.com/docs/v1" 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="flex items-center gap-1 text-[#22c55e] hover:underline"
+                >
+                  <ExternalLink size={10} />
+                  Ver Manual da API CNpay
+                </a>
               </div>
             </div>
           )}

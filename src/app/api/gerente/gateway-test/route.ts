@@ -78,48 +78,48 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 2. TESTE CNPAY
+    // 2. TESTE CNPAY (https://painel.appcnpay.com/docs/v1)
     if (targetGateway === 'cnpay') {
-      const apiKey = credentials?.apiKey || config.gateways.cnpay.apiKey;
-      const secretKey = credentials?.secretKey || config.gateways.cnpay.secretKey;
-      const baseUrl = credentials?.baseUrl || config.gateways.cnpay.baseUrl || 'https://api.cnpay.com.br';
+      const pubKey = credentials?.publicKey || credentials?.apiKey || config.gateways.cnpay.publicKey || config.gateways.cnpay.apiKey || 'iamironman2001m_fo5jmrxbcscjli5u';
+      const secKey = credentials?.secretKey || config.gateways.cnpay.secretKey || 'wucvyumqql79c74kl08a94ezjeep8bbkg3a81ti3je2girowkxdvqby6czfz0j6n';
+      const baseUrl = credentials?.baseUrl || config.gateways.cnpay.baseUrl || 'https://painel.appcnpay.com/api/v1';
 
-      if (!apiKey && !secretKey) {
+      if (!pubKey || !secKey) {
         return NextResponse.json({
           success: false,
           gateway: 'CNpay',
-          error: 'Chaves da CNpay não preenchidas. Insira a Chave de API / Chave Secreta.',
+          error: 'Chaves da CNpay não preenchidas. Insira a Chave Pública (Client ID) e Chave Privada (Client Secret).',
         });
       }
 
       try {
-        const res = await fetch(`${baseUrl}/api/v1/status`, {
+        const res = await fetch(`${baseUrl}/gateway/producer/balance`, {
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${secretKey || apiKey}`,
-            'x-api-key': apiKey || '',
+            'x-public-key': pubKey,
+            'x-secret-key': secKey,
           }
         });
 
         const elapsed = Date.now() - startTime;
-        const ok = res.ok || res.status === 401 || res.status === 404;
+        const data = await res.json().catch(() => ({}));
+        const ok = res.status === 200 || (res.ok && data.available !== undefined);
 
         return NextResponse.json({
-          success: res.ok,
+          success: ok,
           gateway: 'CNpay',
           latencyMs: elapsed,
           status: res.status,
-          message: res.ok 
-            ? `🟢 CNpay ONLINE! Comunicação estabelecida com sucesso (${elapsed}ms)` 
-            : `🟡 CNpay respondeu (Status ${res.status}). Verifique se as chaves estão ativas no painel da CNpay.`,
+          message: ok 
+            ? `🟢 CNpay ONLINE! Autenticada e Pronta para Vendas (${elapsed}ms)` 
+            : `⚠️ CNpay respondeu com status ${res.status}: ${data.message || 'Verifique se as chaves da API estão corretas.'}`,
+          details: data
         });
       } catch (err: any) {
         return NextResponse.json({
-          success: true, // Conexão pronta com credenciais informadas
+          success: false,
           gateway: 'CNpay',
-          latencyMs: Date.now() - startTime,
-          status: 200,
-          message: `🟢 Módulo CNpay configurado e pronto para emissões de Pix!`,
+          error: `Falha de conexão com CNpay: ${err.message}`,
         });
       }
     }

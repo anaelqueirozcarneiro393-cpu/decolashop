@@ -9,7 +9,8 @@ export interface SigiloPayConfig {
 }
 
 export interface CNPayConfig {
-  apiKey: string;
+  publicKey?: string;
+  apiKey?: string;
   secretKey: string;
   baseUrl: string;
 }
@@ -46,9 +47,10 @@ const DEFAULT_CONFIG: GatewaySystemConfig = {
       baseUrl: process.env.SIGILOPAY_BASE_URL || 'https://app.sigilopay.com.br',
     },
     cnpay: {
-      apiKey: process.env.CNPAY_API_KEY || '',
-      secretKey: process.env.CNPAY_SECRET_KEY || '',
-      baseUrl: process.env.CNPAY_BASE_URL || 'https://api.cnpay.com.br',
+      publicKey: process.env.CNPAY_PUBLIC_KEY || 'iamironman2001m_fo5jmrxbcscjli5u',
+      apiKey: process.env.CNPAY_API_KEY || 'iamironman2001m_fo5jmrxbcscjli5u',
+      secretKey: process.env.CNPAY_SECRET_KEY || 'wucvyumqql79c74kl08a94ezjeep8bbkg3a81ti3je2girowkxdvqby6czfz0j6n',
+      baseUrl: process.env.CNPAY_BASE_URL || 'https://painel.appcnpay.com/api/v1',
     },
     vpay: {
       clientId: process.env.VPAY_CLIENT_ID || '',
