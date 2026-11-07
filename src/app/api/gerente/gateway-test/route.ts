@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
         },
         body: JSON.stringify({
           identifier: 'PING-' + Date.now(),
-          amount: 2.00,
+          amount: 1.00,
           client: {
             name: 'DecolaShop Test',
             email: 'test@decolashop.com',
