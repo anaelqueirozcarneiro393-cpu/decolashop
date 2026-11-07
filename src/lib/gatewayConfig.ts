@@ -16,8 +16,10 @@ export interface CNPayConfig {
 }
 
 export interface VPayConfig {
-  clientId: string;
-  clientSecret: string;
+  apiKey?: string;
+  apiSecret?: string;
+  clientId?: string;
+  clientSecret?: string;
   baseUrl: string;
 }
 
@@ -53,9 +55,11 @@ const DEFAULT_CONFIG: GatewaySystemConfig = {
       baseUrl: process.env.CNPAY_BASE_URL || 'https://painel.appcnpay.com/api/v1',
     },
     vpay: {
-      clientId: process.env.VPAY_CLIENT_ID || '',
-      clientSecret: process.env.VPAY_CLIENT_SECRET || '',
-      baseUrl: process.env.VPAY_BASE_URL || 'https://api.vpay.com.br',
+      apiKey: process.env.VPAY_API_KEY || 'vp_82c63bcb1e4e93243ea6643fcd7a4c90',
+      apiSecret: process.env.VPAY_API_SECRET || '15f4a8308c85551bcdd6d4ff5f0a6b5aad58bf090b06d633902980ad18e733a2',
+      clientId: process.env.VPAY_CLIENT_ID || 'vp_82c63bcb1e4e93243ea6643fcd7a4c90',
+      clientSecret: process.env.VPAY_CLIENT_SECRET || '15f4a8308c85551bcdd6d4ff5f0a6b5aad58bf090b06d633902980ad18e733a2',
+      baseUrl: process.env.VPAY_BASE_URL || 'https://vpay-api.onrender.com/api',
     },
   },
 };

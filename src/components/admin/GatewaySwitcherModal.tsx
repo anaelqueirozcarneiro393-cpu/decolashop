@@ -51,12 +51,12 @@ const GATEWAY_CARDS = [
   {
     id: 'vpay' as GatewayType,
     name: 'Vpay',
-    subtitle: 'Gateway Alternativo 2',
-    badge: 'Opção 2',
+    subtitle: 'Gateway Oficial Homologado',
+    badge: 'API v1 Ativa',
     badgeColor: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
     icon: Server,
-    description: 'Gateway robusto para recebimento e liquidação de Pix sem risco de travar vendas.',
-    features: ['Alta Disponibilidade', 'API Rápida', 'Liquidação D+0'],
+    description: 'Processadora oficial VPay via PIX com autenticação Bearer token, liquidação e saldo online.',
+    features: ['Pix Imediato', 'Token Bearer', 'Saldo D+0'],
   },
 ];
 
@@ -96,10 +96,10 @@ export default function GatewaySwitcherModal({ isOpen, onClose }: GatewaySwitche
   const [cnpaySec, setCnpaySec] = useState('wucvyumqql79c74kl08a94ezjeep8bbkg3a81ti3je2girowkxdvqby6czfz0j6n');
   const [cnpayUrl, setCnpayUrl] = useState('https://painel.appcnpay.com/api/v1');
 
-  // Credenciais Vpay
-  const [vpayId, setVpayId] = useState('');
-  const [vpaySec, setVpaySec] = useState('');
-  const [vpayUrl, setVpayUrl] = useState('https://api.vpay.com.br');
+  // Credenciais Vpay (https://vpay-api.onrender.com/api)
+  const [vpayId, setVpayId] = useState('vp_82c63bcb1e4e93243ea6643fcd7a4c90');
+  const [vpaySec, setVpaySec] = useState('15f4a8308c85551bcdd6d4ff5f0a6b5aad58bf090b06d633902980ad18e733a2');
+  const [vpayUrl, setVpayUrl] = useState('https://vpay-api.onrender.com/api');
 
   // Carrega configuração salva
   const fetchConfig = async () => {
@@ -124,9 +124,9 @@ export default function GatewaySwitcherModal({ isOpen, onClose }: GatewaySwitche
         setCnpayUrl(data.config.gateways?.cnpay?.baseUrl || 'https://painel.appcnpay.com/api/v1');
 
         // Vpay
-        setVpayId(data.config.gateways?.vpay?.clientId || '');
-        setVpaySec(data.config.gateways?.vpay?.clientSecret || '');
-        setVpayUrl(data.config.gateways?.vpay?.baseUrl || 'https://api.vpay.com.br');
+        setVpayId(data.config.gateways?.vpay?.apiKey || data.config.gateways?.vpay?.clientId || 'vp_82c63bcb1e4e93243ea6643fcd7a4c90');
+        setVpaySec(data.config.gateways?.vpay?.apiSecret || data.config.gateways?.vpay?.clientSecret || '15f4a8308c85551bcdd6d4ff5f0a6b5aad58bf090b06d633902980ad18e733a2');
+        setVpayUrl(data.config.gateways?.vpay?.baseUrl || 'https://vpay-api.onrender.com/api');
       }
     } catch (err) {
       console.error('Erro ao carregar configurações de gateway:', err);
@@ -157,9 +157,11 @@ export default function GatewaySwitcherModal({ isOpen, onClose }: GatewaySwitche
         credentials.baseUrl = cnpayUrl || 'https://painel.appcnpay.com/api/v1';
       }
       if (gatewayId === 'vpay') {
-        credentials.clientId = vpayId;
-        credentials.clientSecret = vpaySec;
-        credentials.baseUrl = vpayUrl;
+        credentials.apiKey = vpayId || 'vp_82c63bcb1e4e93243ea6643fcd7a4c90';
+        credentials.apiSecret = vpaySec || '15f4a8308c85551bcdd6d4ff5f0a6b5aad58bf090b06d633902980ad18e733a2';
+        credentials.clientId = vpayId || 'vp_82c63bcb1e4e93243ea6643fcd7a4c90';
+        credentials.clientSecret = vpaySec || '15f4a8308c85551bcdd6d4ff5f0a6b5aad58bf090b06d633902980ad18e733a2';
+        credentials.baseUrl = vpayUrl || 'https://vpay-api.onrender.com/api';
       }
 
       const res = await fetch('/api/gerente/gateway-test', {
@@ -221,9 +223,11 @@ export default function GatewaySwitcherModal({ isOpen, onClose }: GatewaySwitche
             baseUrl: cnpayUrl || 'https://painel.appcnpay.com/api/v1'
           },
           vpay: {
-            clientId: vpayId,
-            clientSecret: vpaySec,
-            baseUrl: vpayUrl || 'https://api.vpay.com.br'
+            apiKey: vpayId || 'vp_82c63bcb1e4e93243ea6643fcd7a4c90',
+            apiSecret: vpaySec || '15f4a8308c85551bcdd6d4ff5f0a6b5aad58bf090b06d633902980ad18e733a2',
+            clientId: vpayId || 'vp_82c63bcb1e4e93243ea6643fcd7a4c90',
+            clientSecret: vpaySec || '15f4a8308c85551bcdd6d4ff5f0a6b5aad58bf090b06d633902980ad18e733a2',
+            baseUrl: vpayUrl || 'https://vpay-api.onrender.com/api'
           }
         }
       };
@@ -532,41 +536,48 @@ export default function GatewaySwitcherModal({ isOpen, onClose }: GatewaySwitche
           )}
 
           {selectedActive === 'vpay' && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="text-[11px] font-semibold text-slate-300 block mb-1">
-                  Vpay Client ID / API Key
-                </label>
-                <input
-                  type="text"
-                  value={vpayId}
-                  onChange={(e) => setVpayId(e.target.value)}
-                  placeholder="vp_client_..."
-                  className="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#22c55e]"
-                />
+            <div className="space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-300 block mb-1">
+                    x-api-key (Chave Pública)
+                  </label>
+                  <input
+                    type="text"
+                    value={vpayId}
+                    onChange={(e) => setVpayId(e.target.value)}
+                    placeholder="vp_82c63bcb1e4e93243ea6643fcd7a4c90"
+                    className="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#22c55e]"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-300 block mb-1">
+                    x-api-secret (Chave Privada)
+                  </label>
+                  <input
+                    type="password"
+                    value={vpaySec}
+                    onChange={(e) => setVpaySec(e.target.value)}
+                    placeholder="15f4a8308c85551bcdd6d4ff5f0a6b5aad58bf090b06d633902980ad18e733a2"
+                    className="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#22c55e]"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-300 block mb-1">
+                    Base URL Vpay
+                  </label>
+                  <input
+                    type="text"
+                    value={vpayUrl || 'https://vpay-api.onrender.com/api'}
+                    onChange={(e) => setVpayUrl(e.target.value)}
+                    placeholder="https://vpay-api.onrender.com/api"
+                    className="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#22c55e]"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="text-[11px] font-semibold text-slate-300 block mb-1">
-                  Vpay Client Secret
-                </label>
-                <input
-                  type="password"
-                  value={vpaySec}
-                  onChange={(e) => setVpaySec(e.target.value)}
-                  placeholder="vp_sec_..."
-                  className="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#22c55e]"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] font-semibold text-slate-300 block mb-1">
-                  Base URL Vpay
-                </label>
-                <input
-                  type="text"
-                  value={vpayUrl || 'https://api.vpay.com.br'}
-                  onChange={(e) => setVpayUrl(e.target.value)}
-                  className="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#22c55e]"
-                />
+              <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
+                <span className="text-purple-400 font-mono">Autenticação Bearer Token via POST /v1/auth/token com expiração de 1h</span>
+                <span className="text-slate-400">Escopos: pix.cobranca.criar, transacoes.ler, saldo.ler</span>
               </div>
             </div>
           )}

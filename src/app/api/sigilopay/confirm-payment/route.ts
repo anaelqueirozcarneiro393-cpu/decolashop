@@ -4,6 +4,7 @@ import { validateAndSanitizePayload, isValidEmail, sanitizeString } from '@/lib/
 import { dbRecordSale, dbGetPendingPix, dbGetLeadAffiliate, dbBindLead, dbGetAffiliates, dbGetSales, resolveAffiliateCode } from '@/lib/affiliateDb';
 import { recordPaidWithdrawalFee } from '@/lib/withdrawalFeesStore';
 import { getGatewayConfig } from '@/lib/gatewayConfig';
+import { getVPayAccessToken } from '@/lib/vpay';
 
 export const dynamic = 'force-dynamic';
 
@@ -107,23 +108,26 @@ export async function POST(req: Request) {
           }
         }
       } else if (gatewayUsed === 'vpay') {
-        const clientId = gatewayConfig.gateways.vpay.clientId || process.env.VPAY_CLIENT_ID;
-        const clientSecret = gatewayConfig.gateways.vpay.clientSecret || process.env.VPAY_CLIENT_SECRET;
-        const baseUrl = gatewayConfig.gateways.vpay.baseUrl || process.env.VPAY_BASE_URL || 'https://api.vpay.com.br';
+        const apiKey = gatewayConfig.gateways.vpay.apiKey || gatewayConfig.gateways.vpay.clientId || process.env.VPAY_API_KEY || 'vp_82c63bcb1e4e93243ea6643fcd7a4c90';
+        const apiSecret = gatewayConfig.gateways.vpay.apiSecret || gatewayConfig.gateways.vpay.clientSecret || process.env.VPAY_API_SECRET || '15f4a8308c85551bcdd6d4ff5f0a6b5aad58bf090b06d633902980ad18e733a2';
+        const baseUrl = gatewayConfig.gateways.vpay.baseUrl || process.env.VPAY_BASE_URL || 'https://vpay-api.onrender.com/api';
 
-        if (clientId || clientSecret) {
-          const checkRes = await fetch(`${baseUrl}/api/v1/pix/${encodeURIComponent(transactionId)}`, {
-            headers: {
-              'x-client-id': clientId || '',
-              'x-client-secret': clientSecret || '',
-              'Authorization': `Bearer ${clientSecret || clientId}`,
+        if (apiKey && apiSecret) {
+          try {
+            const token = await getVPayAccessToken(apiKey, apiSecret, baseUrl);
+            const checkRes = await fetch(`${baseUrl}/v1/pix/transacoes/${encodeURIComponent(transactionId)}`, {
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+            if (checkRes.ok) {
+              txData = await checkRes.json();
+              txStatus = String(txData.situacao || txData.status || '').toUpperCase();
+              isPaid = txStatus === 'CONCLUIDA' || txStatus === 'LIQUIDADA' || txStatus === 'PAID' || Boolean(txData.liquidadoEm);
+              txData.amount = parseFloat(txData.valorBruto || txData.valor || '0') || txData.amount;
             }
-          });
-          if (checkRes.ok) {
-            txData = await checkRes.json();
-            txStatus = String(txData.status || '').toUpperCase();
-            isPaid = txStatus === 'PAID' || txStatus === 'COMPLETED' || txStatus === 'APPROVED' || txStatus === 'CONFIRMED';
-            txData.amount = txData.amount || txData.value;
+          } catch (e: any) {
+            console.warn('[VPAY Confirm Error]:', e.message);
           }
         }
       } else {

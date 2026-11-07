@@ -4,6 +4,7 @@ import QRCode from 'qrcode';
 import { validateAndSanitizePayload, isValidEmail } from '@/lib/security';
 import { dbSavePendingPix, dbBindLead, dbGetLeadAffiliate, dbGetAffiliates, dbGetSales, resolveAffiliateCode } from '@/lib/affiliateDb';
 import { getGatewayConfig, GatewayType } from '@/lib/gatewayConfig';
+import { getVPayAccessToken } from '@/lib/vpay';
 
 export const dynamic = 'force-dynamic';
 
@@ -324,56 +325,77 @@ export async function POST(req: Request) {
         };
       }
 
-      // 3. VPAY
+      // 3. VPAY (https://vpay-api.onrender.com/api)
       if (gateway === 'vpay') {
-        const clientId = gatewayConfig.gateways.vpay.clientId || process.env.VPAY_CLIENT_ID;
-        const clientSecret = gatewayConfig.gateways.vpay.clientSecret || process.env.VPAY_CLIENT_SECRET;
-        const baseUrl = gatewayConfig.gateways.vpay.baseUrl || process.env.VPAY_BASE_URL || 'https://api.vpay.com.br';
+        const apiKey = gatewayConfig.gateways.vpay.apiKey || gatewayConfig.gateways.vpay.clientId || process.env.VPAY_API_KEY || 'vp_82c63bcb1e4e93243ea6643fcd7a4c90';
+        const apiSecret = gatewayConfig.gateways.vpay.apiSecret || gatewayConfig.gateways.vpay.clientSecret || process.env.VPAY_API_SECRET || '15f4a8308c85551bcdd6d4ff5f0a6b5aad58bf090b06d633902980ad18e733a2';
+        const baseUrl = gatewayConfig.gateways.vpay.baseUrl || process.env.VPAY_BASE_URL || 'https://vpay-api.onrender.com/api';
 
-        if (clientId || clientSecret) {
+        if (apiKey && apiSecret) {
           try {
-            const vRes = await fetch(`${baseUrl}/api/v1/pix/charges`, {
+            const token = await getVPayAccessToken(apiKey, apiSecret, baseUrl);
+
+            const planName = plan === 'anual' ? 'Plano DecolaShop Anual'
+              : plan === 'vitalicio' ? 'Plano DecolaShop Vitalício'
+              : plan === 'mensal' ? 'Plano DecolaShop Mensal'
+              : plan === 'ai_credits' ? 'Créditos de IA DecolaShop'
+              : isTaxaAntecipacao ? 'Taxa de Antecipação de Saldo'
+              : 'Assinatura DecolaShop';
+
+            const cleanDigits = (rawPhone || cleanPhone || '11999998888').replace(/\D/g, '');
+            const safePhone = cleanDigits.length >= 10 ? cleanDigits : '11999998888';
+            const safeDoc = safeCpf.replace(/\D/g, '');
+            const cleanName = (customer.name && customer.name.trim().length >= 2) ? customer.name.trim() : 'Cliente DecolaShop';
+
+            const vRes = await fetch(`${baseUrl}/v1/pix/cobrancas`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'x-client-id': clientId || '',
-                'x-client-secret': clientSecret || '',
-                'Authorization': `Bearer ${clientSecret || clientId}`,
+                'Authorization': `Bearer ${token}`
               },
               body: JSON.stringify({
-                identifier: transactionId,
-                amount: Number(numTotal.toFixed(2)),
-                client: {
-                  name: customer.name || 'Cliente DecolaShop',
-                  email: customer.email,
-                  phone: gatewayPhone,
-                  document: safeCpf
+                valor: numTotal.toFixed(2),
+                referenciaExterna: transactionId,
+                pagador: {
+                  nome: cleanName,
+                  documento: safeDoc,
+                  email: customer.email || 'cliente@decolashop.com',
+                  telefone: safePhone
                 },
-                metadata: {
-                  plan,
-                  total: numTotal
-                }
+                itens: [
+                  {
+                    titulo: planName,
+                    quantidade: 1,
+                    valorUnitario: Number(numTotal.toFixed(2)),
+                    tangivel: false
+                  }
+                ],
+                urlCallback: `${siteUrl}/api/webhooks/vpay`
               })
             });
 
             const vData = await vRes.json().catch(() => ({}));
-            const pixPayload = vData.pix || vData.data || vData;
-            const qrCodeText = pixPayload.code || pixPayload.qrcode || pixPayload.qr_code || pixPayload.emv || pixPayload.copia_cola;
-            let qrCodeImage = pixPayload.base64 || pixPayload.qrcode_base64;
-            if (qrCodeText) {
-              if (qrCodeImage && !qrCodeImage.startsWith('data:')) {
+            if (vRes.ok || vRes.status === 201) {
+              const qrCodeText = vData.pixCopiaCola || vData.pix?.code || vData.codigo_pagamento;
+              let qrCodeImage = vData.paymentCodeBase64 || vData.pix?.image;
+              if (qrCodeImage && !qrCodeImage.startsWith('data:') && !qrCodeImage.startsWith('http')) {
                 qrCodeImage = `data:image/png;base64,${qrCodeImage}`;
-              } else if (!qrCodeImage) {
-                qrCodeImage = await QRCode.toDataURL(qrCodeText, { margin: 1, width: 320 });
               }
-              return {
-                success: true,
-                gateway: 'vpay',
-                qrCodeText,
-                qrCodeImage,
-                transactionId: vData.transactionId || vData.id || transactionId,
-                expiresAt: pixPayload.expiration || new Date(Date.now() + 30 * 60000).toISOString()
-              };
+              if (qrCodeText) {
+                if (!qrCodeImage || qrCodeImage === '') {
+                  qrCodeImage = await QRCode.toDataURL(qrCodeText, { margin: 1, width: 320 });
+                }
+                return {
+                  success: true,
+                  gateway: 'vpay',
+                  qrCodeText,
+                  qrCodeImage,
+                  transactionId: vData.idTransacao || vData.txid || transactionId,
+                  expiresAt: vData.expiraEm || new Date(Date.now() + 30 * 60000).toISOString()
+                };
+              }
+            } else {
+              console.warn('[VPAY API Error response]:', vData);
             }
           } catch (err: any) {
             console.warn('[VPAY API Error]:', err.message);

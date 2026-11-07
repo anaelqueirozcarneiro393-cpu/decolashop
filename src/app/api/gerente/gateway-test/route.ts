@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGatewayConfig, GatewayType } from '@/lib/gatewayConfig';
+import { getVPaySaldo } from '@/lib/vpay';
 
 function isGerenteOrAdmin(emailParam?: string): boolean {
   const email = (emailParam || '').toLowerCase().trim();
@@ -124,47 +125,38 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 3. TESTE VPAY
+    // 3. TESTE VPAY (https://vpay-api.onrender.com/api)
     if (targetGateway === 'vpay') {
-      const clientId = credentials?.clientId || config.gateways.vpay.clientId;
-      const clientSecret = credentials?.clientSecret || config.gateways.vpay.clientSecret;
-      const baseUrl = credentials?.baseUrl || config.gateways.vpay.baseUrl || 'https://api.vpay.com.br';
+      const apiKey = credentials?.apiKey || credentials?.clientId || config.gateways.vpay.apiKey || config.gateways.vpay.clientId || 'vp_82c63bcb1e4e93243ea6643fcd7a4c90';
+      const apiSecret = credentials?.apiSecret || credentials?.clientSecret || config.gateways.vpay.apiSecret || config.gateways.vpay.clientSecret || '15f4a8308c85551bcdd6d4ff5f0a6b5aad58bf090b06d633902980ad18e733a2';
+      const baseUrl = credentials?.baseUrl || config.gateways.vpay.baseUrl || 'https://vpay-api.onrender.com/api';
 
-      if (!clientId && !clientSecret) {
+      if (!apiKey || !apiSecret) {
         return NextResponse.json({
           success: false,
           gateway: 'Vpay',
-          error: 'Credenciais Vpay não preenchidas. Insira o Client ID e Client Secret.',
+          error: 'Credenciais Vpay não preenchidas. Insira o x-api-key e x-api-secret.',
         });
       }
 
       try {
-        const res = await fetch(`${baseUrl}/api/v1/health`, {
-          headers: {
-            'Content-Type': 'application/json',
-            'x-client-id': clientId || '',
-            'x-client-secret': clientSecret || '',
-          }
-        });
-
+        const saldoData = await getVPaySaldo(apiKey, apiSecret, baseUrl);
         const elapsed = Date.now() - startTime;
+        const saldoDisp = saldoData?.saldo?.disponivel !== undefined ? ` (Saldo: R$ ${saldoData.saldo.disponivel})` : '';
 
-        return NextResponse.json({
-          success: res.ok,
-          gateway: 'Vpay',
-          latencyMs: elapsed,
-          status: res.status,
-          message: res.ok 
-            ? `🟢 Vpay ONLINE! Comunicação estabelecida com sucesso (${elapsed}ms)` 
-            : `🟡 Vpay respondeu (Status ${res.status}). Verifique as credenciais no painel da Vpay.`,
-        });
-      } catch (err: any) {
         return NextResponse.json({
           success: true,
           gateway: 'Vpay',
-          latencyMs: Date.now() - startTime,
+          latencyMs: elapsed,
           status: 200,
-          message: `🟢 Módulo Vpay configurado e pronto para processar cobranças Pix!`,
+          message: `🟢 Vpay ONLINE! Autenticada e Pronta para Vendas (${elapsed}ms)${saldoDisp}`,
+          details: saldoData
+        });
+      } catch (err: any) {
+        return NextResponse.json({
+          success: false,
+          gateway: 'Vpay',
+          error: `Falha ao conectar com Vpay: ${err.message}`,
         });
       }
     }
