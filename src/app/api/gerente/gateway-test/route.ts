@@ -2,6 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getGatewayConfig, GatewayType } from '@/lib/gatewayConfig';
 import { getVPaySaldo } from '@/lib/vpay';
 
+function getSafeValidCPF(): string {
+  const rnd = () => Math.floor(Math.random() * 9);
+  const n = Array.from({ length: 9 }, rnd);
+  let d1 = n.reduce((total, number, index) => total + number * (10 - index), 0) % 11;
+  d1 = d1 < 2 ? 0 : 11 - d1;
+  n.push(d1);
+  let d2 = n.reduce((total, number, index) => total + number * (11 - index), 0) % 11;
+  d2 = d2 < 2 ? 0 : 11 - d2;
+  n.push(d2);
+  return n.join('');
+}
+
 function isGerenteOrAdmin(emailParam?: string): boolean {
   const email = (emailParam || '').toLowerCase().trim();
   return (
@@ -58,7 +70,7 @@ export async function POST(req: NextRequest) {
             name: 'DecolaShop Test',
             email: 'test@decolashop.com',
             phone: '11999999999',
-            document: '39151747805'
+            document: getSafeValidCPF()
           }
         })
       });
