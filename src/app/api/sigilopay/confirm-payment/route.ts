@@ -75,38 +75,45 @@ export async function POST(req: Request) {
     let txData: any = {};
 
     try {
-      if (gatewayUsed === 'mercadopago') {
-        const mpToken = gatewayConfig.gateways.mercadopago.accessToken || process.env.MERCADOPAGO_ACCESS_TOKEN;
-        if (mpToken) {
-          const checkRes = await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(transactionId)}`, {
-            headers: { Authorization: `Bearer ${mpToken}` }
+      if (gatewayUsed === 'cnpay') {
+        const apiKey = gatewayConfig.gateways.cnpay.apiKey || process.env.CNPAY_API_KEY;
+        const secretKey = gatewayConfig.gateways.cnpay.secretKey || process.env.CNPAY_SECRET_KEY;
+        const baseUrl = gatewayConfig.gateways.cnpay.baseUrl || process.env.CNPAY_BASE_URL || 'https://api.cnpay.com.br';
+
+        if (apiKey || secretKey) {
+          const checkRes = await fetch(`${baseUrl}/api/v1/pix/${encodeURIComponent(transactionId)}`, {
+            headers: {
+              'Authorization': `Bearer ${secretKey || apiKey}`,
+              'x-api-key': apiKey || ''
+            }
           });
           if (checkRes.ok) {
             txData = await checkRes.json();
             txStatus = String(txData.status || '').toUpperCase();
-            isPaid = txStatus === 'APPROVED';
-            txData.amount = txData.transaction_amount || txData.total_paid_amount;
+            isPaid = txStatus === 'PAID' || txStatus === 'COMPLETED' || txStatus === 'APPROVED' || txStatus === 'CONFIRMED';
+            txData.amount = txData.amount || txData.value;
           }
         }
-      } else if (gatewayUsed === 'asaas') {
-        const asaasKey = gatewayConfig.gateways.asaas.apiKey || process.env.ASAAS_API_KEY;
-        const asaasEnv = gatewayConfig.gateways.asaas.environment || 'production';
-        const asaasUrl = asaasEnv === 'sandbox' ? 'https://sandbox.asaas.com' : 'https://api.asaas.com';
-        if (asaasKey) {
-          const checkRes = await fetch(`${asaasUrl}/v3/payments/${encodeURIComponent(transactionId)}`, {
-            headers: { access_token: asaasKey }
+      } else if (gatewayUsed === 'vpay') {
+        const clientId = gatewayConfig.gateways.vpay.clientId || process.env.VPAY_CLIENT_ID;
+        const clientSecret = gatewayConfig.gateways.vpay.clientSecret || process.env.VPAY_CLIENT_SECRET;
+        const baseUrl = gatewayConfig.gateways.vpay.baseUrl || process.env.VPAY_BASE_URL || 'https://api.vpay.com.br';
+
+        if (clientId || clientSecret) {
+          const checkRes = await fetch(`${baseUrl}/api/v1/pix/${encodeURIComponent(transactionId)}`, {
+            headers: {
+              'x-client-id': clientId || '',
+              'x-client-secret': clientSecret || '',
+              'Authorization': `Bearer ${clientSecret || clientId}`,
+            }
           });
           if (checkRes.ok) {
             txData = await checkRes.json();
             txStatus = String(txData.status || '').toUpperCase();
-            isPaid = txStatus === 'RECEIVED' || txStatus === 'CONFIRMED';
-            txData.amount = txData.value;
+            isPaid = txStatus === 'PAID' || txStatus === 'COMPLETED' || txStatus === 'APPROVED' || txStatus === 'CONFIRMED';
+            txData.amount = txData.amount || txData.value;
           }
         }
-      } else if (gatewayUsed === 'pix_direto') {
-        txStatus = 'CONFIRMED';
-        isPaid = true;
-        txData = { amount: pendingTx?.total || rawBody.total || 179.90 };
       } else {
         const sigiloPublicKey = gatewayConfig.gateways.sigilopay.publicKey || process.env.SIGILOPAY_PUBLIC_KEY || 'kaiofredy2908_1cmq6fd3bmq2s24u';
         const sigiloSecretKey = gatewayConfig.gateways.sigilopay.secretKey || process.env.SIGILOPAY_SECRET_KEY || 'tzlk0xxe8t4dybi2t0o1udw1ckczp01a4a9hbgptalozcan5hh0r59qw41seo3ze';

@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const validGateways: GatewayType[] = ['sigilopay', 'mercadopago', 'asaas', 'efipay', 'pix_direto'];
+    const validGateways: GatewayType[] = ['sigilopay', 'cnpay', 'vpay'];
     if (activeGateway && !validGateways.includes(activeGateway)) {
       return NextResponse.json(
         { success: false, error: 'Gateway selecionado é inválido.' },

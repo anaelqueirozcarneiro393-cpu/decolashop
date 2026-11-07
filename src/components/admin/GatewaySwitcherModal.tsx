@@ -35,38 +35,28 @@ const GATEWAY_CARDS = [
     badge: 'Atual',
     badgeColor: 'bg-[#22c55e]/20 text-[#4ade80] border-[#22c55e]/30',
     icon: Zap,
-    description: 'Gateway nativo com split automático de comissões e taxas de antecipação.',
+    description: 'Gateway nativo oficial com split automático de comissões, afiliados e taxas de antecipação.',
     features: ['Split de Afiliados', 'Webhook Instantâneo', 'Taxas de Saque'],
   },
   {
-    id: 'mercadopago' as GatewayType,
-    name: 'Mercado Pago',
-    subtitle: 'Pix Transparente Oficial',
-    badge: 'Recomendado Fallback',
-    badgeColor: 'bg-sky-500/20 text-sky-400 border-sky-500/30',
+    id: 'cnpay' as GatewayType,
+    name: 'CNpay',
+    subtitle: 'Gateway Alternativo 1',
+    badge: 'Opção 1',
+    badgeColor: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
     icon: CreditCard,
-    description: 'Maior disponibilidade do mercado brasileiro. Redundância infalível contra quedas.',
-    features: ['99.9% Uptime', 'Aprovação em 3 segundos', 'Sem risco de bloqueio'],
+    description: 'Processadora de Pix de alta performance com webhook em tempo real e conciliação bancária rápida.',
+    features: ['Pix Imediato', 'Webhook Instantâneo', 'Anti-Instabilidade'],
   },
   {
-    id: 'asaas' as GatewayType,
-    name: 'Asaas',
-    subtitle: 'API de Cobranças Pix',
-    badge: 'Redundância',
+    id: 'vpay' as GatewayType,
+    name: 'Vpay',
+    subtitle: 'Gateway Alternativo 2',
+    badge: 'Opção 2',
     badgeColor: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
     icon: Server,
-    description: 'Especialista em automação financeira e emissão direta no Banco Central.',
-    features: ['API Robusta', 'Relatórios Detalhados', 'Pix Imediato'],
-  },
-  {
-    id: 'pix_direto' as GatewayType,
-    name: 'Pix Direto (Contingência)',
-    subtitle: 'Chave Emergencial BACEN',
-    badge: '100% Anti-Queda',
-    badgeColor: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-    icon: Flame,
-    description: 'Gera QR Code Pix EMV oficial com CRC16. Se qualquer gateway cair, você nunca perde vendas.',
-    features: ['Zero Intermediários', 'Cai Direto na Conta', 'Imune a Quedas de APIs'],
+    description: 'Gateway robusto para recebimento e liquidação de Pix sem risco de travar vendas.',
+    features: ['Alta Disponibilidade', 'API Rápida', 'Liquidação D+0'],
   },
 ];
 
@@ -94,17 +84,22 @@ export default function GatewaySwitcherModal({ isOpen, onClose }: GatewaySwitche
   const [config, setConfig] = useState<GatewaySystemConfig | null>(null);
   const [selectedActive, setSelectedActive] = useState<GatewayType>('sigilopay');
   const [smartFailover, setSmartFailover] = useState(true);
-  const [fallbackGateway, setFallbackGateway] = useState<GatewayType>('pix_direto');
+  const [fallbackGateway, setFallbackGateway] = useState<GatewayType>('cnpay');
 
-  // Credenciais editáveis
-  const [mpToken, setMpToken] = useState('');
-  const [asaasKey, setAsaasKey] = useState('');
-  const [asaasEnv, setAsaasEnv] = useState<'production' | 'sandbox'>('production');
-  const [pixChave, setPixChave] = useState('financeiro@decolashop.com');
-  const [pixNome, setPixNome] = useState('DECOLASHOP TECNOLOGIA');
-  const [pixCidade, setPixCidade] = useState('SAO PAULO');
+  // Credenciais SigiloPay
   const [sigiloPub, setSigiloPub] = useState('');
   const [sigiloSec, setSigiloSec] = useState('');
+  const [sigiloUrl, setSigiloUrl] = useState('https://app.sigilopay.com.br');
+
+  // Credenciais CNpay
+  const [cnpayKey, setCnpayKey] = useState('');
+  const [cnpaySec, setCnpaySec] = useState('');
+  const [cnpayUrl, setCnpayUrl] = useState('https://api.cnpay.com.br');
+
+  // Credenciais Vpay
+  const [vpayId, setVpayId] = useState('');
+  const [vpaySec, setVpaySec] = useState('');
+  const [vpayUrl, setVpayUrl] = useState('https://api.vpay.com.br');
 
   // Carrega configuração salva
   const fetchConfig = async () => {
@@ -116,17 +111,22 @@ export default function GatewaySwitcherModal({ isOpen, onClose }: GatewaySwitche
         setConfig(data.config);
         setSelectedActive(data.config.activeGateway || 'sigilopay');
         setSmartFailover(Boolean(data.config.smartFailover));
-        setFallbackGateway(data.config.fallbackGateway || 'pix_direto');
+        setFallbackGateway(data.config.fallbackGateway || 'cnpay');
 
-        // Preenche campos
-        setMpToken(data.config.gateways?.mercadopago?.accessToken || '');
-        setAsaasKey(data.config.gateways?.asaas?.apiKey || '');
-        setAsaasEnv(data.config.gateways?.asaas?.environment || 'production');
-        setPixChave(data.config.gateways?.pix_direto?.chavePix || 'financeiro@decolashop.com');
-        setPixNome(data.config.gateways?.pix_direto?.nomeTitular || 'DECOLASHOP TECNOLOGIA');
-        setPixCidade(data.config.gateways?.pix_direto?.cidade || 'SAO PAULO');
+        // SigiloPay
         setSigiloPub(data.config.gateways?.sigilopay?.publicKey || '');
         setSigiloSec(data.config.gateways?.sigilopay?.secretKey || '');
+        setSigiloUrl(data.config.gateways?.sigilopay?.baseUrl || 'https://app.sigilopay.com.br');
+
+        // CNpay
+        setCnpayKey(data.config.gateways?.cnpay?.apiKey || '');
+        setCnpaySec(data.config.gateways?.cnpay?.secretKey || '');
+        setCnpayUrl(data.config.gateways?.cnpay?.baseUrl || 'https://api.cnpay.com.br');
+
+        // Vpay
+        setVpayId(data.config.gateways?.vpay?.clientId || '');
+        setVpaySec(data.config.gateways?.vpay?.clientSecret || '');
+        setVpayUrl(data.config.gateways?.vpay?.baseUrl || 'https://api.vpay.com.br');
       }
     } catch (err) {
       console.error('Erro ao carregar configurações de gateway:', err);
@@ -145,10 +145,21 @@ export default function GatewaySwitcherModal({ isOpen, onClose }: GatewaySwitche
     setTestingGateway(gatewayId);
     try {
       const credentials: any = {};
-      if (gatewayId === 'mercadopago') credentials.accessToken = mpToken;
-      if (gatewayId === 'asaas') { credentials.apiKey = asaasKey; credentials.environment = asaasEnv; }
-      if (gatewayId === 'pix_direto') { credentials.chavePix = pixChave; credentials.nomeTitular = pixNome; credentials.cidade = pixCidade; }
-      if (gatewayId === 'sigilopay') { credentials.publicKey = sigiloPub; credentials.secretKey = sigiloSec; }
+      if (gatewayId === 'sigilopay') {
+        credentials.publicKey = sigiloPub;
+        credentials.secretKey = sigiloSec;
+        credentials.baseUrl = sigiloUrl;
+      }
+      if (gatewayId === 'cnpay') {
+        credentials.apiKey = cnpayKey;
+        credentials.secretKey = cnpaySec;
+        credentials.baseUrl = cnpayUrl;
+      }
+      if (gatewayId === 'vpay') {
+        credentials.clientId = vpayId;
+        credentials.clientSecret = vpaySec;
+        credentials.baseUrl = vpayUrl;
+      }
 
       const res = await fetch('/api/gerente/gateway-test', {
         method: 'POST',
@@ -200,20 +211,17 @@ export default function GatewaySwitcherModal({ isOpen, onClose }: GatewaySwitche
           sigilopay: {
             publicKey: sigiloPub || 'kaiofredy2908_1cmq6fd3bmq2s24u',
             secretKey: sigiloSec || 'tzlk0xxe8t4dybi2t0o1udw1ckczp01a4a9hbgptalozcan5hh0r59qw41seo3ze',
-            baseUrl: 'https://app.sigilopay.com.br'
+            baseUrl: sigiloUrl || 'https://app.sigilopay.com.br'
           },
-          mercadopago: {
-            accessToken: mpToken
+          cnpay: {
+            apiKey: cnpayKey,
+            secretKey: cnpaySec,
+            baseUrl: cnpayUrl || 'https://api.cnpay.com.br'
           },
-          asaas: {
-            apiKey: asaasKey,
-            environment: asaasEnv
-          },
-          pix_direto: {
-            chavePix: pixChave,
-            tipoChave: 'email',
-            nomeTitular: pixNome,
-            cidade: pixCidade
+          vpay: {
+            clientId: vpayId,
+            clientSecret: vpaySec,
+            baseUrl: vpayUrl || 'https://api.vpay.com.br'
           }
         }
       };
@@ -267,25 +275,25 @@ export default function GatewaySwitcherModal({ isOpen, onClose }: GatewaySwitche
         
         {/* Glow de ambientação */}
         <div className="absolute top-0 right-1/3 w-64 h-64 bg-[#22c55e]/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-1/4 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-1/4 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
 
         {/* Topo do Modal */}
         <div className="flex items-start justify-between pb-4 border-b border-white/10 relative z-10">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#22c55e]/25 to-sky-500/15 border border-[#22c55e]/40 flex items-center justify-center text-[#4ade80] shadow-lg shadow-[#22c55e]/20">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#22c55e]/25 to-cyan-500/15 border border-[#22c55e]/40 flex items-center justify-center text-[#4ade80] shadow-lg shadow-[#22c55e]/20">
               <Layers size={24} />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-lg sm:text-xl font-black text-white tracking-tight">
-                  Gestão & Troca de Gateways
+                  Gestão de Gateways Autorizados
                 </h3>
                 <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#22c55e]/15 text-[#4ade80] border border-[#22c55e]/30">
                   Exclusivo Gerente
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                Alterne o gateway ativo ou ative contingência automática caso a SigiloPay oscile.
+                Alterne entre os gateways oficiais da plataforma: <strong>SigiloPay</strong>, <strong>CNpay</strong> e <strong>Vpay</strong>.
               </p>
             </div>
           </div>
@@ -308,10 +316,9 @@ export default function GatewaySwitcherModal({ isOpen, onClose }: GatewaySwitche
             <div>
               <span className="text-xs text-slate-400 block font-medium">Gateway Ativo no Sistema:</span>
               <span className="text-base font-black text-white capitalize flex items-center gap-1.5">
-                {selectedActive === 'sigilopay' && 'SigiloPay (Nativo)'}
-                {selectedActive === 'mercadopago' && 'Mercado Pago (Pix Transparente)'}
-                {selectedActive === 'asaas' && 'Asaas (API Cobranças)'}
-                {selectedActive === 'pix_direto' && 'Pix Direto (Modo Emergência)'}
+                {selectedActive === 'sigilopay' && 'SigiloPay (Nativo Oficial)'}
+                {selectedActive === 'cnpay' && 'CNpay (Gateway Alternativo 1)'}
+                {selectedActive === 'vpay' && 'Vpay (Gateway Alternativo 2)'}
                 <span className="text-[10px] px-2 py-0.2 rounded-md bg-[#22c55e]/20 text-[#4ade80] border border-[#22c55e]/30 font-bold uppercase">
                   OPERANDO
                 </span>
@@ -331,13 +338,13 @@ export default function GatewaySwitcherModal({ isOpen, onClose }: GatewaySwitche
           </div>
         </div>
 
-        {/* Grid de Seleção de Gateways */}
+        {/* Grid dos 3 Gateways Autorizados */}
         <div className="space-y-3 relative z-10">
           <span className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
-            Escolha o Gateway Principal para Receber Pagamentos:
+            Selecione o Gateway Ativo para Cobranças e Recargas:
           </span>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {GATEWAY_CARDS.map((gw) => {
               const isSelected = selectedActive === gw.id;
               const Icon = gw.icon;
@@ -383,8 +390,8 @@ export default function GatewaySwitcherModal({ isOpen, onClose }: GatewaySwitche
                   </div>
 
                   <div className="pt-2.5 border-t border-white/5 flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      {gw.features.slice(0, 2).map((feat, idx) => (
+                    <div className="flex items-center gap-1">
+                      {gw.features.slice(0, 1).map((feat, idx) => (
                         <span key={idx} className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-slate-300 font-mono">
                           ✓ {feat}
                         </span>
@@ -420,117 +427,18 @@ export default function GatewaySwitcherModal({ isOpen, onClose }: GatewaySwitche
           </div>
         </div>
 
-        {/* Painel de Credenciais Dinâmicas do Gateway Selecionado */}
+        {/* Painel de Credenciais do Gateway Selecionado */}
         <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/10 space-y-3 relative z-10">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
               <Lock size={13} className="text-[#22c55e]" />
-              Credenciais & Configurações de Conexão:
+              Credenciais de API ({selectedActive.toUpperCase()}):
             </span>
-            <span className="text-[10px] text-slate-400">Salvas com segurança criptografada</span>
+            <span className="text-[10px] text-slate-400">Armazenamento Criptografado</span>
           </div>
 
-          {selectedActive === 'mercadopago' && (
-            <div className="space-y-2">
-              <label className="text-[11px] font-semibold text-slate-300 block">
-                Mercado Pago Access Token (Produção)
-              </label>
-              <input
-                type="password"
-                value={mpToken}
-                onChange={(e) => setMpToken(e.target.value)}
-                placeholder="APP_USR-0000000000000000-000000-00000000000000000000000000000000-000000000"
-                className="w-full bg-black/50 border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 font-mono focus:outline-none focus:border-[#22c55e]"
-              />
-              <p className="text-[10px] text-slate-400">
-                Obtenha em: <a href="https://www.mercadopago.com.br/developers" target="_blank" rel="noreferrer" className="text-sky-400 underline">mercadopago.com.br/developers</a> (Suas Integrações &gt; Credenciais de Produção).
-              </p>
-            </div>
-          )}
-
-          {selectedActive === 'asaas' && (
-            <div className="space-y-3">
-              <div>
-                <label className="text-[11px] font-semibold text-slate-300 block mb-1">
-                  Asaas API Key
-                </label>
-                <input
-                  type="password"
-                  value={asaasKey}
-                  onChange={(e) => setAsaasKey(e.target.value)}
-                  placeholder="$aact_YTU5YTE0M2M6N2Z..."
-                  className="w-full bg-black/50 border border-white/15 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 font-mono focus:outline-none focus:border-[#22c55e]"
-                />
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-[11px] text-slate-300">Ambiente:</span>
-                <label className="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="asaasEnv"
-                    checked={asaasEnv === 'production'}
-                    onChange={() => setAsaasEnv('production')}
-                    className="accent-[#22c55e]"
-                  />
-                  <span>Produção</span>
-                </label>
-                <label className="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="asaasEnv"
-                    checked={asaasEnv === 'sandbox'}
-                    onChange={() => setAsaasEnv('sandbox')}
-                    className="accent-[#22c55e]"
-                  />
-                  <span>Sandbox (Testes)</span>
-                </label>
-              </div>
-            </div>
-          )}
-
-          {selectedActive === 'pix_direto' && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="text-[11px] font-semibold text-slate-300 block mb-1">
-                  Chave Pix (E-mail, CNPJ, Celular)
-                </label>
-                <input
-                  type="text"
-                  value={pixChave}
-                  onChange={(e) => setPixChave(e.target.value)}
-                  placeholder="financeiro@empresa.com"
-                  className="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 font-mono focus:outline-none focus:border-[#22c55e]"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] font-semibold text-slate-300 block mb-1">
-                  Nome do Titular
-                </label>
-                <input
-                  type="text"
-                  value={pixNome}
-                  onChange={(e) => setPixNome(e.target.value)}
-                  placeholder="DECOLASHOP TECNOLOGIA"
-                  className="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#22c55e]"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] font-semibold text-slate-300 block mb-1">
-                  Cidade
-                </label>
-                <input
-                  type="text"
-                  value={pixCidade}
-                  onChange={(e) => setPixCidade(e.target.value)}
-                  placeholder="SAO PAULO"
-                  className="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#22c55e]"
-                />
-              </div>
-            </div>
-          )}
-
           {selectedActive === 'sigilopay' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="text-[11px] font-semibold text-slate-300 block mb-1">
                   Public Key SigiloPay
@@ -553,11 +461,102 @@ export default function GatewaySwitcherModal({ isOpen, onClose }: GatewaySwitche
                   className="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#22c55e]"
                 />
               </div>
+              <div>
+                <label className="text-[11px] font-semibold text-slate-300 block mb-1">
+                  Endpoint URL
+                </label>
+                <input
+                  type="text"
+                  value={sigiloUrl || 'https://app.sigilopay.com.br'}
+                  onChange={(e) => setSigiloUrl(e.target.value)}
+                  className="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#22c55e]"
+                />
+              </div>
+            </div>
+          )}
+
+          {selectedActive === 'cnpay' && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="text-[11px] font-semibold text-slate-300 block mb-1">
+                  CNpay API Key / Client ID
+                </label>
+                <input
+                  type="text"
+                  value={cnpayKey}
+                  onChange={(e) => setCnpayKey(e.target.value)}
+                  placeholder="cn_live_..."
+                  className="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#22c55e]"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-slate-300 block mb-1">
+                  CNpay Secret Key / Token
+                </label>
+                <input
+                  type="password"
+                  value={cnpaySec}
+                  onChange={(e) => setCnpaySec(e.target.value)}
+                  placeholder="cn_sec_..."
+                  className="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#22c55e]"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-slate-300 block mb-1">
+                  Base URL CNpay
+                </label>
+                <input
+                  type="text"
+                  value={cnpayUrl || 'https://api.cnpay.com.br'}
+                  onChange={(e) => setCnpayUrl(e.target.value)}
+                  className="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#22c55e]"
+                />
+              </div>
+            </div>
+          )}
+
+          {selectedActive === 'vpay' && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="text-[11px] font-semibold text-slate-300 block mb-1">
+                  Vpay Client ID / API Key
+                </label>
+                <input
+                  type="text"
+                  value={vpayId}
+                  onChange={(e) => setVpayId(e.target.value)}
+                  placeholder="vp_client_..."
+                  className="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#22c55e]"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-slate-300 block mb-1">
+                  Vpay Client Secret
+                </label>
+                <input
+                  type="password"
+                  value={vpaySec}
+                  onChange={(e) => setVpaySec(e.target.value)}
+                  placeholder="vp_sec_..."
+                  className="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#22c55e]"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-slate-300 block mb-1">
+                  Base URL Vpay
+                </label>
+                <input
+                  type="text"
+                  value={vpayUrl || 'https://api.vpay.com.br'}
+                  onChange={(e) => setVpayUrl(e.target.value)}
+                  className="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#22c55e]"
+                />
+              </div>
             </div>
           )}
         </div>
 
-        {/* Smart Failover (Contingência Automática) */}
+        {/* Smart Failover entre SigiloPay, CNpay e Vpay */}
         <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-cyan-500/5 to-transparent border border-[#22c55e]/25 flex items-start justify-between gap-4 relative z-10">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -570,19 +569,18 @@ export default function GatewaySwitcherModal({ isOpen, onClose }: GatewaySwitche
               </span>
             </div>
             <p className="text-[11px] text-slate-300 leading-relaxed max-w-xl">
-              Se o gateway principal retornar instabilidade, timeout (&gt;5s) ou erro de API, o sistema emite o Pix automaticamente pelo gateway de contingência sem travar a tela do cliente.
+              Caso o gateway principal (ex: SigiloPay) fique fora do ar ou apresente lentidão (&gt;5s), o sistema direciona automaticamente o Pix para o gateway de contingência sem interromper a compra do cliente.
             </p>
             <div className="flex items-center gap-2 pt-1 text-[11px] text-slate-400">
-              <span>Fallback secundário:</span>
+              <span>Fallback de Contingência:</span>
               <select
                 value={fallbackGateway}
                 onChange={(e) => setFallbackGateway(e.target.value as GatewayType)}
-                className="bg-black/60 border border-white/20 rounded-lg px-2 py-1 text-xs text-white outline-none"
+                className="bg-black/60 border border-white/20 rounded-lg px-2.5 py-1 text-xs text-white outline-none cursor-pointer"
               >
-                <option value="pix_direto">Pix Direto (BACEN Oficial)</option>
-                <option value="mercadopago">Mercado Pago</option>
-                <option value="asaas">Asaas</option>
-                <option value="sigilopay">SigiloPay</option>
+                <option value="cnpay">CNpay (Alternativo 1)</option>
+                <option value="vpay">Vpay (Alternativo 2)</option>
+                <option value="sigilopay">SigiloPay (Nativo)</option>
               </select>
             </div>
           </div>
@@ -603,7 +601,7 @@ export default function GatewaySwitcherModal({ isOpen, onClose }: GatewaySwitche
         {/* Botão de Salvar e Ativar */}
         <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-white/10 relative z-10">
           <p className="text-[11px] text-slate-400">
-            A alteração entra em vigor instantaneamente em todas as rotas e modais de checkout.
+            A troca entra em vigor instantaneamente em todo o sistema (Upgrades, Recargas e Antecipações).
           </p>
 
           <div className="flex items-center gap-2 w-full sm:w-auto">
