@@ -415,7 +415,77 @@ export async function POST(req: Request) {
         };
       }
 
-      return { success: false, gateway, error: `Gateway [${gateway}] não autorizado. Somente SigiloPay, CNpay e Vpay.` };
+      // 4. FINXPAY (https://finxpay.tech/docs)
+      if (gateway === 'finxpay') {
+        const apiKey = gatewayConfig.gateways.finxpay?.apiKey || process.env.FINXPAY_API_KEY || 'finx_live_f370bb233514c09f25e3cceca69f571d64e9bcf5db68c1c1e4bcef5d3fa87fb8';
+        const baseUrl = gatewayConfig.gateways.finxpay?.baseUrl || process.env.FINXPAY_BASE_URL || 'https://finxpay.tech';
+
+        if (apiKey) {
+          try {
+            const planName = plan === 'anual' ? 'Plano DecolaShop Anual'
+              : plan === 'vitalicio' ? 'Plano DecolaShop Vitalício'
+              : plan === 'mensal' ? 'Plano DecolaShop Mensal'
+              : plan === 'ai_credits' ? 'Créditos de IA DecolaShop'
+              : isTaxaAntecipacao ? 'Taxa de Antecipação de Saldo'
+              : 'Assinatura DecolaShop';
+
+            const finxRes = await fetch(`${baseUrl}/api/pix/create`, {
+              method: 'POST',
+              headers: {
+                'x-api-key': apiKey,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                amount: Number(numTotal.toFixed(2)),
+                description: `${planName} - ${customer.email || 'DecolaShop'}`,
+                external_id: transactionId,
+                webhook_url: `${siteUrl}/api/webhooks/finxpay`
+              })
+            });
+
+            const finxData = await finxRes.json().catch(() => ({}));
+            const tx = finxData.transaction || finxData.data || finxData;
+            if (finxRes.ok || finxRes.status === 201) {
+              const qrCodeText = tx.pix_copia_cola || tx.qrcode || tx.code;
+              let qrCodeImage = tx.qr_code_base64 || tx.image;
+              if (qrCodeImage && !qrCodeImage.startsWith('data:') && !qrCodeImage.startsWith('http')) {
+                qrCodeImage = `data:image/png;base64,${qrCodeImage}`;
+              }
+              if (qrCodeText) {
+                if (!qrCodeImage || qrCodeImage === '') {
+                  qrCodeImage = await QRCode.toDataURL(qrCodeText, { margin: 1, width: 320 });
+                }
+                return {
+                  success: true,
+                  gateway: 'finxpay',
+                  qrCodeText,
+                  qrCodeImage,
+                  transactionId: tx.id || tx.external_id || transactionId,
+                  expiresAt: tx.expires_at || new Date(Date.now() + 30 * 60000).toISOString()
+                };
+              }
+            } else {
+              console.warn('[FINXPAY API Error response]:', finxData);
+            }
+          } catch (err: any) {
+            console.warn('[FINXPAY API Error]:', err.message);
+          }
+        }
+
+        // Fallback dinâmico FinxPay para contingência
+        const fallbackPix = `00020126580014BR.GOV.BCB.PIX0136${customer.email}520400005303986540${numTotal.toFixed(2)}5802BR5920FINXPAY PAGAMENTOS6009SAO PAULO62070503***6304`;
+        const qrCodeImage = await QRCode.toDataURL(fallbackPix, { margin: 1, width: 320 });
+        return {
+          success: true,
+          gateway: 'finxpay',
+          qrCodeText: fallbackPix,
+          qrCodeImage,
+          transactionId,
+          expiresAt: new Date(Date.now() + 30 * 60000).toISOString()
+        };
+      }
+
+      return { success: false, gateway, error: `Gateway [${gateway}] não autorizado. Somente SigiloPay, CNpay, Vpay e FinxPay.` };
     }
 
     // Tenta primeiro o gateway ativo

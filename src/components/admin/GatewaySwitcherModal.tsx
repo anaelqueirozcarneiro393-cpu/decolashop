@@ -58,6 +58,16 @@ const GATEWAY_CARDS = [
     description: 'Processadora oficial VPay via PIX com autenticação Bearer token, liquidação e saldo online.',
     features: ['Pix Imediato', 'Token Bearer', 'Saldo D+0'],
   },
+  {
+    id: 'finxpay' as GatewayType,
+    name: 'FinxPay',
+    subtitle: 'Gateway Oficial Homologado',
+    badge: 'API v1 Ativa',
+    badgeColor: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+    icon: Flame,
+    description: 'Processadora oficial FinxPay com PIX instantâneo, QR code direto e webhook em tempo real.',
+    features: ['Pix Imediato', 'API Key Direta', 'QR Code Nativo'],
+  },
 ];
 
 export default function GatewaySwitcherModal({ isOpen, onClose }: GatewaySwitcherModalProps) {
@@ -101,6 +111,11 @@ export default function GatewaySwitcherModal({ isOpen, onClose }: GatewaySwitche
   const [vpaySec, setVpaySec] = useState('15f4a8308c85551bcdd6d4ff5f0a6b5aad58bf090b06d633902980ad18e733a2');
   const [vpayUrl, setVpayUrl] = useState('https://vpay-api.onrender.com/api');
 
+  // Credenciais FinxPay (https://finxpay.tech/docs)
+  const [finxKey, setFinxKey] = useState('finx_live_f370bb233514c09f25e3cceca69f571d64e9bcf5db68c1c1e4bcef5d3fa87fb8');
+  const [finxUrl, setFinxUrl] = useState('https://finxpay.tech');
+  const [finxWebhook, setFinxWebhook] = useState('https://decolashop-saas.vercel.app/api/webhooks/finxpay');
+
   // Carrega configuração salva
   const fetchConfig = async () => {
     setIsLoading(true);
@@ -127,6 +142,11 @@ export default function GatewaySwitcherModal({ isOpen, onClose }: GatewaySwitche
         setVpayId(data.config.gateways?.vpay?.apiKey || data.config.gateways?.vpay?.clientId || 'vp_82c63bcb1e4e93243ea6643fcd7a4c90');
         setVpaySec(data.config.gateways?.vpay?.apiSecret || data.config.gateways?.vpay?.clientSecret || '15f4a8308c85551bcdd6d4ff5f0a6b5aad58bf090b06d633902980ad18e733a2');
         setVpayUrl(data.config.gateways?.vpay?.baseUrl || 'https://vpay-api.onrender.com/api');
+
+        // FinxPay
+        setFinxKey(data.config.gateways?.finxpay?.apiKey || 'finx_live_f370bb233514c09f25e3cceca69f571d64e9bcf5db68c1c1e4bcef5d3fa87fb8');
+        setFinxUrl(data.config.gateways?.finxpay?.baseUrl || 'https://finxpay.tech');
+        setFinxWebhook(data.config.gateways?.finxpay?.webhookUrl || 'https://decolashop-saas.vercel.app/api/webhooks/finxpay');
       }
     } catch (err) {
       console.error('Erro ao carregar configurações de gateway:', err);
@@ -162,6 +182,10 @@ export default function GatewaySwitcherModal({ isOpen, onClose }: GatewaySwitche
         credentials.clientId = vpayId || 'vp_82c63bcb1e4e93243ea6643fcd7a4c90';
         credentials.clientSecret = vpaySec || '15f4a8308c85551bcdd6d4ff5f0a6b5aad58bf090b06d633902980ad18e733a2';
         credentials.baseUrl = vpayUrl || 'https://vpay-api.onrender.com/api';
+      }
+      if (gatewayId === 'finxpay') {
+        credentials.apiKey = finxKey || 'finx_live_f370bb233514c09f25e3cceca69f571d64e9bcf5db68c1c1e4bcef5d3fa87fb8';
+        credentials.baseUrl = finxUrl || 'https://finxpay.tech';
       }
 
       const res = await fetch('/api/gerente/gateway-test', {
@@ -228,6 +252,11 @@ export default function GatewaySwitcherModal({ isOpen, onClose }: GatewaySwitche
             clientId: vpayId || 'vp_82c63bcb1e4e93243ea6643fcd7a4c90',
             clientSecret: vpaySec || '15f4a8308c85551bcdd6d4ff5f0a6b5aad58bf090b06d633902980ad18e733a2',
             baseUrl: vpayUrl || 'https://vpay-api.onrender.com/api'
+          },
+          finxpay: {
+            apiKey: finxKey || 'finx_live_f370bb233514c09f25e3cceca69f571d64e9bcf5db68c1c1e4bcef5d3fa87fb8',
+            baseUrl: finxUrl || 'https://finxpay.tech',
+            webhookUrl: finxWebhook || 'https://decolashop-saas.vercel.app/api/webhooks/finxpay'
           }
         }
       };
@@ -581,6 +610,49 @@ export default function GatewaySwitcherModal({ isOpen, onClose }: GatewaySwitche
               </div>
             </div>
           )}
+
+          {selectedActive === 'finxpay' && (
+            <div className="space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="text-[11px] font-semibold text-slate-300 block mb-1">
+                    x-api-key FinxPay
+                  </label>
+                  <input
+                    type="password"
+                    value={finxKey}
+                    onChange={(e) => setFinxKey(e.target.value)}
+                    placeholder="finx_live_..."
+                    className="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#22c55e]"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-300 block mb-1">
+                    Base URL FinxPay
+                  </label>
+                  <input
+                    type="text"
+                    value={finxUrl || 'https://finxpay.tech'}
+                    onChange={(e) => setFinxUrl(e.target.value)}
+                    placeholder="https://finxpay.tech"
+                    className="w-full bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#22c55e]"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
+                <span className="text-amber-400 font-mono">Autenticação direta server-to-server via header x-api-key com webhook HMAC</span>
+                <a 
+                  href="https://finxpay.tech/docs" 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="flex items-center gap-1 text-[#22c55e] hover:underline"
+                >
+                  <ExternalLink size={10} />
+                  Ver Manual da API FinxPay
+                </a>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Smart Failover entre SigiloPay, CNpay e Vpay */}
@@ -607,6 +679,7 @@ export default function GatewaySwitcherModal({ isOpen, onClose }: GatewaySwitche
               >
                 <option value="cnpay">CNpay (Alternativo 1)</option>
                 <option value="vpay">Vpay (Alternativo 2)</option>
+                <option value="finxpay">FinxPay (Alternativo 3)</option>
                 <option value="sigilopay">SigiloPay (Nativo)</option>
               </select>
             </div>

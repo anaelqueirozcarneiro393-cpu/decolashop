@@ -173,9 +173,54 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // 4. TESTE FINXPAY (https://finxpay.tech/docs)
+    if (targetGateway === 'finxpay') {
+      const apiKey = credentials?.apiKey || config.gateways.finxpay?.apiKey || 'finx_live_f370bb233514c09f25e3cceca69f571d64e9bcf5db68c1c1e4bcef5d3fa87fb8';
+      const baseUrl = credentials?.baseUrl || config.gateways.finxpay?.baseUrl || 'https://finxpay.tech';
+
+      if (!apiKey) {
+        return NextResponse.json({
+          success: false,
+          gateway: 'FinxPay',
+          error: 'Chave de API (x-api-key) da FinxPay não preenchida.',
+        });
+      }
+
+      try {
+        const res = await fetch(`${baseUrl}/api/wallet`, {
+          headers: {
+            'x-api-key': apiKey,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        const elapsed = Date.now() - startTime;
+        const walletData = await res.json().catch(() => ({}));
+        const ok = res.status === 200 && (walletData.success || walletData.available !== undefined);
+        const saldoDisp = walletData?.available !== undefined ? ` (Saldo Disp: R$ ${walletData.available})` : '';
+
+        return NextResponse.json({
+          success: ok,
+          gateway: 'FinxPay',
+          latencyMs: elapsed,
+          status: res.status,
+          message: ok
+            ? `🟢 FinxPay ONLINE! Autenticada e Pronta para Vendas (${elapsed}ms)${saldoDisp}`
+            : `⚠️ FinxPay respondeu com status ${res.status}: ${walletData.error || walletData.message || 'Verifique sua API key.'}`,
+          details: walletData
+        });
+      } catch (err: any) {
+        return NextResponse.json({
+          success: false,
+          gateway: 'FinxPay',
+          error: `Falha ao conectar com FinxPay: ${err.message}`,
+        });
+      }
+    }
+
     return NextResponse.json({
       success: false,
-      error: 'Gateway inválido. Os gateways autorizados são apenas: SigiloPay, CNpay e Vpay.',
+      error: 'Gateway inválido. Os gateways autorizados são: SigiloPay, CNpay, Vpay e FinxPay.',
     }, { status: 400 });
 
   } catch (err: any) {

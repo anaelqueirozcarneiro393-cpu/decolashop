@@ -1,6 +1,6 @@
 import { loadVerificationToken, saveVerificationToken } from '@/lib/supabaseAdmin';
 
-export type GatewayType = 'sigilopay' | 'cnpay' | 'vpay';
+export type GatewayType = 'sigilopay' | 'cnpay' | 'vpay' | 'finxpay';
 
 export interface SigiloPayConfig {
   publicKey: string;
@@ -23,6 +23,12 @@ export interface VPayConfig {
   baseUrl: string;
 }
 
+export interface FinxPayConfig {
+  apiKey: string;
+  baseUrl: string;
+  webhookUrl?: string;
+}
+
 export interface GatewaySystemConfig {
   activeGateway: GatewayType;
   smartFailover: boolean;
@@ -33,6 +39,7 @@ export interface GatewaySystemConfig {
     sigilopay: SigiloPayConfig;
     cnpay: CNPayConfig;
     vpay: VPayConfig;
+    finxpay: FinxPayConfig;
   };
 }
 
@@ -61,6 +68,11 @@ const DEFAULT_CONFIG: GatewaySystemConfig = {
       clientSecret: process.env.VPAY_CLIENT_SECRET || '15f4a8308c85551bcdd6d4ff5f0a6b5aad58bf090b06d633902980ad18e733a2',
       baseUrl: process.env.VPAY_BASE_URL || 'https://vpay-api.onrender.com/api',
     },
+    finxpay: {
+      apiKey: process.env.FINXPAY_API_KEY || 'finx_live_f370bb233514c09f25e3cceca69f571d64e9bcf5db68c1c1e4bcef5d3fa87fb8',
+      baseUrl: process.env.FINXPAY_BASE_URL || 'https://finxpay.tech',
+      webhookUrl: process.env.FINXPAY_WEBHOOK_URL || 'https://decolashop-saas.vercel.app/api/webhooks/finxpay',
+    },
   },
 };
 
@@ -81,7 +93,7 @@ export async function getGatewayConfig(): Promise<GatewaySystemConfig> {
     const raw = await loadVerificationToken(TOKEN_IDENTIFIER);
     if (raw) {
       const parsed = JSON.parse(raw);
-      const validGateways: GatewayType[] = ['sigilopay', 'cnpay', 'vpay'];
+      const validGateways: GatewayType[] = ['sigilopay', 'cnpay', 'vpay', 'finxpay'];
       const activeGateway: GatewayType = validGateways.includes(parsed.activeGateway) 
         ? parsed.activeGateway 
         : 'sigilopay';
@@ -107,6 +119,10 @@ export async function getGatewayConfig(): Promise<GatewaySystemConfig> {
             ...DEFAULT_CONFIG.gateways.vpay,
             ...(parsed.gateways?.vpay || {}),
           },
+          finxpay: {
+            ...DEFAULT_CONFIG.gateways.finxpay,
+            ...(parsed.gateways?.finxpay || {}),
+          },
         },
       };
 
@@ -129,7 +145,7 @@ export async function saveGatewayConfig(
   userEmail: string = 'gerente@decolashop.com'
 ): Promise<GatewaySystemConfig> {
   const current = await getGatewayConfig();
-  const validGateways: GatewayType[] = ['sigilopay', 'cnpay', 'vpay'];
+  const validGateways: GatewayType[] = ['sigilopay', 'cnpay', 'vpay', 'finxpay'];
   
   const activeGateway = newConfig.activeGateway && validGateways.includes(newConfig.activeGateway)
     ? newConfig.activeGateway
@@ -158,6 +174,10 @@ export async function saveGatewayConfig(
       vpay: {
         ...current.gateways.vpay,
         ...(newConfig.gateways?.vpay || {}),
+      },
+      finxpay: {
+        ...current.gateways.finxpay,
+        ...(newConfig.gateways?.finxpay || {}),
       },
     },
   };

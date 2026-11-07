@@ -130,6 +130,29 @@ export async function POST(req: Request) {
             console.warn('[VPAY Confirm Error]:', e.message);
           }
         }
+      } else if (gatewayUsed === 'finxpay') {
+        const apiKey = gatewayConfig.gateways.finxpay?.apiKey || process.env.FINXPAY_API_KEY || 'finx_live_f370bb233514c09f25e3cceca69f571d64e9bcf5db68c1c1e4bcef5d3fa87fb8';
+        const baseUrl = gatewayConfig.gateways.finxpay?.baseUrl || process.env.FINXPAY_BASE_URL || 'https://finxpay.tech';
+
+        if (apiKey) {
+          try {
+            const checkRes = await fetch(`${baseUrl}/api/pix/${encodeURIComponent(transactionId)}`, {
+              headers: {
+                'x-api-key': apiKey,
+                'Content-Type': 'application/json'
+              }
+            });
+
+            if (checkRes.ok) {
+              txData = await checkRes.json();
+              txStatus = String(txData.status || '').toUpperCase();
+              isPaid = txStatus === 'CONFIRMED' || txStatus === 'PAID' || txStatus === 'COMPLETED' || Boolean(txData.paid_at);
+              txData.amount = parseFloat(txData.amount || '0') || txData.net_amount || txData.amount;
+            }
+          } catch (e: any) {
+            console.warn('[FINXPAY Confirm Error]:', e.message);
+          }
+        }
       } else {
         const sigiloPublicKey = gatewayConfig.gateways.sigilopay.publicKey || process.env.SIGILOPAY_PUBLIC_KEY || 'kaiofredy2908_1cmq6fd3bmq2s24u';
         const sigiloSecretKey = gatewayConfig.gateways.sigilopay.secretKey || process.env.SIGILOPAY_SECRET_KEY || 'tzlk0xxe8t4dybi2t0o1udw1ckczp01a4a9hbgptalozcan5hh0r59qw41seo3ze';
